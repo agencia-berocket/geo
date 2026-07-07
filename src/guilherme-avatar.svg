@@ -1,0 +1,147 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800">
+  <defs>
+    <!-- Background Golden Hour & Glass Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#141517" />
+      <stop offset="60%" stop-color="#1c1f24" />
+      <stop offset="100%" stop-color="#3a2e2b" /> <!-- Warm gold-brown light bleed -->
+    </linearGradient>
+    
+    <linearGradient id="skinGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3c2f2b" /> <!-- Shadow side -->
+      <stop offset="40%" stop-color="#8c6a5d" />
+      <stop offset="85%" stop-color="#cda08c" />
+      <stop offset="100%" stop-color="#e2b9a7" /> <!-- Highlights -->
+    </linearGradient>
+    
+    <linearGradient id="beardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#181311" />
+      <stop offset="100%" stop-color="#0f0c0b" />
+    </linearGradient>
+
+    <linearGradient id="hairGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c1614" />
+      <stop offset="70%" stop-color="#100d0c" />
+      <stop offset="100%" stop-color="#2c1f1b" /> <!-- Warm rim highlights on hair -->
+    </linearGradient>
+
+    <linearGradient id="hoodieGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a1c1e" />
+      <stop offset="100%" stop-color="#0e0f10" />
+    </linearGradient>
+
+    <!-- Warm Golden Hour Sun Bleed -->
+    <radialGradient id="sunBleed" cx="85%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffe3cf" stop-opacity="0.35" />
+      <stop offset="40%" stop-color="#f39c63" stop-opacity="0.15" />
+      <stop offset="100%" stop-color="#141517" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="800" fill="url(#bgGrad)" />
+  
+  <!-- Subtle horizontal window reflection grid -->
+  <g stroke="#ffffff" stroke-width="45" opacity="0.04">
+    <line x1="-100" y1="200" x2="900" y2="250" />
+    <line x1="-100" y1="380" x2="900" y2="430" />
+    <line x1="-100" y1="560" x2="900" y2="610" />
+  </g>
+  <g stroke="#ffffff" stroke-width="60" opacity="0.02">
+    <line x1="250" y1="-100" x2="300" y2="900" />
+    <line x1="550" y1="-100" x2="600" y2="900" />
+  </g>
+
+  <!-- Golden hour radial bleed -->
+  <rect width="800" height="800" fill="url(#sunBleed)" />
+
+  <!-- Main Character Group -->
+  <g id="guilherme-character" transform="translate(0, 40)">
+    <!-- Shoulders & Hoodie -->
+    <path d="M 120 760 Q 200 500 350 490 L 450 490 Q 600 500 680 760 Z" fill="url(#hoodieGrad)" />
+    <!-- Hoodie details: Drawstrings & Zipper path -->
+    <path d="M 370 490 C 370 540, 350 620, 340 680" stroke="#25282c" stroke-width="6" fill="none" stroke-linecap="round" />
+    <path d="M 430 490 C 430 540, 450 620, 460 680" stroke="#25282c" stroke-width="6" fill="none" stroke-linecap="round" />
+    <circle cx="340" cy="680" r="7" fill="#3a3e45" />
+    <circle cx="460" cy="680" r="7" fill="#3a3e45" />
+    
+    <!-- Neck -->
+    <path d="M 330 380 L 330 500 L 470 500 L 470 380 Z" fill="#4d3b35" />
+    <!-- Neck shadow under beard -->
+    <path d="M 330 380 Q 400 450 470 380 L 470 420 Q 400 470 330 420 Z" fill="#2d1d19" opacity="0.8" />
+
+    <!-- Head / Face base -->
+    <!-- The face is looking slightly left (viewer's left, his right), meaning three-quarters profile view -->
+    <path d="M 290 280 C 290 150, 510 150, 510 280 C 510 390, 480 430, 400 430 C 320 430, 290 390, 290 280 Z" fill="url(#skinGrad)" />
+    
+    <!-- Ears -->
+    <path d="M 280 270 C 270 260, 275 300, 290 295 Z" fill="#584139" />
+    <path d="M 515 270 C 525 260, 520 300, 510 295 Z" fill="#b0816f" />
+
+    <!-- Forehead Highlight / Rim Light shadow -->
+    
+    <!-- Eyes and Eyebrows -->
+    <!-- Left Eye (Shadowed) -->
+    <path d="M 320 250 Q 340 240 355 252" stroke="#161211" stroke-width="6" fill="none" stroke-linecap="round" />
+    <path d="M 325 262 Q 338 258 350 262" stroke="#161211" stroke-width="3" fill="none" stroke-linecap="round" />
+    <!-- Right Eye (Highlighted) -->
+    <path d="M 430 250 Q 455 240 475 252" stroke="#161211" stroke-width="6" fill="none" stroke-linecap="round" />
+    <path d="M 435 262 Q 453 258 470 262" stroke="#161211" stroke-width="3" fill="none" stroke-linecap="round" />
+    
+    <!-- Pupil details, looking slightly right -->
+    <circle cx="342" cy="261" r="4.5" fill="#1c1614" />
+    <circle cx="457" cy="261" r="4.5" fill="#1c1614" />
+    <circle cx="459" cy="259" r="1.5" fill="#ffffff" /> <!-- highlight -->
+
+    <!-- Nose -->
+    <path d="M 390 245 L 385 320 Q 385 330 398 330 Q 410 330 405 320 Z" fill="none" stroke="#2a1e1a" stroke-width="3" stroke-linecap="round" />
+    <!-- Nose Shadow side (left) -->
+    <path d="M 375 250 L 385 315 L 395 320 Z" fill="#31221e" opacity="0.3" />
+
+    <!-- SEPTUM PIERCING (silver nose ring) -->
+    <!-- Centered at the base of the nose, looping downwards -->
+    <path d="M 391 326 A 10 10 0 1 0 403 326" fill="none" stroke="#e2e8f0" stroke-width="4.5" stroke-linecap="round" />
+    <circle cx="391" cy="326" r="2" fill="#94a3b8" />
+    <circle cx="403" cy="326" r="2" fill="#94a3b8" />
+    <circle cx="397" cy="334" r="1.5" fill="#ffffff" /> <!-- shiny metal dot -->
+
+    <!-- Mouth & Mustache -->
+    <!-- The beard covers much of it. Let's draw mustache first -->
+    <path d="M 350 335 Q 395 330 400 350 Q 405 330 450 335 Q 400 365 350 335 Z" fill="url(#beardGrad)" />
+    <!-- Mouth line -->
+    <path d="M 370 362 Q 400 366 430 362" stroke="#0e0a09" stroke-width="3.5" fill="none" />
+
+    <!-- Beard - covers jawline and cheeks -->
+    <!-- Very full, neat beard from ears down to chin -->
+    <path d="M 290 280 
+             C 285 350, 310 425, 360 440 
+             C 385 447, 415 447, 440 440 
+             C 490 425, 515 350, 510 280 
+             C 500 320, 480 395, 440 405 
+             C 415 411, 385 411, 360 405 
+             C 320 395, 300 320, 290 280 Z" fill="url(#beardGrad)" />
+             
+    <!-- Cheeks shadow blend -->
+    <path d="M 290 280 C 295 320, 320 380, 360 405 C 320 380, 298 320, 290 280 Z" fill="#1c1311" opacity="0.6" />
+    <path d="M 510 280 C 505 320, 480 380, 440 405 C 480 380, 502 320, 510 280 Z" fill="#1c1311" opacity="0.3" />
+
+    <!-- Hair -->
+    <!-- Stylish, neat volumized dark hair. Swipes up and slightly right. -->
+    <path d="M 285 240 
+             C 275 210, 290 150, 340 120 
+             C 390 90, 450 100, 490 135 
+             C 520 160, 525 210, 515 245 
+             C 518 200, 495 140, 450 135 
+             C 400 130, 330 140, 295 210
+             C 290 220, 287 230, 285 240 Z" fill="url(#hairGrad)" />
+
+    <!-- Hair details / strands to make it extremely premium -->
+    <path d="M 305 185 Q 350 135 410 135" fill="none" stroke="#362924" stroke-width="4" stroke-linecap="round" opacity="0.7" />
+    <path d="M 330 160 Q 380 125 440 135" fill="none" stroke="#483730" stroke-width="4" stroke-linecap="round" opacity="0.6" />
+    <path d="M 370 130 Q 420 115 470 145" fill="none" stroke="#5d483f" stroke-width="3" stroke-linecap="round" opacity="0.5" />
+    
+    <!-- Warm rim light highlight on the right side of hair and shoulder -->
+    <path d="M 480 140 Q 515 180 512 240" fill="none" stroke="#fca876" stroke-width="5" stroke-linecap="round" opacity="0.45" />
+    <path d="M 580 580 Q 640 680 660 760" fill="none" stroke="#fca876" stroke-width="4" stroke-linecap="round" opacity="0.25" />
+  </g>
+</svg>

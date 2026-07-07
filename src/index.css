@@ -1,0 +1,166 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom animations and scroll styles */
+html {
+  scroll-behavior: smooth;
+  background-color: #f4f5f8;
+  color: #0c0d0e;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f4f5f8;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Hide scrollbar for marquee sliders */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Base style resets */
+body {
+  font-family: var(--font-sans);
+  background-color: #f4f5f8;
+  color: #0c0d0e;
+  overflow-x: hidden;
+}
+
+::selection {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+/* 
+=========================================
+TACTILE CLAYMORPHIC & NEUMORPHIC SYSTEM 
+=========================================
+*/
+
+/* Tactile Raised Panel - Image 6 & 8 style */
+.tactile-raised {
+  background: #fdfefe;
+  box-shadow: 
+    0px 1px 2px rgba(0, 0, 0, 0.02),
+    8px 12px 28px -4px rgba(13, 20, 33, 0.06),
+    -8px -8px 24px -2px rgba(255, 255, 255, 0.95),
+    inset 1px 1px 0px rgba(255, 255, 255, 0.9),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 24px;
+}
+
+.tactile-raised-hover {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tactile-raised-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    0px 2px 4px rgba(0, 0, 0, 0.01),
+    12px 20px 36px -6px rgba(13, 20, 33, 0.08),
+    -12px -12px 32px -4px rgba(255, 255, 255, 0.98),
+    inset 2px 2px 0px rgba(255, 255, 255, 0.95),
+    inset -2px -2px 3px rgba(0, 0, 0, 0.015);
+}
+
+/* Tactile Sunken / Depressed Panel - Image 3 & 7 style */
+.tactile-sunken {
+  background: #f1f2f5;
+  box-shadow: 
+    inset 4px 4px 10px rgba(13, 20, 33, 0.05),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.9),
+    0px 1px 2px rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.015);
+}
+
+/* Tactile Active Pressed */
+.tactile-pressed {
+  box-shadow: 
+    inset 2px 2px 6px rgba(13, 20, 33, 0.04),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.8),
+    0px 1px 1px rgba(255, 255, 255, 0.5);
+  background: #f5f6f9;
+}
+
+/* 
+=========================================
+3D EXTRUDED TYPOGRAPHY (text-shadow play)
+=========================================
+*/
+
+/* Raised 3D Letters - Image 1 (KING) & Image 8 (BUILD) style */
+.text-tactile-3d {
+  color: #fcfdfe;
+  text-shadow: 
+    1px 1px 0px rgba(255, 255, 255, 0.9),
+    2px 2px 2px rgba(13, 20, 33, 0.02),
+    4px 6px 12px rgba(13, 20, 33, 0.06),
+    8px 12px 24px rgba(13, 20, 33, 0.04),
+    16px 24px 48px rgba(13, 20, 33, 0.03);
+}
+
+/* Raised Dark 3D Letters */
+.text-tactile-3d-dark {
+  color: #18181b;
+  text-shadow: 
+    1px 1px 0px rgba(255, 255, 255, 0.4),
+    3px 3px 6px rgba(13, 20, 33, 0.12),
+    6px 8px 14px rgba(13, 20, 33, 0.08),
+    12px 16px 28px rgba(13, 20, 33, 0.04);
+}
+
+/* Carved / Engraved Debossed Letters - Image 2 style */
+.text-tactile-carved {
+  color: #f1f2f5;
+  text-shadow: 
+    -1px -1px 1px rgba(0, 0, 0, 0.08),
+    1px 1px 1px rgba(255, 255, 255, 0.95);
+}
+
+/* 
+=========================================
+TECHNICAL BLUEPRINT ELEMENTS
+=========================================
+*/
+
+/* Blueprint hair-line grids - Combined to keep them strictly behind content */
+.grid-blueprint {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.015) 1px, transparent 1px),
+    linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
+  background-size: 8px 8px, 8px 8px, 40px 40px, 40px 40px;
+  position: relative;
+}
+
+/* Technical stats report block */
+.tech-report-box {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.4;
+  color: #64748b;
+  border-left: 1px solid #cbd5e1;
+  padding-left: 8px;
+}
+
+

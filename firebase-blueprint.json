@@ -1,0 +1,52 @@
+{
+  "entities": {
+    "CalendarAvailability": {
+      "title": "Calendar Availability",
+      "description": "Publicly cached list of busy timeslots on Guilherme's calendar",
+      "type": "object",
+      "properties": {
+        "busySlots": {
+          "type": "array",
+          "description": "List of busy intervals"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedBy": {
+          "type": "string"
+        }
+      },
+      "required": ["busySlots", "lastUpdated"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Meeting appointment made by a client",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "company": { "type": "string" },
+        "url": { "type": "string" },
+        "notes": { "type": "string" },
+        "date": { "type": "string" },
+        "slot": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "synced": { "type": "boolean" },
+        "meetLink": { "type": "string" },
+        "googleEventId": { "type": "string" }
+      },
+      "required": ["name", "email", "company", "url", "date", "slot", "createdAt", "synced"]
+    }
+  },
+  "firestore": {
+    "/settings/{settingId}": {
+      "schema": "CalendarAvailability",
+      "description": "Global configuration and sync caches"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Client meeting bookings"
+    }
+  }
+}

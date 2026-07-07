@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is Guilherme (the Admin)
+    function isAdmin() {
+      return request.auth != null && 
+        (request.auth.token.email == 'berocket@berocket.com.br' || 
+         request.auth.token.email == 'workflows.berocket@gmail.com');
+    }
+
+    // Settings collection (holds calendar_availability)
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}
