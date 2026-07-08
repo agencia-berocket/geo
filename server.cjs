@@ -924,6 +924,11 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
         return res.status(400).json({ error: `Agente desconhecido: ${agentName}` });
     }
 
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── NEWSLETTER CAPTURE ───────────────────────────────────────────────────
 app.post('/api/leads/newsletter', async (req, res) => {
@@ -1149,6 +1154,11 @@ app.post('/api/admin/agents/configs', verifyAdminToken, async (req, res) => {
       });
     }
 
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── READ PHYSICAL AGENT MARKDOWN FILES ───────────────────────────────────
 app.get('/api/admin/agents/files', verifyAdminToken, async (req, res) => {
@@ -1200,12 +1210,11 @@ app.post('/api/admin/agents/git/sync', verifyAdminToken, async (req, res) => {
   const { exec } = require('child_process');
   
   try {
-    const cmd = 'git add Base/Estrutura\\ de\\ Agentes/*.md && git commit -m "chore(agents): update agent markdown configs from admin panel" && git push origin main';
+    const cmd = 'git add Base/Estrutura\\ de\\ Agentes/*.md Base/Agentes/**/*.md && git commit -m "chore(agents): update agent markdown configs from admin panel" && git push origin main';
     
     exec(cmd, { cwd: __dirname }, (error, stdout, stderr) => {
       if (error) {
         console.error('Git sync error:', error, stderr);
-        // Even if commit fails (e.g. no changes), don't necessarily crash
         if (stderr.includes('nothing to commit') || stdout.includes('nothing to commit')) {
           return res.json({ success: true, message: 'Já está sincronizado com o GitHub (sem alterações).' });
         }
@@ -1214,6 +1223,186 @@ app.post('/api/admin/agents/git/sync', verifyAdminToken, async (req, res) => {
       
       res.json({ success: true, message: 'Arquivos sincronizados com sucesso no GitHub!', output: stdout });
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET INDIVIDUAL AGENT FILES ───────────────────────────────────────────
+app.get('/api/admin/agents/:agentId/files', verifyAdminToken, async (req, res) => {
+  const { agentId } = req.params;
+  const safeAgentId = path.basename(agentId);
+  const agentDir = path.join(__dirname, 'Base', 'Agentes', safeAgentId);
+  
+  const expectedFiles = [
+    'SOUL.md',
+    'IDENTITY.md',
+    'USER.md',
+    'AGENTS.md',
+    'MAPA.md',
+    'memory/MEMORY.md',
+    'skills/SKILL.md'
+  ];
+
+  try {
+    const files = [];
+    for (const relPath of expectedFiles) {
+      const filePath = path.join(agentDir, relPath);
+      let content = '';
+      try {
+        content = await fs.promises.readFile(filePath, 'utf8');
+      } catch (err) {
+        content = `# ${path.basename(relPath)}\n\nArquivo de configuração do agente ${agentId}.`;
+      }
+      files.push({ filename: relPath, content });
+    }
+    res.json({ success: true, files });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SAVE INDIVIDUAL AGENT FILE ───────────────────────────────────────────
+app.post('/api/admin/agents/:agentId/files/save', verifyAdminToken, async (req, res) => {
+  const { agentId } = req.params;
+  const { filename, content } = req.body;
+  
+  if (!filename || content === undefined) {
+    return res.status(400).json({ error: 'Nome do arquivo e conteúdo são obrigatórios' });
+  }
+
+  const safeAgentId = path.basename(agentId);
+  const cleanFilename = filename.replace(/\.\./g, '');
+  const filePath = path.join(__dirname, 'Base', 'Agentes', safeAgentId, cleanFilename);
+
+  try {
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, content, 'utf8');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── CHAT WITH AGENT ──────────────────────────────────────────────────────
+app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
+  const { clientId, agentName, message, history = [] } = req.body;
+  if (!agentName || !message) {
+    return res.status(400).json({ error: 'Agente e mensagem são obrigatórios' });
+  }
+
+  try {
+    const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+    if (!openrouterKey) {
+      return res.status(500).json({ error: 'OPENROUTER_API_KEY não configurada no servidor' });
+    }
+
+    const safeAgentName = path.basename(agentName);
+    const agentDir = path.join(__dirname, 'Base', 'Agentes', safeAgentName);
+
+    let soulContent = '';
+    let identityContent = '';
+    try {
+      soulContent = await fs.promises.readFile(path.join(agentDir, 'SOUL.md'), 'utf8');
+      identityContent = await fs.promises.readFile(path.join(agentDir, 'IDENTITY.md'), 'utf8');
+    } catch {}
+
+    let systemPrompt = `Você é o agente especialista: ${agentName.toUpperCase()} da equipe b.rocket.\n`;
+    if (soulContent) systemPrompt += `\nDiretrizes de Comportamento (SOUL.md):\n${soulContent}\n`;
+    if (identityContent) systemPrompt += `\nPapel Funcional e Responsabilidades (IDENTITY.md):\n${identityContent}\n`;
+
+    if (clientId) {
+      try {
+        const accessToken = await getGoogleAccessToken();
+        const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
+        const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        const data = await response.json();
+
+        function fromFirestoreValue(val) {
+          if (!val) return null;
+          if ('stringValue' in val) return val.stringValue;
+          if ('integerValue' in val) return parseInt(val.integerValue);
+          if ('doubleValue' in val) return val.doubleValue;
+          if ('booleanValue' in val) return val.booleanValue;
+          if ('nullValue' in val) return null;
+          if ('arrayValue' in val) return (val.arrayValue?.values || []).map(fromFirestoreValue);
+          if ('mapValue' in val) {
+            const result = {};
+            for (const [k, v] of Object.entries(val.mapValue?.fields || {})) {
+              result[k] = fromFirestoreValue(v);
+            }
+            return result;
+          }
+          return null;
+        }
+
+        let diagnostic = null;
+        for (const doc of (data.documents || [])) {
+          const diag = {};
+          for (const [k, v] of Object.entries(doc.fields || {})) {
+            diag[k] = fromFirestoreValue(v);
+          }
+          if (diag.clientId === clientId || diag.leadId === clientId) {
+            diagnostic = diag;
+            break;
+          }
+        }
+
+        if (diagnostic) {
+          systemPrompt += `\nContexto do Cliente em Análise:\n`;
+          systemPrompt += `- URL: ${diagnostic.clientUrl}\n`;
+          systemPrompt += `- b.rocket GEO-Score Geral: ${diagnostic.overallGeoScore}%\n`;
+          
+          if (safeAgentName === 'orchestrator' || safeAgentName === 'gatekeeper') {
+            systemPrompt += `\nStatus do Gatekeeper Técnico:\n${JSON.stringify(diagnostic.gatekeeperStatus, null, 2)}\n`;
+          }
+          if (safeAgentName === 'orchestrator' || safeAgentName === 'metadata') {
+            systemPrompt += `\nAnálise de Metadados JSON-LD:\n${JSON.stringify(diagnostic.metadataAnalysis, null, 2)}\n`;
+          }
+          if (safeAgentName === 'orchestrator' || safeAgentName === 'content') {
+            systemPrompt += `\nRevisão de Conteúdo (Princeton):\n${JSON.stringify(diagnostic.contentReview, null, 2)}\n`;
+          }
+          if (safeAgentName === 'orchestrator' || safeAgentName === 'intent') {
+            systemPrompt += `\nVisibilidade e Citation Share nas IAs:\n${JSON.stringify(diagnostic.visibilityBenchmarking, null, 2)}\n`;
+          }
+          systemPrompt += `\nPlano de Ação Priorizado de Implantação:\n${JSON.stringify(diagnostic.actionItemsPriorityList, null, 2)}\n`;
+        }
+      } catch (e) {
+        console.error('Erro ao ler diagnóstico do cliente para chat:', e);
+      }
+    }
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...history,
+      { role: 'user', content: message }
+    ];
+
+    const body = JSON.stringify({
+      model: 'google/gemini-flash-1.5',
+      messages,
+      max_tokens: 1000,
+      temperature: 0.5,
+    });
+
+    const resUrl = await fetchUrl('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openrouterKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://geo.berocket.com.br',
+        'X-Title': 'b.rocket Chat Admin',
+      },
+      body,
+    });
+
+    const parsed = JSON.parse(resUrl.body);
+    if (parsed.error) {
+      return res.status(500).json({ error: parsed.error.message });
+    }
+
+    const reply = parsed.choices?.[0]?.message?.content || 'Não consegui formular uma resposta.';
+    res.json({ success: true, reply });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

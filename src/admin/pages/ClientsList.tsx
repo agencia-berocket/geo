@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useClients, type Client } from '../hooks/useFirestore';
 
 interface ClientsListProps {
@@ -29,13 +29,41 @@ const agents: Array<{ id: AgentName; icon: string; name: string; description: st
   { id: 'intent', icon: '🔍', name: 'Intent Prompt', description: 'Citation Share via OpenRouter' },
 ];
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () => void }) {
   const { runAgentForClient } = useClients();
   const [activeAgent, setActiveAgent] = useState<AgentName>('orchestrator');
+  const [activeTab, setActiveTab] = useState<'run' | 'chat'>('run');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [url, setUrl] = useState(client.url);
   const [logs, setLogs] = useState<string[]>([]);
+
+  // Chat states (mapped per agent)
+  const [chats, setChats] = useState<Record<AgentName, ChatMessage[]>>({
+    orchestrator: [],
+    gatekeeper: [],
+    metadata: [],
+    content: [],
+    intent: [],
+  });
+  const [inputMessage, setInputMessage] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chats, activeAgent, activeTab]);
 
   const handleRunAgent = async () => {
     setRunning(true);
@@ -52,7 +80,62 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
     }
   };
 
+  const handleSendChatMessage = async () => {
+    if (!inputMessage.trim() || chatLoading) return;
+
+    const userText = inputMessage;
+    setInputMessage('');
+    setChatError(null);
+
+    // Append user message immediately
+    const userMsg: ChatMessage = { role: 'user', content: userText };
+    setChats(prev => ({
+      ...prev,
+      [activeAgent]: [...prev[activeAgent], userMsg]
+    }));
+
+    setChatLoading(true);
+
+    try {
+      // Build conversation history format for API (history expected as OpenAI messages style)
+      const currentHistory = chats[activeAgent].map(msg => ({
+        role: msg.role === 'assistant' ? 'assistant' : 'user',
+        content: msg.content
+      }));
+
+      const res = await fetch('/api/admin/chat/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+        },
+        body: JSON.stringify({
+          clientId: client.id,
+          agentName: activeAgent,
+          message: userText,
+          history: currentHistory
+        })
+      });
+
+      const data = await res.json();
+      if (data.success && data.reply) {
+        const assistantMsg: ChatMessage = { role: 'assistant', content: data.reply };
+        setChats(prev => ({
+          ...prev,
+          [activeAgent]: [...prev[activeAgent], assistantMsg]
+        }));
+      } else {
+        setChatError(data.error || 'Erro ao obter resposta da LLM.');
+      }
+    } catch (e: any) {
+      setChatError(`Erro de rede: ${e.message}`);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   const currentAgent = agents.find(a => a.id === activeAgent)!;
+  const currentChatMessages = chats[activeAgent];
 
   return (
     <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-auto">
@@ -71,14 +154,14 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
           </span>
         </div>
 
-        <div className="flex divide-x divide-zinc-200/60 flex-1 min-h-[450px]">
+        <div className="flex divide-x divide-zinc-200/60 flex-1 min-h-[480px]">
           {/* Agent tabs */}
           <div className="w-60 flex-shrink-0 pr-4 space-y-2">
             {agents.map(agent => (
               <button
                 key={agent.id}
                 id={`agent-tab-${agent.id}`}
-                onClick={() => { setActiveAgent(agent.id); setResult(null); setLogs([]); }}
+                onClick={() => { setActiveAgent(agent.id); setResult(null); setLogs([]); setChatError(null); }}
                 className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all cursor-pointer ${
                   activeAgent === agent.id
                     ? 'bg-zinc-950 text-white shadow-md'
@@ -96,67 +179,135 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
 
           {/* Agent workspace */}
           <div className="flex-1 pl-6 space-y-4 flex flex-col">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">{currentAgent.icon}</span>
-              <div>
-                <h3 className="text-zinc-900 font-display font-bold text-base">{currentAgent.name}</h3>
-                <p className="text-zinc-500 text-xs font-medium">{currentAgent.description}</p>
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{currentAgent.icon}</span>
+                <div>
+                  <h3 className="text-zinc-900 font-display font-bold text-base">{currentAgent.name}</h3>
+                  <p className="text-zinc-500 text-xs font-medium">{currentAgent.description}</p>
+                </div>
+              </div>
+
+              {/* View Switcher */}
+              <div className="flex bg-zinc-200/60 p-1 rounded-xl text-xs font-semibold">
+                <button 
+                  onClick={() => setActiveTab('run')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'run' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-550 hover:text-zinc-800'}`}
+                >
+                  🚀 Executar Diagnóstico
+                </button>
+                <button 
+                  onClick={() => setActiveTab('chat')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'chat' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-550 hover:text-zinc-800'}`}
+                >
+                  💬 Chat 360 (IA)
+                </button>
               </div>
             </div>
 
-            {/* URL input */}
-            <div>
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">URL do cliente</label>
-              <input
-                value={url}
-                onChange={e => setUrl(e.target.value)}
-                className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-800 focus:outline-none focus:border-zinc-900 shadow-inner"
-                placeholder="https://www.cliente.com.br"
-              />
-            </div>
+            {/* TAB: RUN */}
+            {activeTab === 'run' && (
+              <div className="space-y-4 flex-1 flex flex-col">
+                <div>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1">URL do cliente</label>
+                  <input
+                    value={url}
+                    onChange={e => setUrl(e.target.value)}
+                    className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-800 focus:outline-none focus:border-zinc-900 shadow-inner"
+                    placeholder="https://www.cliente.com.br"
+                  />
+                </div>
 
-            {/* Run button */}
-            <button
-              id={`run-agent-${activeAgent}`}
-              onClick={handleRunAgent}
-              disabled={running}
-              className="w-fit flex items-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
-            >
-              {running ? '⏳ Executando agente...' : `▶ Executar ${currentAgent.name}`}
-            </button>
+                <button
+                  id={`run-agent-${activeAgent}`}
+                  onClick={handleRunAgent}
+                  disabled={running}
+                  className="w-fit flex items-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
+                >
+                  {running ? '⏳ Executando agente...' : `▶ Executar ${currentAgent.name}`}
+                </button>
 
-            {/* Logs */}
-            {logs.length > 0 && (
-              <div className="tactile-sunken rounded-xl p-3 font-mono text-[10px] space-y-1 bg-zinc-50 text-zinc-600">
-                {logs.map((log, i) => (
-                  <p key={i}>{log}</p>
-                ))}
-                {running && <p className="text-zinc-900 animate-pulse font-bold">▌ aguardando resposta...</p>}
+                {logs.length > 0 && (
+                  <div className="tactile-sunken rounded-xl p-3 font-mono text-[10px] space-y-1 bg-zinc-50 text-zinc-600">
+                    {logs.map((log, i) => (
+                      <p key={i}>{log}</p>
+                    ))}
+                    {running && <p className="text-zinc-900 animate-pulse font-bold">▌ aguardando resposta...</p>}
+                  </div>
+                )}
+
+                {result && (
+                  <div className="space-y-2 flex-1 flex flex-col">
+                    <h4 className="text-zinc-800 font-bold font-display text-sm">Resultado do Agente</h4>
+                    <div className="tactile-sunken rounded-xl p-4 bg-white/70 overflow-auto max-h-60 flex-1 font-mono text-xs text-zinc-700">
+                      <pre className="whitespace-pre-wrap">{JSON.stringify(result, null, 2)}</pre>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* Result */}
-            {result && (
-              <div className="space-y-2 flex-1 flex flex-col">
-                <h4 className="text-zinc-800 font-bold font-display text-sm">Resultado do Agente</h4>
-                <div className="tactile-sunken rounded-xl p-4 bg-white/70 overflow-auto max-h-60 flex-1 font-mono text-xs text-zinc-700">
-                  <pre className="whitespace-pre-wrap">
-                    {JSON.stringify(result, null, 2)}
-                  </pre>
+            {/* TAB: CHAT 360 */}
+            {activeTab === 'chat' && (
+              <div className="flex-1 flex flex-col bg-zinc-250/30 rounded-2xl border border-zinc-200 overflow-hidden min-h-[350px]">
+                {/* Messages Box */}
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[360px]">
+                  {currentChatMessages.length === 0 ? (
+                    <div className="text-center py-12 text-zinc-400 space-y-2">
+                      <p className="text-2xl">🤖</p>
+                      <p className="text-xs font-bold font-display">Inicie a conversa com o {currentAgent.name}</p>
+                      <p className="text-[10px] max-w-sm mx-auto font-medium text-zinc-400 leading-relaxed">
+                        Tire dúvidas sobre o diagnóstico do cliente, pergunte sobre estratégias recomendadas ou peça ajuda sobre a implantação GEO neste domínio.
+                      </p>
+                    </div>
+                  ) : (
+                    currentChatMessages.map((msg, idx) => (
+                      <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-xs border leading-relaxed ${
+                          msg.role === 'user'
+                            ? 'bg-zinc-950 text-white border-zinc-900'
+                            : 'bg-white text-zinc-850 border-zinc-250/50'
+                        }`}>
+                          <p className="font-semibold text-[9px] uppercase tracking-wider mb-1 opacity-70">
+                            {msg.role === 'user' ? 'Você' : currentAgent.name}
+                          </p>
+                          <p className="whitespace-pre-wrap">{msg.content}</p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border border-zinc-250/50 text-zinc-550 rounded-2xl px-4 py-3 text-xs shadow-xs animate-pulse">
+                        ⌛ {currentAgent.name} está analisando o contexto e respondendo...
+                      </div>
+                    </div>
+                  )}
+                  {chatError && (
+                    <div className="text-center text-[10px] text-red-650 bg-red-50/50 border border-red-200 rounded-xl p-2.5">
+                      ⚠️ {chatError}
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
                 </div>
 
-                {/* Specific outputs per agent */}
-                {activeAgent === 'metadata' && (result as any).llmsTxt && (
-                  <div className="mt-3">
-                    <h5 className="text-zinc-400 font-bold text-[10px] uppercase block mb-1">📄 /llms.txt Gerado</h5>
-                    <div className="tactile-sunken rounded-xl p-3 bg-white/60">
-                      <pre className="text-xs text-zinc-800 font-mono whitespace-pre-wrap">{(result as any).llmsTxt}</pre>
-                    </div>
-                    <button className="mt-2 text-xs bg-white hover:bg-zinc-50 text-zinc-700 border border-zinc-200 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer">
-                      📋 Copiar llms.txt
-                    </button>
-                  </div>
-                )}
+                {/* Input Area */}
+                <div className="p-3 bg-white border-t border-zinc-250/50 flex gap-2">
+                  <input
+                    value={inputMessage}
+                    onChange={e => setInputMessage(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleSendChatMessage(); }}
+                    placeholder={`Pergunte algo sobre este cliente para o ${currentAgent.name}...`}
+                    className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                  <button
+                    onClick={handleSendChatMessage}
+                    disabled={chatLoading}
+                    className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    Enviar
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -288,4 +439,3 @@ export default function ClientsList({ onNavigate }: ClientsListProps) {
     </div>
   );
 }
-
