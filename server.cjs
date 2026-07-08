@@ -270,9 +270,7 @@ app.post('/api/calendar/book', async (req, res) => {
           start: [year, monthNum, dateDay, startHours, startMinutes],
           end: [year, monthNum, dateDay, endHours, endMinutes],
           title: `Mentoria b.rocket: Diagnóstico GEO & RAG (${company})`,
-          description: `Sessão estratégica com Guilherme Rossi.\n\nAcesse a sala virtual pelo link do Google Meet: ${meetLink}\n\nRecomendamos acessar com 2 minutos de antecedência.`,
-          location: meetLink,
-          url: meetLink,
+          description: `Sessão estratégica com Guilherme Rossi.\n\nO link oficial do Google Meet será enviado/atualizado pelo Guilherme em breve.`,
           status: 'CONFIRMED',
           busyStatus: 'BUSY',
           organizer: { name: 'Guilherme Rossi (b.rocket)', email: process.env.EMAIL_USER },
@@ -302,10 +300,9 @@ app.post('/api/calendar/book', async (req, res) => {
                 <p style="margin: 0;"><strong>📍 Formato:</strong> Google Meet Video Call</p>
               </div>
               
-              <p style="font-weight: bold;">🔗 Link de Acesso Oficial:</p>
-              <p><a href="${meetLink}" style="color: #dc2626; font-size: 16px;">${meetLink}</a></p>
+              <p><strong>🔗 Link de Acesso:</strong> <em>O link oficial da sala será enviado em breve pelo Guilherme!</em></p>
               <br/>
-              <p><em>(⚠️ O convite do calendário está anexado a este e-mail. Por favor, abra o anexo para adicionar o evento e os lembretes automaticamente à sua agenda!)</em></p>
+              <p><em>(⚠️ O convite do calendário está anexado a este e-mail. Por favor, abra o anexo para adicionar o evento à sua agenda!)</em></p>
               <br/>
               <p style="color: #52525b; font-size: 14px;">Até breve,<br/><strong>Guilherme Rossi</strong><br/>Especialista GEO & RAG | b.rocket</p>
             </div>
@@ -336,7 +333,6 @@ app.post('/api/calendar/book', async (req, res) => {
               <div style="background-color: #fef2f2; padding: 12px; border-left: 4px solid #dc2626; margin: 16px 0;">
                 <p style="margin:0;"><strong>📝 Gargalos/Notas:</strong><br/>${notes || 'Nenhuma observação informada.'}</p>
               </div>
-              <p><strong>🔗 Link do Meet:</strong> <a href="${meetLink}">${meetLink}</a></p>
             </div>
           `
         };
