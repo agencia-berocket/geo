@@ -563,24 +563,19 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     </div>
 
                     <div className="grid grid-cols-4 gap-2">
-                      {TIME_SLOTS.map((slot) => {
-                        const busy = isSlotBusy(slot);
+                      {TIME_SLOTS.filter((slot) => !isSlotBusy(slot)).map((slot) => {
                         const isSelected = selectedSlot === slot;
                         return (
                           <button
                             key={slot}
-                            disabled={busy}
                             onClick={() => setSelectedSlot(slot)}
-                            className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 ${
-                              busy
-                                ? 'bg-zinc-100/60 border-zinc-150 text-zinc-350 cursor-not-allowed line-through'
-                                : isSelected
+                            className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 cursor-pointer ${
+                              isSelected
                                 ? 'bg-red-600 border-red-600 text-white shadow-md'
-                                : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-100 cursor-pointer hover:border-zinc-300'
+                                : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-100 hover:border-zinc-300'
                             }`}
                           >
                             <span>{slot}</span>
-                            {busy && <span className="block text-[8px] text-zinc-400 mt-0.5 leading-none">Ocupado</span>}
                           </button>
                         );
                       })}
