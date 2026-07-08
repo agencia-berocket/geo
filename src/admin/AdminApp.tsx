@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AdminLogin from './AdminLogin';
 import AdminLayout from './AdminLayout';
 import Dashboard from './pages/Dashboard';
@@ -12,6 +12,16 @@ export default function AdminApp() {
   const { user, authState } = useAuth();
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
+
+  // Set browser tab title dynamically
+  useEffect(() => {
+    if (authState === 'authorized') {
+      const pageTitle = currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
+      document.title = `b.rocket Admin // ${pageTitle}`;
+    } else {
+      document.title = 'b.rocket Admin // Restrito';
+    }
+  }, [authState, currentPage]);
 
   const handleNavigate = (page: string, id?: string) => {
     setCurrentPage(page as Page);
