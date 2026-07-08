@@ -146,6 +146,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
   // Load busy timeslots from Google Calendar via backend API
   const loadAvailability = async (date: Date) => {
     setIsLoadingBusy(true);
+    setBusyEvents([]); // Clear busy events immediately so no slots show while loading
     setFetchError(null);
     try {
       const formattedDate = date.toISOString().split('T')[0];
@@ -562,24 +563,35 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-4 gap-2">
-                      {TIME_SLOTS.filter((slot) => !isSlotBusy(slot)).map((slot) => {
-                        const isSelected = selectedSlot === slot;
-                        return (
-                          <button
-                            key={slot}
-                            onClick={() => setSelectedSlot(slot)}
-                            className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 cursor-pointer ${
-                              isSelected
-                                ? 'bg-red-600 border-red-600 text-white shadow-md'
-                                : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-100 hover:border-zinc-300'
-                            }`}
-                          >
-                            <span>{slot}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {isLoadingBusy ? (
+                      <div className="grid grid-cols-4 gap-2">
+                        {[...Array(8)].map((_, i) => (
+                          <div
+                            key={i}
+                            className="py-3.5 rounded-xl border border-zinc-100 bg-zinc-100 animate-pulse h-10"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-2">
+                        {TIME_SLOTS.filter((slot) => !isSlotBusy(slot)).map((slot) => {
+                          const isSelected = selectedSlot === slot;
+                          return (
+                            <button
+                              key={slot}
+                              onClick={() => setSelectedSlot(slot)}
+                              className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-red-600 border-red-600 text-white shadow-md'
+                                  : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-100 hover:border-zinc-300'
+                              }`}
+                            >
+                              <span>{slot}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {bookingError && (
