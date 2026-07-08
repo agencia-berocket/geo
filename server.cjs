@@ -2,11 +2,22 @@ const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const nodemailer = require('nodemailer');
+const ics = require('ics');
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 80;
+
+// Configuração do disparador de e-mails
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 
 // Load Google Service Account credentials with robust sanitization
 let serviceAccount = null;
@@ -247,6 +258,96 @@ app.post('/api/calendar/book', async (req, res) => {
 
     if (!firestoreRes.ok) {
       console.error('Firestore save failed (non-blocking for user):', await firestoreRes.text());
+    }
+
+    // 5. Generate .ics file and Send Emails via Nodemailer
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      try {
+        // Calculate ICS event details
+        const [year, monthNum, dateDay] = date.split('T')[0].split('-').map(Number);
+        
+        const eventDetails = {
+          start: [year, monthNum, dateDay, startHours, startMinutes],
+          end: [year, monthNum, dateDay, endHours, endMinutes],
+          title: `Mentoria b.rocket: Diagnóstico GEO & RAG (${company})`,
+          description: `Sessão estratégica com Guilherme Rossi.\n\nAcesse a sala virtual pelo link do Google Meet: ${meetLink}\n\nRecomendamos acessar com 2 minutos de antecedência.`,
+          location: meetLink,
+          url: meetLink,
+          status: 'CONFIRMED',
+          busyStatus: 'BUSY',
+          organizer: { name: 'Guilherme Rossi (b.rocket)', email: process.env.EMAIL_USER },
+          attendees: [
+            { name: name, email: email, rsvp: true, partstat: 'ACCEPTED', role: 'REQ-PARTICIPANT' }
+          ]
+        };
+
+        const { error, value: icsContent } = ics.createEvent(eventDetails);
+        if (error) {
+          console.error('Erro ao gerar arquivo ICS:', error);
+        }
+
+        // Email para o Cliente
+        const clientMailOptions = {
+          from: `"Guilherme Rossi - b.rocket" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: `[Confirmado] Mentoria Estratégica: GEO & RAG - b.rocket`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #18181b; line-height: 1.6;">
+              <h2 style="color: #09090b; margin-bottom: 16px;">Olá ${name},</h2>
+              <p>Seu agendamento para a <strong>Mentoria Diagnóstica de GEO & RAG</strong> está confirmado!</p>
+              
+              <div style="background-color: #f4f4f5; padding: 16px; border-radius: 8px; margin: 24px 0;">
+                <p style="margin: 0 0 8px 0;"><strong>📅 Data:</strong> ${String(dateDay).padStart(2,'0')}/${String(monthNum).padStart(2,'0')}/${year}</p>
+                <p style="margin: 0 0 8px 0;"><strong>⏰ Horário:</strong> ${slot} (40 minutos)</p>
+                <p style="margin: 0;"><strong>📍 Formato:</strong> Google Meet Video Call</p>
+              </div>
+              
+              <p style="font-weight: bold;">🔗 Link de Acesso Oficial:</p>
+              <p><a href="${meetLink}" style="color: #dc2626; font-size: 16px;">${meetLink}</a></p>
+              <br/>
+              <p><em>(⚠️ O convite do calendário está anexado a este e-mail. Por favor, abra o anexo para adicionar o evento e os lembretes automaticamente à sua agenda!)</em></p>
+              <br/>
+              <p style="color: #52525b; font-size: 14px;">Até breve,<br/><strong>Guilherme Rossi</strong><br/>Especialista GEO & RAG | b.rocket</p>
+            </div>
+          `,
+          attachments: icsContent ? [
+            {
+              filename: 'convite_brocket.ics',
+              content: icsContent,
+              contentType: 'text/calendar; method=REQUEST'
+            }
+          ] : []
+        };
+
+        // Email interno para o Guilherme (Alerta)
+        const internalMailOptions = {
+          from: `"Site b.rocket" <${process.env.EMAIL_USER}>`,
+          to: 'berocket@berocket.com.br',
+          subject: `🚨 NOVO AGENDAMENTO: ${company}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; color: #18181b;">
+              <h2 style="color: #dc2626; border-bottom: 2px solid #dc2626; padding-bottom: 8px;">Novo Agendamento Confirmado!</h2>
+              <p><strong>🏢 Empresa:</strong> ${company}</p>
+              <p><strong>👤 Nome:</strong> ${name}</p>
+              <p><strong>📧 E-mail:</strong> ${email}</p>
+              <p><strong>📱 WhatsApp:</strong> ${whatsapp}</p>
+              <p><strong>🌐 Site:</strong> <a href="${url}">${url}</a></p>
+              <p><strong>📅 Data/Hora:</strong> ${String(dateDay).padStart(2,'0')}/${String(monthNum).padStart(2,'0')}/${year} às ${slot}</p>
+              <div style="background-color: #fef2f2; padding: 12px; border-left: 4px solid #dc2626; margin: 16px 0;">
+                <p style="margin:0;"><strong>📝 Gargalos/Notas:</strong><br/>${notes || 'Nenhuma observação informada.'}</p>
+              </div>
+              <p><strong>🔗 Link do Meet:</strong> <a href="${meetLink}">${meetLink}</a></p>
+            </div>
+          `
+        };
+
+        // Dispara os emails em paralelo de forma não bloqueante
+        transporter.sendMail(clientMailOptions).catch(e => console.error('Erro enviando email cliente:', e));
+        transporter.sendMail(internalMailOptions).catch(e => console.error('Erro enviando alerta interno:', e));
+        
+      } catch (emailProcessError) {
+        console.error('Erro ao processar envio de e-mails:', emailProcessError);
+      }
     }
 
     res.json({
