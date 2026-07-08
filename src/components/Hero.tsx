@@ -28,6 +28,16 @@ export default function Hero() {
     setScanState('scanning');
     setScanStep(0);
 
+    // Register lead in backend asynchronously
+    fetch('/api/leads/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, email, name: '', company: '' }),
+    })
+      .then(res => res.json())
+      .then(data => console.log('Lead registrado:', data))
+      .catch(err => console.error('Erro ao capturar lead:', err));
+
     const interval = setInterval(() => {
       setScanStep((prev) => {
         if (prev >= scanSteps.length - 1) {
@@ -41,6 +51,7 @@ export default function Hero() {
       });
     }, 800);
   };
+
 
   const handleReset = () => {
     setUrl('');

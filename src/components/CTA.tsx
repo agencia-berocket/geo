@@ -102,7 +102,23 @@ export default function CTA() {
     e.preventDefault();
     setDiagnosticStep('scanning');
     setScanProgress(0);
+
+    // Send request to store lead info in the admin dashboard
+    fetch('/api/leads/capture', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url,
+        email,
+        name,
+        company: `${url} (${architecture} - ${scale})`
+      }),
+    })
+      .then(res => res.json())
+      .then(data => console.log('Lead completo capturado:', data))
+      .catch(err => console.error('Erro ao capturar lead completo:', err));
   };
+
 
   // Pre-configured custom results based on user inputs for a highly personalized and complete response
   const getDiagnosticResults = () => {
