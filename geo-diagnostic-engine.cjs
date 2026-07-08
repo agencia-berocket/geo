@@ -261,7 +261,7 @@ async function runContentAgent(htmlContent) {
   const hedgedLanguageScore = Math.min(1, hedgeCount / Math.max(1, totalWords / 500));
 
   // Keyword stuffing detection (same word repeated > 15 times per 1000 words)
-  const wordFreq: Record<string, number> = {};
+  const wordFreq = {};
   words.forEach(w => { const lw = w.toLowerCase(); wordFreq[lw] = (wordFreq[lw] || 0) + 1; });
   const maxFreq = Math.max(...Object.values(wordFreq));
   const keywordStuffingDetected = maxFreq > (totalWords / 50);
@@ -328,9 +328,9 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     `Qual empresa de ${niche} tem melhor reputação e resultados?`,
   ];
 
-  const citationsByModel: Record<string, number> = {};
+  const citationsByModel = {};
   let totalCitations = 0;
-  const competitors = new Set<string>();
+  const competitors = new Set();
   let sentimentTotal = 0;
   let sentimentCount = 0;
 
