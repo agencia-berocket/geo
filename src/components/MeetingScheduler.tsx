@@ -831,7 +831,10 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                       Agendamento Pré-Aprovado!
                     </h3>
                     <p className="text-zinc-500 text-xs md:text-sm font-light max-w-sm mx-auto leading-relaxed">
-                      Seu diagnóstico foi agendado e registrado com sucesso. Guilherme irá validar o briefing e enviar o convite oficial do Google Meet para o e-mail <strong className="text-zinc-900 font-bold">{createdEvent.email}</strong> em instantes!
+                      Seu diagnóstico foi agendado e registrado com sucesso. Enviamos um e-mail de confirmação (com convite de calendário) para <strong className="text-zinc-900 font-bold">{createdEvent.email}</strong>.
+                    </p>
+                    <p className="text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded-lg text-xs font-bold max-w-sm mx-auto flex items-center justify-center gap-2">
+                      ⚠️ Verifique sua caixa de SPAM / Lixo Eletrônico!
                     </p>
                   </div>
 
