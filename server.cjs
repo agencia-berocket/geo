@@ -161,12 +161,21 @@ app.post('/api/calendar/book', async (req, res) => {
   try {
     const accessToken = await getGoogleAccessToken();
 
-    // 1. Calculate start and end times
-    const [hours, minutes] = slot.split(':').map(Number);
-    const start = new Date(date);
-    start.setHours(hours, minutes, 0, 0);
-    const end = new Date(start);
-    end.setMinutes(end.getMinutes() + 40);
+    // 1. Calculate exact local start and end times to avoid timezone shifts (e.g. 17:00 -> 14:00)
+    const dateObj = new Date(date);
+    const yyyy = dateObj.getUTCFullYear();
+    const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+    
+    const [hoursStr, minutesStr] = slot.split(':');
+    const startDateTime = `${yyyy}-${mm}-${dd}T${hoursStr}:${minutesStr}:00`;
+    
+    const startHours = parseInt(hoursStr, 10);
+    const startMinutes = parseInt(minutesStr, 10);
+    const endTotalMinutes = startHours * 60 + startMinutes + 40;
+    const endHours = Math.floor(endTotalMinutes / 60);
+    const endMinutes = endTotalMinutes % 60;
+    const endDateTime = `${yyyy}-${mm}-${dd}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:00`;
 
     // 2. Build Google Calendar Event Payload (no conferenceData - not supported by service accounts on personal Gmail)
     const eventPayload = {
@@ -180,11 +189,11 @@ app.post('/api/calendar/book', async (req, res) => {
                    `• Website: ${url}\n` +
                    `• Notas: ${notes || 'Nenhuma observação.'}`,
       start: {
-        dateTime: start.toISOString(),
+        dateTime: startDateTime,
         timeZone: 'America/Sao_Paulo'
       },
       end: {
-        dateTime: end.toISOString(),
+        dateTime: endDateTime,
         timeZone: 'America/Sao_Paulo'
       }
     };

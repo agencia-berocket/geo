@@ -460,12 +460,14 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     if (!createdEvent) return;
     const dateFormatted = new Date(createdEvent.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
     const text = encodeURIComponent(
-      `Olá Guilherme, acabei de agendar uma Reunião Diagnóstica pelo site!\n\n` +
-      `📅 Data: ${dateFormatted} às ${createdEvent.slot}\n` +
-      `👤 Nome: ${createdEvent.name}\n` +
-      `🏢 Empresa: ${createdEvent.company}\n` +
-      `📧 E-mail: ${createdEvent.email}\n` +
-      `Gostaria de agilizar o envio do link de acesso!`
+      `Olá Guilherme!\n\n` +
+      `Acabei de agendar uma Reunião Diagnóstica pelo site da b.rocket.\n\n` +
+      `Detalhes do agendamento:\n` +
+      `- Nome: ${createdEvent.name}\n` +
+      `- Empresa: ${createdEvent.company}\n` +
+      `- E-mail: ${createdEvent.email}\n` +
+      `- Data: ${dateFormatted} às ${createdEvent.slot}\n\n` +
+      `Gostaria de agilizar o envio do link do Google Meet para nossa sessão.`
     );
     window.open(`https://wa.me/5511940595792?text=${text}`, '_blank');
   };
