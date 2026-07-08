@@ -50,7 +50,12 @@ export default function CTA() {
   };
 
   useEffect(() => {
-    const handleOpenEvent = () => {
+    const handleOpenEvent = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        if (customEvent.detail.url) setUrl(customEvent.detail.url);
+        if (customEvent.detail.email) setEmail(customEvent.detail.email);
+      }
       handleOpenModal();
     };
     window.addEventListener('open-diagnostic-modal', handleOpenEvent);

@@ -23,33 +23,11 @@ export default function Hero() {
     e.preventDefault();
     if (!url || !email) return;
 
-    setScannedUrl(url);
-    setScannedEmail(email);
-    setScanState('scanning');
-    setScanStep(0);
-
-    // Register lead in backend asynchronously
-    fetch('/api/leads/capture', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, email, name: '', company: '' }),
-    })
-      .then(res => res.json())
-      .then(data => console.log('Lead registrado:', data))
-      .catch(err => console.error('Erro ao capturar lead:', err));
-
-    const interval = setInterval(() => {
-      setScanStep((prev) => {
-        if (prev >= scanSteps.length - 1) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setScanState('results');
-          }, 850);
-          return prev;
-        }
-        return prev + 1;
-      });
-    }, 800);
+    // Disparar o evento para abrir o modal de diagnóstico completo com os dados preenchidos
+    const event = new CustomEvent('open-diagnostic-modal', {
+      detail: { url, email }
+    });
+    window.dispatchEvent(event);
   };
 
 
