@@ -108,7 +108,6 @@ export default function CTA() {
     setDiagnosticStep('scanning');
     setScanProgress(0);
 
-    // Send request to store lead info in the admin dashboard
     fetch('/api/leads/capture', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -116,6 +115,9 @@ export default function CTA() {
         url,
         email,
         name,
+        phone,
+        architecture,
+        scale,
         company: `${url} (${architecture} - ${scale})`
       }),
     })

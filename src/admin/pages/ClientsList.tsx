@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useClients, type Client } from '../hooks/useFirestore';
 
 interface ClientsListProps {
@@ -76,7 +76,7 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
     } catch (e: any) {
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ❌ Erro: ${e.message}`]);
     } finally {
-      setRunning(false);
+      running && setRunning(false);
     }
   };
 
@@ -97,7 +97,6 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
     setChatLoading(true);
 
     try {
-      // Build conversation history format for API (history expected as OpenAI messages style)
       const currentHistory = chats[activeAgent].map(msg => ({
         role: msg.role === 'assistant' ? 'assistant' : 'user',
         content: msg.content
@@ -107,7 +106,7 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
+          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
         },
         body: JSON.stringify({
           clientId: client.id,
@@ -149,8 +148,8 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
               <p className="text-zinc-500 text-xs font-medium">Workspace de Agentes GEO — Etapa {client.currentStage}: {stageLabels[client.currentStage]}</p>
             </div>
           </div>
-          <span className={`text-xs px-3 py-1 rounded-xl border font-bold ${planConfig[client.plan].color}`}>
-            {planConfig[client.plan].label}
+          <span className={`text-xs px-3 py-1 rounded-xl border font-bold ${planConfig[client.plan]?.color || ''}`}>
+            {planConfig[client.plan]?.label || client.plan}
           </span>
         </div>
 
@@ -160,7 +159,6 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
             {agents.map(agent => (
               <button
                 key={agent.id}
-                id={`agent-tab-${agent.id}`}
                 onClick={() => { setActiveAgent(agent.id); setResult(null); setLogs([]); setChatError(null); }}
                 className={`flex-shrink-0 w-48 lg:w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all cursor-pointer ${
                   activeAgent === agent.id
@@ -219,7 +217,6 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
                 </div>
 
                 <button
-                  id={`run-agent-${activeAgent}`}
                   onClick={handleRunAgent}
                   disabled={running}
                   className="w-fit flex items-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
@@ -334,14 +331,108 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
   );
 }
 
+// ─── Client Edit Modal ──────────────────────────────────────────────────────
+function ClientEditModal({ client, onSave, onCancel }: { client: Client; onSave: (updated: Partial<Client>) => void; onCancel: () => void }) {
+  const [name, setName] = useState(client.name);
+  const [company, setCompany] = useState(client.company);
+  const [url, setUrl] = useState(client.url);
+  const [email, setEmail] = useState(client.email);
+  const [plan, setPlan] = useState(client.plan);
+  const [currentStage, setCurrentStage] = useState(client.currentStage);
+  const [notes, setNotes] = useState(client.notes || '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({ name, company, url, email, plan, currentStage, notes });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="tactile-raised bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl space-y-4 text-xs">
+        <h3 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">✏️ Editar Cliente</h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-zinc-400 font-bold block">Nome do Responsável</label>
+              <input required value={name} onChange={e => setName(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-zinc-400 font-bold block">E-mail</label>
+              <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-zinc-400 font-bold block">Website URL</label>
+              <input required value={url} onChange={e => setUrl(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-zinc-400 font-bold block">Empresa</label>
+              <input required value={company} onChange={e => setCompany(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-zinc-400 font-bold block">Plano</label>
+              <select value={plan} onChange={e => setPlan(e.target.value as any)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+                <option value="premium">Premium</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-zinc-400 font-bold block">Estágio GEO</label>
+              <select value={currentStage} onChange={e => setCurrentStage(parseInt(e.target.value) as any)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <option key={s} value={s}>Etapa {s} — {stageLabels[s]}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1 col-span-2">
+              <label className="text-zinc-400 font-bold block">Notas / Observações</label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" placeholder="Notas sobre o onboarding e andamento..." />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end pt-2 border-t border-zinc-100">
+            <button type="button" onClick={onCancel} className="px-4 py-2 border border-zinc-200 rounded-xl font-bold cursor-pointer hover:bg-zinc-50">Cancelar</button>
+            <button type="submit" className="px-4 py-2 bg-zinc-950 text-white rounded-xl font-bold cursor-pointer hover:bg-zinc-800">Salvar Alterações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Clients List Page ────────────────────────────────────────────────────────
 export default function ClientsList({ onNavigate }: ClientsListProps) {
-  const { clients, loading, error, fetchClients } = useClients();
+  const { clients, loading, error, fetchClients, editClient, deleteClient } = useClients();
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
 
   useEffect(() => {
     fetchClients();
   }, []);
+
+  const handleSaveClient = async (updatedFields: Partial<Client>) => {
+    if (!editingClient) return;
+    try {
+      const res = await editClient(editingClient.id, updatedFields);
+      if (res.success) {
+        setEditingClient(null);
+        fetchClients();
+      }
+    } catch (err: any) {
+      alert(`Erro ao salvar cliente: ${err.message}`);
+    }
+  };
+
+  const handleDeleteClient = async (e: React.MouseEvent, clientId: string) => {
+    e.stopPropagation();
+    if (!window.confirm('Tem certeza absoluta que deseja excluir este Cliente? Todo o histórico dele será removido.')) return;
+    try {
+      const res = await deleteClient(clientId);
+      if (res.success) {
+        fetchClients();
+      }
+    } catch (err: any) {
+      alert(`Erro ao excluir cliente: ${err.message}`);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -371,70 +462,93 @@ export default function ClientsList({ onNavigate }: ClientsListProps) {
           {clients.map(client => (
             <div
               key={client.id}
-              className="tactile-raised p-6 bg-white/60 hover:scale-[1.01] transition-all duration-200 cursor-pointer group"
+              className="tactile-raised p-6 bg-white/60 hover:scale-[1.01] transition-all duration-200 cursor-pointer group flex flex-col justify-between"
               onClick={() => setSelectedClient(client)}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-zinc-900 font-display font-bold text-base">{client.company || client.url}</h3>
-                  <p className="text-zinc-400 text-xs font-mono mt-0.5">{client.url}</p>
-                </div>
-                <span className={`text-[10px] px-2.5 py-1 rounded-full border font-bold ${planConfig[client.plan].color}`}>
-                  {planConfig[client.plan].label}
-                </span>
-              </div>
-
-              {/* Stage progress */}
-              <div className="space-y-2 mb-5">
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-zinc-400 font-mono">Etapa {client.currentStage}/5</span>
-                  <span className="text-zinc-700 font-bold">{stageLabels[client.currentStage]}</span>
-                </div>
-                <div className="flex gap-1.5">
-                  {[1, 2, 3, 4, 5].map(s => (
-                    <div key={s} className={`flex-1 h-1.5 rounded-full ${s <= client.currentStage ? 'bg-zinc-950' : 'bg-zinc-200'}`} />
-                  ))}
-                </div>
-              </div>
-
-              {/* GEO score trend */}
-              {client.geoScoreHistory.length > 0 && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500 font-medium">GEO Score atual:</span>
-                    <span className="text-emerald-600 font-mono font-bold text-sm">
-                      {client.geoScoreHistory[client.geoScoreHistory.length - 1]?.score}%
-                    </span>
+              <div>
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-zinc-900 font-display font-bold text-base">{client.company || client.url}</h3>
+                    <p className="text-zinc-450 text-xs font-mono mt-0.5">{client.url}</p>
                   </div>
+                  <span className={`text-[10px] px-2.5 py-1 rounded-full border font-bold ${planConfig[client.plan]?.color || ''}`}>
+                    {planConfig[client.plan]?.label || client.plan}
+                  </span>
+                </div>
+
+                {/* Stage progress */}
+                <div className="space-y-2 mb-5">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-zinc-400 font-mono">Etapa {client.currentStage}/5</span>
+                    <span className="text-zinc-700 font-bold">{stageLabels[client.currentStage]}</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3, 4, 5].map(s => (
+                      <div key={s} className={`flex-1 h-1.5 rounded-full ${s <= client.currentStage ? 'bg-zinc-950' : 'bg-zinc-200'}`} />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notes summary */}
+                {client.notes && (
+                  <div className="text-[11px] text-zinc-500 italic bg-zinc-50 border border-zinc-150 p-2.5 rounded-xl mb-4 font-light leading-relaxed">
+                    📝 {client.notes.length > 80 ? `${client.notes.slice(0, 80)}...` : client.notes}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                {/* GEO score trend */}
+                {client.geoScoreHistory && client.geoScoreHistory.length > 0 && (
+                  <div className="flex items-center justify-between pb-3 border-b border-zinc-200/50 mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-500 font-medium">GEO Score atual:</span>
+                      <span className="text-emerald-600 font-mono font-bold text-sm">
+                        {client.geoScoreHistory[client.geoScoreHistory.length - 1]?.score}%
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Card footer actions */}
+                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                   <button
-                    id={`open-workspace-${client.id}`}
-                    className="text-xs bg-zinc-100 hover:bg-zinc-950 hover:text-white border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-xl font-bold transition-all shadow-xs cursor-pointer"
+                    onClick={() => setEditingClient(client)}
+                    className="text-[10px] bg-zinc-100 hover:bg-zinc-200 border border-zinc-250 text-zinc-700 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer"
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={e => handleDeleteClient(e, client.id)}
+                    className="text-[10px] bg-red-50 hover:bg-red-105 border border-red-200 text-red-650 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer"
+                  >
+                    🗑️ Excluir
+                  </button>
+                  <button
+                    onClick={() => setSelectedClient(client)}
+                    className="text-[10px] bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-bold transition-all shadow-xs cursor-pointer ml-auto"
                   >
                     Abrir Workspace →
                   </button>
                 </div>
-              )}
-
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t border-zinc-200/50">
-                <div className="flex -space-x-1.5">
-                  {agents.map(a => (
-                    <div key={a.id} className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-xs border border-white shadow-xs">
-                      {a.icon}
-                    </div>
-                  ))}
-                </div>
-                <span className="text-xs text-zinc-400 font-medium">5 agentes ativos</span>
-                <span className="text-[10px] text-zinc-400 font-mono font-medium ml-auto">
-                  desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}
-                </span>
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Workspace Panel */}
       {selectedClient && (
         <AgentWorkspacePanel client={selectedClient} onClose={() => setSelectedClient(null)} />
+      )}
+
+      {/* Edit Client Modal */}
+      {editingClient && (
+        <ClientEditModal
+          client={editingClient}
+          onSave={handleSaveClient}
+          onCancel={() => setEditingClient(null)}
+        />
       )}
     </div>
   );

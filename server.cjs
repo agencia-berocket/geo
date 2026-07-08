@@ -79,6 +79,45 @@ if (!serviceAccount) {
 const PROJECT_ID = serviceAccount ? serviceAccount.project_id : 'geo-brocket';
 const CALENDAR_OWNER_EMAIL = 'berocket@berocket.com.br';
 
+function toFirestoreValue(val) {
+  if (typeof val === 'string') return { stringValue: val };
+  if (typeof val === 'number') return Number.isInteger(val) ? { integerValue: val } : { doubleValue: val };
+  if (typeof val === 'boolean') return { booleanValue: val };
+  if (Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
+  if (val === null || val === undefined) return { nullValue: null };
+  if (typeof val === 'object') {
+    const fields = {};
+    for (const [k, v] of Object.entries(val)) {
+      fields[k] = toFirestoreValue(v);
+    }
+    return { mapValue: { fields } };
+  }
+  return { stringValue: String(val) };
+}
+
+async function autoSubscribeNewsletter(accessToken, name, email) {
+  try {
+    const subId = `sub_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter`;
+    const subDoc = {
+      fields: {
+        id: { stringValue: subId },
+        name: { stringValue: name || '' },
+        email: { stringValue: email },
+        subscribedAt: { stringValue: new Date().toISOString() },
+      }
+    };
+    await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(subDoc),
+    });
+    console.log(`Auto-subscribed ${email} to newsletter.`);
+  } catch (err) {
+    console.error('Failed to auto-subscribe newsletter:', err.message);
+  }
+}
+
 // Helper to get Google OAuth2 Access Token using Service Account JWT signing
 function getGoogleAccessToken() {
   return new Promise((resolve, reject) => {
@@ -399,7 +438,7 @@ async function verifyAdminToken(req, res, next) {
 // ─── LEAD CAPTURE ──────────────────────────────────────────────────────────
 // POST /api/leads/capture — called by the public widget on the site
 app.post('/api/leads/capture', async (req, res) => {
-  const { url, email, name, company } = req.body;
+  const { url, email, name, company, phone, architecture, scale } = req.body;
   if (!url || !email) {
     return res.status(400).json({ error: 'URL e e-mail são obrigatórios' });
   }
@@ -418,6 +457,9 @@ app.post('/api/leads/capture', async (req, res) => {
         name: { stringValue: name || '' },
         company: { stringValue: company || domain },
         domain: { stringValue: domain },
+        phone: { stringValue: phone || '' },
+        architecture: { stringValue: architecture || '' },
+        scale: { stringValue: scale || '' },
         createdAt: { stringValue: new Date().toISOString() },
         status: { stringValue: 'new' },
         geoScore: { integerValue: 0 },
@@ -429,6 +471,9 @@ app.post('/api/leads/capture', async (req, res) => {
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(leadDoc),
     });
+
+    // Auto-subscribe user to newsletter
+    await autoSubscribeNewsletter(accessToken, name, email);
 
     // Notify admin via email
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
@@ -462,6 +507,9 @@ app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
         email: f.email?.stringValue || '',
         name: f.name?.stringValue || '',
         company: f.company?.stringValue || '',
+        phone: f.phone?.stringValue || '',
+        architecture: f.architecture?.stringValue || '',
+        scale: f.scale?.stringValue || '',
         createdAt: f.createdAt?.stringValue || '',
         status: f.status?.stringValue || 'new',
         geoScore: parseInt(f.geoScore?.integerValue || '0'),
@@ -470,6 +518,50 @@ app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
     });
 
     res.json({ leads });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/admin/leads/:id
+app.patch('/api/admin/leads/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  const fieldsToUpdate = req.body;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads/${id}?${updateMask}`;
+    
+    const fields = {};
+    for (const [k, v] of Object.entries(fieldsToUpdate)) {
+      fields[k] = toFirestoreValue(v);
+    }
+
+    await fetchFirestore(firestoreUrl, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/leads/:id
+app.delete('/api/admin/leads/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads/${id}`;
+    
+    await fetchFirestore(firestoreUrl, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -489,6 +581,7 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
       const accessToken = await getGoogleAccessToken();
 
       // Fetch lead data
+      const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
       const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
 
       let lead = null;
@@ -869,7 +962,54 @@ app.post('/api/admin/clients', verifyAdminToken, async (req, res) => {
       });
     }
 
+    // Auto-subscribe client to newsletter
+    await autoSubscribeNewsletter(accessToken, name || lead.email.split('@')[0], lead.email);
+
     res.json({ success: true, clientId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/admin/clients/:id
+app.patch('/api/admin/clients/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  const fieldsToUpdate = req.body;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients/${id}?${updateMask}`;
+    
+    const fields = {};
+    for (const [k, v] of Object.entries(fieldsToUpdate)) {
+      fields[k] = toFirestoreValue(v);
+    }
+
+    await fetchFirestore(firestoreUrl, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/clients/:id
+app.delete('/api/admin/clients/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients/${id}`;
+    
+    await fetchFirestore(firestoreUrl, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

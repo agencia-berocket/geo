@@ -20,6 +20,9 @@ export interface Lead {
   email: string;
   name?: string;
   company?: string;
+  phone?: string;
+  architecture?: string;
+  scale?: string;
   createdAt: string;
   status: 'new' | 'processing' | 'completed' | 'converted';
   geoScore?: number;
@@ -112,6 +115,19 @@ export function useLeads() {
     }
   }, []);
 
+  const editLead = useCallback(async (leadId: string, data: Partial<Lead>) => {
+    return apiFetch<{ success: boolean }>(`/admin/leads/${leadId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }, []);
+
+  const deleteLead = useCallback(async (leadId: string) => {
+    return apiFetch<{ success: boolean }>(`/admin/leads/${leadId}`, {
+      method: 'DELETE',
+    });
+  }, []);
+
   const runDiagnostic = useCallback(async (leadId: string) => {
     return apiFetch<{ success: boolean; diagnosticId: string }>('/admin/diagnostic/run', {
       method: 'POST',
@@ -133,7 +149,7 @@ export function useLeads() {
     });
   }, []);
 
-  return { leads, loading, error, fetchLeads, runDiagnostic, sendReport, convertToClient };
+  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, convertToClient };
 }
 
 export function useDiagnostic(leadId: string | null) {
@@ -176,6 +192,19 @@ export function useClients() {
     }
   }, []);
 
+  const editClient = useCallback(async (clientId: string, data: Partial<Client>) => {
+    return apiFetch<{ success: boolean }>(`/admin/clients/${clientId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }, []);
+
+  const deleteClient = useCallback(async (clientId: string) => {
+    return apiFetch<{ success: boolean }>(`/admin/clients/${clientId}`, {
+      method: 'DELETE',
+    });
+  }, []);
+
   const runAgentForClient = useCallback(async (clientId: string, agentName: string, input?: Record<string, unknown>) => {
     return apiFetch<{ success: boolean; result: Record<string, unknown> }>('/admin/agent/run', {
       method: 'POST',
@@ -183,5 +212,5 @@ export function useClients() {
     });
   }, []);
 
-  return { clients, loading, error, fetchClients, runAgentForClient };
+  return { clients, loading, error, fetchClients, editClient, deleteClient, runAgentForClient };
 }
