@@ -22,13 +22,28 @@ export default function AdminLogin() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-zinc-950 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">b.</span>
+              <div className="w-8 h-8 rounded-xl bg-zinc-950 flex items-center justify-center border border-zinc-800 shadow-md shrink-0 relative overflow-hidden">
+                {/* Outer Helmet Dome */}
+                <div className="w-5.5 h-5.5 rounded-full border border-white/95 bg-white shadow-[inset_1px_1px_2px_rgba(0,0,0,0.15)] relative flex items-center justify-center overflow-hidden">
+                  {/* Visor */}
+                  <div className="w-[15px] h-[10px] bg-zinc-950 rounded-[4px] relative overflow-hidden shadow-inner mt-[-1.5px] border border-zinc-900/40">
+                    <div className="absolute top-[0.5px] left-[1px] w-[3px] h-[4px] bg-white/40 rounded-full rotate-12" />
+                    <div className="absolute bottom-0 right-0 w-[4px] h-[3px] bg-emerald-500/80 blur-[0.5px] rounded-full" />
+                  </div>
+                  {/* Collar */}
+                  <div className="absolute bottom-[2px] w-[10px] h-[1.5px] bg-zinc-300 rounded-full" />
+                </div>
+                {/* Side fixtures */}
+                <div className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[1px] h-[3px] bg-zinc-800 rounded-r" />
+                <div className="absolute right-[1px] top-1/2 -translate-y-1/2 w-[1px] h-[3px] bg-zinc-800 rounded-l" />
               </div>
-              <span className="text-zinc-950 font-display font-bold text-xl tracking-tight">rocket</span>
+              <span className="font-display font-extrabold text-lg tracking-[0.08em] text-zinc-950 uppercase">
+                b.rocket
+              </span>
               <span className="text-[10px] text-zinc-500 ml-1 font-mono border border-zinc-300 px-1.5 py-0.5 rounded">ADMIN</span>
             </div>
             <h1 className="text-2xl font-display font-bold text-zinc-900 mb-2">Acesso Restrito</h1>
+
             <p className="text-zinc-500 text-sm leading-relaxed">
               Painel de gestão GEO — exclusivo para<br />
               <span className="text-zinc-700 font-mono text-xs font-semibold">{ADMIN_EMAIL}</span>
