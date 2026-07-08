@@ -20,9 +20,9 @@ if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
       jsonStr = jsonStr.slice(1, -1).trim();
     }
-    // Convert multiple backslashes + quote to just quote, and backslashes + n to newline
+    // Convert multiple backslashes + quote to just quote, and backslashes + n to escaped \n
     jsonStr = jsonStr.replace(/\\+"/g, '"');
-    jsonStr = jsonStr.replace(/\\+n/g, '\n');
+    jsonStr = jsonStr.replace(/\\+n/g, '\\\\n');
     
     serviceAccount = JSON.parse(jsonStr);
   } catch (err) {
