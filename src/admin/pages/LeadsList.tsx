@@ -2,6 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLeads, useDiagnostic, type Lead } from '../hooks/useFirestore';
 import StatusBadge from '../components/StatusBadge';
 import GeoScoreGauge from '../components/GeoScoreGauge';
+import Modal from '../components/Modal';
+import {
+  IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
+  IconShield, IconFolder, IconClipboard, IconChat, IconBot, IconHourglass,
+  IconSend, IconChevron, IconNote,
+} from '../components/icons';
 
 interface LeadsListProps {
   onNavigate: (page: string, id?: string) => void;
@@ -10,7 +16,7 @@ interface LeadsListProps {
 
 // ─── Agent Report Accordion ─────────────────────────────────────────────────
 function AgentReport({ title, icon, status, children }: {
-  title: string; icon: string; status: 'ok' | 'warning' | 'critical'; children: React.ReactNode;
+  title: string; icon: React.ReactNode; status: 'ok' | 'warning' | 'critical'; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const statusColor = status === 'ok' ? 'text-emerald-600 font-bold' : status === 'warning' ? 'text-amber-600 font-bold' : 'text-red-600 font-bold';
@@ -20,10 +26,10 @@ function AgentReport({ title, icon, status, children }: {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-zinc-50 rounded-xl transition-colors cursor-pointer"
       >
-        <span className="text-lg">{icon}</span>
+        <span className="text-zinc-500">{icon}</span>
         <span className="flex-1 font-display font-semibold text-zinc-900 text-sm">{title}</span>
         <span className={`text-xs font-mono ${statusColor}`}>{status.toUpperCase()}</span>
-        <span className="text-zinc-400 text-xs ml-2">{open ? '▲' : '▼'}</span>
+        <IconChevron direction={open ? 'up' : 'down'} className="w-3.5 h-3.5 text-zinc-400 ml-2" />
       </button>
       {open && (
         <div className="px-3 pb-3 text-sm text-zinc-600 border-t border-zinc-100 mt-2 pt-3">
@@ -65,7 +71,7 @@ function DiagnosticDashboard({ diagnostic }: { diagnostic: any }) {
 
       {/* Citations Share per LLM */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <h4 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">📊 Presença por Modelo de IA</h4>
+        <h4 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">Presença por Modelo de IA</h4>
         <div className="space-y-3">
           {Object.entries(d.visibilityBenchmarking.citationsByModel || {}).map(([model, count]: [string, any]) => {
             const maxCitations = Math.max(...Object.values(d.visibilityBenchmarking.citationsByModel).map(Number), 1);
@@ -87,7 +93,7 @@ function DiagnosticDashboard({ diagnostic }: { diagnostic: any }) {
 
       {/* Critical bottlenecks timeline */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <h4 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">🛠️ Recomendações e Correções</h4>
+        <h4 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">Recomendações e Correções</h4>
         <div className="space-y-3">
           {(d.actionItemsPriorityList || []).map((item: any, i: number) => (
             <div key={i} className="flex gap-3 p-3 bg-zinc-50 border border-zinc-150 rounded-xl">
@@ -156,13 +162,14 @@ function LeadChat({ lead }: { lead: Lead }) {
 
   return (
     <div className="flex flex-col bg-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden min-h-[350px]">
-      <div className="bg-zinc-950 text-white px-4 py-2.5 text-xs font-mono font-bold flex items-center justify-between">
-        <span>🤖 ORQUESTRADOR IA: Analisar {lead.url}</span>
+      <div className="bg-zinc-950 text-white px-4 py-2.5 text-xs font-mono font-bold flex items-center gap-2">
+        <IconBot className="w-3.5 h-3.5" />
+        <span>ORQUESTRADOR IA: Analisar {lead.url}</span>
       </div>
       <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[300px] bg-zinc-50/50">
         {messages.length === 0 ? (
           <div className="text-center py-12 text-zinc-400 space-y-2">
-            <p className="text-2xl">💬</p>
+            <IconChat className="w-6 h-6 mx-auto text-zinc-300" />
             <p className="font-bold font-display text-xs">Pergunte algo sobre este Lead</p>
             <p className="text-[10px] max-w-sm mx-auto leading-relaxed text-zinc-400">
               Tire dúvidas com o agente orquestrador sobre o diagnóstico obtido, peça sugestões de abordagem comercial ou estratégias específicas de otimização de GEO para este domínio.
@@ -184,12 +191,17 @@ function LeadChat({ lead }: { lead: Lead }) {
         )}
         {loading && (
           <div className="flex justify-start animate-pulse">
-            <div className="bg-white border border-zinc-250/50 text-zinc-500 rounded-2xl px-4 py-3 text-xs shadow-xs">
-              🤖 Orqueestrador analisando o contexto e formulando resposta...
+            <div className="bg-white border border-zinc-250/50 text-zinc-500 rounded-2xl px-4 py-3 text-xs shadow-xs flex items-center gap-2">
+              <IconBot className="w-3.5 h-3.5" />
+              Orquestrador analisando o contexto e formulando resposta...
             </div>
           </div>
         )}
-        {error && <div className="text-xs text-red-650 text-center font-bold">⚠️ {error}</div>}
+        {error && (
+          <div className="text-xs text-red-650 text-center font-bold flex items-center justify-center gap-1.5">
+            <IconWarning className="w-3.5 h-3.5" /> {error}
+          </div>
+        )}
         <div ref={chatEndRef} />
       </div>
       <div className="p-3 bg-white border-t border-zinc-200 flex gap-2">
@@ -231,7 +243,7 @@ function LeadEditPanel({ lead, onSave, onCancel }: { lead: Lead, onSave: (update
 
   return (
     <div className="space-y-4 bg-white border border-zinc-200 p-5 rounded-2xl shadow-sm text-xs">
-      <h3 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">✏️ Editar Lead</h3>
+      <h3 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">Editar Lead</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
@@ -320,12 +332,12 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     setMessage(null);
     try {
       await runDiagnostic(lead.id);
-      setMessage('✅ Diagnóstico iniciado! O processamento ocorre em segundo plano.');
+      setMessage('Diagnóstico iniciado! O processamento ocorre em segundo plano.');
       setTimeout(() => {
         onLeadUpdated();
       }, 3000);
     } catch (e: any) {
-      setMessage(`❌ Erro: ${e.message}`);
+      setMessage(`Erro: ${e.message}`);
     } finally {
       setRunning(false);
     }
@@ -336,9 +348,9 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     setMessage(null);
     try {
       await sendReport(lead.id);
-      setMessage('✅ Relatório HTML enviado por e-mail!');
+      setMessage('Relatório HTML enviado por e-mail!');
     } catch (e: any) {
-      setMessage(`❌ Erro: ${e.message}`);
+      setMessage(`Erro: ${e.message}`);
     } finally {
       setSending(false);
     }
@@ -353,14 +365,14 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
         currentStage: 1,
       });
       if (result.success) {
-        setMessage('⭐ Lead convertido em cliente!');
+        setMessage('Lead convertido em cliente!');
         setTimeout(() => {
           onLeadUpdated();
           onNavigate('clients');
         }, 1500);
       }
     } catch (e: any) {
-      setMessage(`❌ Erro: ${e.message}`);
+      setMessage(`Erro: ${e.message}`);
     }
   };
 
@@ -368,12 +380,11 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     try {
       const res = await editLead(lead.id, updatedFields);
       if (res.success) {
-        setMessage('✅ Lead atualizado com sucesso!');
+        setMessage('Lead atualizado com sucesso!');
         setIsEditing(false);
-        onLeadUpdated();
       }
     } catch (e: any) {
-      setMessage(`❌ Erro ao salvar: ${e.message}`);
+      setMessage(`Erro ao salvar: ${e.message}`);
     }
   };
 
@@ -382,36 +393,32 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     try {
       const res = await deleteLead(lead.id);
       if (res.success) {
-        alert('Lead removido com sucesso.');
         onClose();
-        onLeadUpdated();
       }
     } catch (e: any) {
-      setMessage(`❌ Erro ao excluir: ${e.message}`);
+      setMessage(`Erro ao excluir: ${e.message}`);
     }
   };
 
   const d = diagnostic;
 
   return (
-    <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-start justify-end p-4 overflow-auto">
-      <div className="tactile-raised bg-[#f4f5f8] w-full max-w-2xl min-h-screen shadow-2xl p-6 flex flex-col gap-6">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-200">
-          <div className="flex items-center gap-3">
-            <button onClick={onClose} className="text-zinc-500 hover:text-zinc-900 transition-colors font-bold text-sm cursor-pointer">← Voltar</button>
-            <div className="min-w-0">
-              <h2 className="text-zinc-900 font-display font-bold truncate text-base">{lead.url}</h2>
-              <p className="text-zinc-500 text-xs font-mono truncate">{lead.email}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setIsEditing(e => !e)} className="text-xs bg-zinc-200 hover:bg-zinc-300 font-bold px-3 py-1.5 rounded-lg border border-zinc-300 transition-all cursor-pointer">✏️ Editar</button>
-            <button onClick={handleDelete} className="text-xs bg-red-50 hover:bg-red-100 text-red-650 font-bold px-3 py-1.5 rounded-lg border border-red-200 transition-all cursor-pointer">🗑️ Excluir</button>
-            <StatusBadge status={lead.status} />
-          </div>
-        </div>
-
+    <Modal
+      onClose={onClose}
+      title={lead.url}
+      subtitle={lead.email}
+      headerRight={
+        <>
+          <button onClick={() => setIsEditing(e => !e)} className="text-xs bg-zinc-200 hover:bg-zinc-300 font-bold px-3 py-1.5 rounded-lg border border-zinc-300 transition-all cursor-pointer flex items-center gap-1.5">
+            <IconEdit className="w-3.5 h-3.5" /> Editar
+          </button>
+          <button onClick={handleDelete} className="text-xs bg-red-50 hover:bg-red-100 text-red-650 font-bold px-3 py-1.5 rounded-lg border border-red-200 transition-all cursor-pointer flex items-center gap-1.5">
+            <IconTrash className="w-3.5 h-3.5" /> Excluir
+          </button>
+          <StatusBadge status={lead.status} />
+        </>
+      }
+    >
         {/* Editing Screen */}
         {isEditing ? (
           <LeadEditPanel lead={lead} onSave={handleSaveEdit} onCancel={() => setIsEditing(false)} />
@@ -428,7 +435,11 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                     disabled={running}
                     className="w-full flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
                   >
-                    {running ? '⏳ Executando...' : '▶ Iniciar Diagnóstico'}
+                    {running ? (
+                      <span className="flex items-center gap-2"><IconHourglass className="w-4 h-4" /> Executando...</span>
+                    ) : (
+                      <span className="flex items-center gap-2"><IconPlay className="w-4 h-4" /> Iniciar Diagnóstico</span>
+                    )}
                   </button>
                 )}
                 {(lead.status === 'completed' || lead.status === 'processing') && (
@@ -439,14 +450,18 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                       disabled={sending}
                       className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
                     >
-                      {sending ? '📤 Enviando...' : '📧 Enviar Relatório HTML'}
+                      {sending ? (
+                        <span className="flex items-center gap-2"><IconHourglass className="w-4 h-4" /> Enviando...</span>
+                      ) : (
+                        <span className="flex items-center gap-2"><IconSend className="w-4 h-4" /> Enviar Relatório HTML</span>
+                      )}
                     </button>
                     <button
                       id={`convert-${lead.id}`}
                       onClick={handleConvert}
                       className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
                     >
-                      ⭐ Converter em Cliente
+                      <IconStar className="w-4 h-4" /> Converter em Cliente
                     </button>
                   </>
                 )}
@@ -458,7 +473,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
 
             {/* Capturing fields (all fields outbound info) */}
             <div className="tactile-sunken rounded-2xl p-5 space-y-3 text-xs">
-              <h4 className="font-mono text-[9px] text-zinc-400 font-bold uppercase tracking-widest border-b border-zinc-200/50 pb-1">📋 Dados Capturados para Outbound</h4>
+              <h4 className="font-mono text-[9px] text-zinc-400 font-bold uppercase tracking-widest border-b border-zinc-200/50 pb-1 flex items-center gap-1.5"><IconClipboard className="w-3 h-3" /> Dados Capturados para Outbound</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Nome do Contato</span><span className="text-zinc-900 text-sm font-semibold">{lead.name || '—'}</span></div>
                 <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Empresa</span><span className="text-zinc-900 text-sm font-semibold">{lead.company || '—'}</span></div>
@@ -484,23 +499,23 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
               <div className="space-y-4">
                 {/* View switcher */}
                 <div className="flex bg-zinc-200/60 p-1 rounded-xl text-xs font-semibold self-start w-fit">
-                  <button 
+                  <button
                     onClick={() => setActiveTab('dashboard')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'dashboard' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'dashboard' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
                   >
-                    📊 Dashboard Visual
+                    <IconClipboard className="w-3.5 h-3.5" /> Dashboard Visual
                   </button>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('agents')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'agents' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'agents' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
                   >
-                    🛡️ Detalhes dos Agentes
+                    <IconShield className="w-3.5 h-3.5" /> Detalhes dos Agentes
                   </button>
-                  <button 
+                  <button
                     onClick={() => setActiveTab('chat')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${activeTab === 'chat' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'chat' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
                   >
-                    💬 Chat Orquestrador IA
+                    <IconChat className="w-3.5 h-3.5" /> Chat Orquestrador IA
                   </button>
                 </div>
 
@@ -519,20 +534,20 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                       <div className="space-y-4">
                         <AgentReport
                           title="Agente 2 — Technical Gatekeeper"
-                          icon="🛡️"
+                          icon={<IconShield className="w-4 h-4" />}
                           status={d.gatekeeperStatus.robotsTxtAllowAiBots && d.gatekeeperStatus.ssrActive ? 'ok' : !d.gatekeeperStatus.robotsTxtAllowAiBots ? 'critical' : 'warning'}
                         >
                           <div className="grid grid-cols-2 gap-4">
                             <div className="flex items-center gap-2 text-zinc-700 font-medium">
-                              <span>{d.gatekeeperStatus.robotsTxtAllowAiBots ? '✅' : '❌'}</span>
+                              {d.gatekeeperStatus.robotsTxtAllowAiBots ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
                               <span>Bots de IA no robots.txt</span>
                             </div>
                             <div className="flex items-center gap-2 text-zinc-700 font-medium">
-                              <span>{d.gatekeeperStatus.ssrActive ? '✅' : '⚠️'}</span>
+                              {d.gatekeeperStatus.ssrActive ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconWarning className="w-4 h-4 text-amber-600" />}
                               <span>SSR/conteúdo acessível</span>
                             </div>
                             <div className="flex items-center gap-2 text-zinc-700 font-medium">
-                              <span>{!d.gatekeeperStatus.hasPriceGatekeeperIssue ? '✅' : '⚠️'}</span>
+                              {!d.gatekeeperStatus.hasPriceGatekeeperIssue ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconWarning className="w-4 h-4 text-amber-600" />}
                               <span>Preços visíveis</span>
                             </div>
                             <div className="text-zinc-700 font-medium">
@@ -546,7 +561,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
 
                         <AgentReport
                           title="Agente 3 — Metadata Entity"
-                          icon="🗂️"
+                          icon={<IconFolder className="w-4 h-4" />}
                           status={d.metadataAnalysis.organizationSchemaPresent && d.metadataAnalysis.llmsTxtPublished ? 'ok' : d.metadataAnalysis.organizationSchemaPresent ? 'warning' : 'critical'}
                         >
                           <div className="space-y-2 text-zinc-700 font-medium">
@@ -556,7 +571,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                               { label: '/llms.txt publicado', ok: d.metadataAnalysis.llmsTxtPublished },
                             ].map(item => (
                               <div key={item.label} className="flex items-center gap-2">
-                                <span>{item.ok ? '✅' : '❌'}</span>
+                                {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
                                 <span>{item.label}</span>
                               </div>
                             ))}
@@ -565,7 +580,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
 
                         <AgentReport
                           title="Agente 4 — Content Absorption"
-                          icon="📝"
+                          icon={<IconNote className="w-4 h-4" />}
                           status={
                             Object.values(d.contentReview.factorsDetected).filter(Boolean).length >= 3 ? 'ok' : 'critical'
                           }
@@ -578,7 +593,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                               { label: 'Tabelas comparativas HTML', ok: d.contentReview.factorsDetected.hasHtmlComparisonTables },
                             ].map(item => (
                               <div key={item.label} className="flex items-center gap-2">
-                                <span>{item.ok ? '✅' : '❌'}</span>
+                                {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
                                 <span>{item.label}</span>
                               </div>
                             ))}
@@ -596,8 +611,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
             )}
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -635,10 +649,7 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
     e.stopPropagation();
     if (!window.confirm('Excluir este Lead definitivamente?')) return;
     try {
-      const res = await deleteLead(leadId);
-      if (res.success) {
-        fetchLeads();
-      }
+      await deleteLead(leadId);
     } catch (err: any) {
       alert(`Erro ao excluir: ${err.message}`);
     }
@@ -725,18 +736,18 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
                           id={`quick-run-${lead.id}`}
                           onClick={e => handleQuickRun(e, lead)}
                           disabled={runningId === lead.id}
-                          className="text-xs bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                          className="text-xs bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                         >
-                          {runningId === lead.id ? '⏳' : '▶ Diagnóstico'}
+                          {runningId === lead.id ? <IconHourglass className="w-3.5 h-3.5" /> : <><IconPlay className="w-3 h-3" /> Diagnóstico</>}
                         </button>
                       )}
                       {(lead.status === 'completed' || lead.status === 'processing') && (
                         <button
                           id={`view-diag-${lead.id}`}
                           onClick={e => { e.stopPropagation(); setSelectedLead(lead); }}
-                          className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer"
+                          className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                         >
-                          📄 Dashboard
+                          <IconClipboard className="w-3.5 h-3.5" /> Dashboard
                         </button>
                       )}
                       <button
@@ -744,7 +755,7 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
                         className="text-xs bg-red-50 hover:bg-red-100 text-red-600 p-1.5 rounded-lg transition-all cursor-pointer"
                         title="Excluir Lead"
                       >
-                        🗑️
+                        <IconTrash className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>

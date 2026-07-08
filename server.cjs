@@ -1540,7 +1540,19 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
       body,
     });
 
-    const parsed = JSON.parse(resUrl.body);
+    if (resUrl.statusCode < 200 || resUrl.statusCode >= 300) {
+      console.error(`OpenRouter retornou status ${resUrl.statusCode}:`, resUrl.body.slice(0, 500));
+      return res.status(502).json({ error: `A IA está indisponível no momento (status ${resUrl.statusCode}). Tente novamente em instantes.` });
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(resUrl.body);
+    } catch (parseErr) {
+      console.error('Resposta não-JSON do OpenRouter:', resUrl.body.slice(0, 500));
+      return res.status(502).json({ error: 'Resposta inválida da IA. Tente novamente.' });
+    }
+
     if (parsed.error) {
       return res.status(500).json({ error: parsed.error.message });
     }

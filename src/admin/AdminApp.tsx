@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { IconX } from './components/icons';
 import AdminLogin from './AdminLogin';
 import AdminLayout from './AdminLayout';
 import Dashboard from './pages/Dashboard';
@@ -52,8 +53,8 @@ export default function AdminApp() {
     return (
       <div className="min-h-screen bg-[#f4f5f8] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-sm">
-            🚫
+          <div className="w-16 h-16 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+            <IconX className="w-7 h-7 text-red-500" />
           </div>
           <h1 className="text-zinc-950 font-bold text-xl font-display">Acesso Negado</h1>
           <p className="text-zinc-500 text-sm">

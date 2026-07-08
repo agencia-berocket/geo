@@ -288,7 +288,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
         updatedBy: user.email
       });
       setCalendarLastUpdated(lastUpdatedStr);
-      addLog('✔ Slots livres de Guilherme sincronizados com sucesso!');
+      addLog('OK: Slots livres de Guilherme sincronizados com sucesso!');
 
       // 2. Fetch and process Unsynced bookings from clients
       addLog('Buscando novos agendamentos recebidos de clientes...');
@@ -314,13 +314,13 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
         const eventPayload = {
           summary: `Mentoria b.rocket: Diagnóstico GEO & RAG (${b.company})`,
           description: `Olá ${b.name},\n\nSua sessão estratégica de 40 minutos com o especialista Guilherme (b.rocket) foi agendada e confirmada!\n\n` +
-                       `🎯 DETALHES DO PARTICIPANTE:\n` +
+                       `DETALHES DO PARTICIPANTE:\n` +
                        `• Nome completo: ${b.name}\n` +
                        `• E-mail: ${b.email}\n` +
                        `• Empresa: ${b.company}\n` +
                        `• Website: ${b.url}\n` +
                        `• Notas/Gargalos: ${b.notes || 'Análise geral sem anotações.'}\n\n` +
-                       `🔗 A sala oficial do Google Meet foi criada automaticamente e está disponível em anexo neste convite.`,
+                       `A sala oficial do Google Meet foi criada automaticamente e está disponível em anexo neste convite.`,
           start: {
             dateTime: start.toISOString(),
             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -364,18 +364,18 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
             googleEventId: eventId
           });
 
-          addLog(`✔ Sucesso! Convite enviado para ${b.email}. Google Meet gerado: ${meetLink || 'Google Meet link criado'}`);
+          addLog(`OK: Sucesso! Convite enviado para ${b.email}. Google Meet gerado: ${meetLink || 'Google Meet link criado'}`);
         } else {
           const errData = await createRes.json();
-          addLog(`❌ Erro ao criar convite de ${b.name}: ${errData.error?.message || 'Erro de API'}`);
+          addLog(`ERRO: Erro ao criar convite de ${b.name}: ${errData.error?.message || 'Erro de API'}`);
         }
       }
 
-      addLog('🎉 Todo o ciclo de sincronização foi finalizado com sucesso!');
+      addLog('OK: Todo o ciclo de sincronização foi finalizado com sucesso!');
       loadAllBookings();
     } catch (err: any) {
       console.error('Sync error:', err);
-      addLog(`❌ Erro crítico: ${err.message || 'Falha de comunicação.'}`);
+      addLog(`ERRO: Erro crítico: ${err.message || 'Falha de comunicação.'}`);
     } finally {
       setIsSyncing(false);
     }
@@ -834,7 +834,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                       Seu diagnóstico foi agendado e registrado com sucesso. Enviamos um e-mail de confirmação (com convite de calendário) para <strong className="text-zinc-900 font-bold">{createdEvent.email}</strong>.
                     </p>
                     <p className="text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded-lg text-xs font-bold max-w-sm mx-auto flex items-center justify-center gap-2">
-                      ⚠️ Verifique sua caixa de SPAM / Lixo Eletrônico!
+                      <AlertTriangle className="w-3.5 h-3.5" /> Verifique sua caixa de SPAM / Lixo Eletrônico!
                     </p>
                   </div>
 
@@ -918,7 +918,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 font-mono text-[10px] text-zinc-300 space-y-1 max-h-36 overflow-y-auto shadow-inner select-text">
                       <div className="text-zinc-500 border-b border-zinc-800 pb-1 mb-1.5 uppercase font-bold text-[9px]">Console de Sincronização:</div>
                       {syncLogs.map((log, idx) => (
-                        <div key={idx} className={log.includes('✔') ? 'text-emerald-400 font-bold' : log.includes('❌') ? 'text-red-500 font-bold' : 'text-zinc-350'}>
+                        <div key={idx} className={log.startsWith('OK:') ? 'text-emerald-400 font-bold' : log.startsWith('ERRO:') ? 'text-red-500 font-bold' : 'text-zinc-350'}>
                           {log}
                         </div>
                       ))}

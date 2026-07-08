@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useLeads, useClients } from '../hooks/useFirestore';
 import StatusBadge from '../components/StatusBadge';
+import { IconClipboard, IconActivity, IconRocket, IconLightbulb } from '../components/icons';
 
 interface DashboardProps {
   onNavigate: (page: string, id?: string) => void;
@@ -24,10 +25,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const converted = leads.filter(l => l.status === 'converted');
 
   const stats = [
-    { label: 'Total Leads', value: leads.length, icon: '📋', color: 'text-zinc-900', sub: `${newLeads.length} novos` },
-    { label: 'Diagnósticos', value: completed.length + converted.length, icon: '🔬', color: 'text-zinc-900', sub: `${processing.length} em fila` },
-    { label: 'Clientes Ativos', value: clients.length, icon: '🚀', color: 'text-zinc-900', sub: 'com workspace GEO' },
-    { label: 'Custo/Mês (est.)', value: `US$ ${apiCostMonth?.toFixed(2) ?? '0.00'}`, icon: '💡', color: 'text-zinc-900', sub: 'via OpenRouter' },
+    { label: 'Total Leads', value: leads.length, icon: IconClipboard, color: 'text-zinc-900', sub: `${newLeads.length} novos` },
+    { label: 'Diagnósticos', value: completed.length + converted.length, icon: IconActivity, color: 'text-zinc-900', sub: `${processing.length} em fila` },
+    { label: 'Clientes Ativos', value: clients.length, icon: IconRocket, color: 'text-zinc-900', sub: 'com workspace GEO' },
+    { label: 'Custo/Mês (est.)', value: `US$ ${apiCostMonth?.toFixed(2) ?? '0.00'}`, icon: IconLightbulb, color: 'text-zinc-900', sub: 'via OpenRouter' },
   ];
 
   const recentLeads = [...leads].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
@@ -42,18 +43,23 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map(stat => (
-          <div key={stat.label} className="tactile-raised p-6 bg-white/60 hover:scale-[1.02] transition-transform duration-200">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-zinc-400 text-[10px] font-mono font-bold uppercase tracking-wider">{stat.label}</p>
-                <p className={`text-3xl font-display font-bold mt-1.5 ${stat.color}`}>{stat.value}</p>
-                <p className="text-zinc-500 text-xs mt-1 font-medium">{stat.sub}</p>
+        {stats.map(stat => {
+          const Icon = stat.icon;
+          return (
+            <div key={stat.label} className="tactile-raised p-6 bg-white/60 hover:scale-[1.02] transition-transform duration-200">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-zinc-400 text-[10px] font-mono font-bold uppercase tracking-wider">{stat.label}</p>
+                  <p className={`text-3xl font-display font-bold mt-1.5 ${stat.color}`}>{stat.value}</p>
+                  <p className="text-zinc-500 text-xs mt-1 font-medium">{stat.sub}</p>
+                </div>
+                <span className="p-2 bg-zinc-100 rounded-xl text-zinc-600">
+                  <Icon className="w-5 h-5" />
+                </span>
               </div>
-              <span className="text-2xl p-2 bg-zinc-100 rounded-xl">{stat.icon}</span>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

@@ -116,16 +116,24 @@ export function useLeads() {
   }, []);
 
   const editLead = useCallback(async (leadId: string, data: Partial<Lead>) => {
-    return apiFetch<{ success: boolean }>(`/admin/leads/${leadId}`, {
+    const result = await apiFetch<{ success: boolean }>(`/admin/leads/${leadId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+    if (result.success) {
+      setLeads(prev => prev.map(l => (l.id === leadId ? { ...l, ...data } : l)));
+    }
+    return result;
   }, []);
 
   const deleteLead = useCallback(async (leadId: string) => {
-    return apiFetch<{ success: boolean }>(`/admin/leads/${leadId}`, {
+    const result = await apiFetch<{ success: boolean }>(`/admin/leads/${leadId}`, {
       method: 'DELETE',
     });
+    if (result.success) {
+      setLeads(prev => prev.filter(l => l.id !== leadId));
+    }
+    return result;
   }, []);
 
   const runDiagnostic = useCallback(async (leadId: string) => {
@@ -193,16 +201,24 @@ export function useClients() {
   }, []);
 
   const editClient = useCallback(async (clientId: string, data: Partial<Client>) => {
-    return apiFetch<{ success: boolean }>(`/admin/clients/${clientId}`, {
+    const result = await apiFetch<{ success: boolean }>(`/admin/clients/${clientId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+    if (result.success) {
+      setClients(prev => prev.map(c => (c.id === clientId ? { ...c, ...data } : c)));
+    }
+    return result;
   }, []);
 
   const deleteClient = useCallback(async (clientId: string) => {
-    return apiFetch<{ success: boolean }>(`/admin/clients/${clientId}`, {
+    const result = await apiFetch<{ success: boolean }>(`/admin/clients/${clientId}`, {
       method: 'DELETE',
     });
+    if (result.success) {
+      setClients(prev => prev.filter(c => c.id !== clientId));
+    }
+    return result;
   }, []);
 
   const runAgentForClient = useCallback(async (clientId: string, agentName: string, input?: Record<string, unknown>) => {

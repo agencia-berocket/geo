@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { logout } from '../lib/firebase';
 import { User } from 'firebase/auth';
+import { IconDashboard, IconLeads, IconClients, IconMail, IconSettings, IconChevron, IconX } from './components/icons';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -10,11 +11,11 @@ interface AdminLayoutProps {
 }
 
 const navItems = [
-  { id: 'dashboard', icon: '⚡', label: 'Dashboard' },
-  { id: 'leads', icon: '📋', label: 'Leads' },
-  { id: 'clients', icon: '🚀', label: 'Clientes' },
-  { id: 'newsletter', icon: '✉️', label: 'Newsletter' },
-  { id: 'configs', icon: '⚙️', label: 'Agentes' },
+  { id: 'dashboard', icon: IconDashboard, label: 'Dashboard' },
+  { id: 'leads', icon: IconLeads, label: 'Leads' },
+  { id: 'clients', icon: IconClients, label: 'Clientes' },
+  { id: 'newsletter', icon: IconMail, label: 'Newsletter' },
+  { id: 'configs', icon: IconSettings, label: 'Agentes' },
 ];
 
 export default function AdminLayout({ children, user, currentPage, onNavigate }: AdminLayoutProps) {
@@ -46,7 +47,7 @@ export default function AdminLayout({ children, user, currentPage, onNavigate }:
       `}>
         <div className="tactile-raised h-full flex flex-col overflow-hidden bg-white/70 backdrop-blur-md">
           {/* Logo */}
-          <div className="p-4 border-b border-zinc-200/50 flex items-center gap-2">
+          <div className={`p-4 border-b border-zinc-200/50 flex items-center gap-2 ${!desktopSidebarOpen ? 'lg:flex-col lg:gap-3 lg:px-2' : ''}`}>
             <div className="w-8 h-8 rounded-xl bg-zinc-950 flex items-center justify-center border border-zinc-800 shadow-md shrink-0 relative overflow-hidden">
               <div className="w-5.5 h-5.5 rounded-full border border-white/95 bg-white shadow-[inset_1px_1px_2px_rgba(0,0,0,0.15)] relative flex items-center justify-center overflow-hidden">
                 <div className="w-[15px] h-[10px] bg-zinc-950 rounded-[4px] relative overflow-hidden shadow-inner mt-[-1.5px] border border-zinc-900/40">
@@ -59,52 +60,58 @@ export default function AdminLayout({ children, user, currentPage, onNavigate }:
               <div className="absolute right-[1px] top-1/2 -translate-y-1/2 w-[1px] h-[3px] bg-zinc-800 rounded-l" />
             </div>
             {(sidebarOpen || desktopSidebarOpen) && (
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <span className="font-display font-extrabold text-sm tracking-wider text-zinc-950 uppercase">
                   b.rocket
                 </span>
                 <span className="text-[9px] text-zinc-400 font-mono ml-1 font-semibold">ADMIN</span>
               </div>
             )}
-            
+
             {/* Desktop toggle button */}
             <button
               onClick={() => setDesktopSidebarOpen(s => !s)}
-              className="hidden lg:block ml-auto text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
+              className={`hidden lg:flex text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer ${desktopSidebarOpen ? 'ml-auto' : ''}`}
             >
-              {desktopSidebarOpen ? '◀' : '▶'}
+              <IconChevron direction={desktopSidebarOpen ? 'left' : 'right'} className="w-3.5 h-3.5" />
             </button>
             {/* Mobile close button */}
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden ml-auto text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer text-sm font-bold"
+              className="lg:hidden ml-auto text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer"
             >
-              ✕
+              <IconX className="w-4 h-4" />
             </button>
           </div>
 
           {/* Nav items */}
           <nav className="flex-1 p-3 space-y-2 overflow-y-auto">
-            {navItems.map(item => (
-              <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => handleNavigate(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer ${
-                  currentPage === item.id
-                    ? 'bg-zinc-950 text-white shadow-md'
-                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'
-                }`}
-              >
-                <span className="text-base flex-shrink-0">{item.icon}</span>
-                {(sidebarOpen || desktopSidebarOpen) && <span className="truncate font-display">{item.label}</span>}
-              </button>
-            ))}
+            {navItems.map(item => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  id={`nav-${item.id}`}
+                  onClick={() => handleNavigate(item.id)}
+                  title={!desktopSidebarOpen ? item.label : undefined}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer ${
+                    !desktopSidebarOpen ? 'lg:justify-center lg:px-0' : ''
+                  } ${
+                    currentPage === item.id
+                      ? 'bg-zinc-950 text-white shadow-md'
+                      : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  {(sidebarOpen || desktopSidebarOpen) && <span className="truncate font-display">{item.label}</span>}
+                </button>
+              );
+            })}
           </nav>
 
           {/* User info */}
           <div className="p-3 border-t border-zinc-200/50 bg-zinc-50/50">
-            <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-2 ${!desktopSidebarOpen ? 'lg:justify-center' : ''}`}>
               {user.photoURL ? (
                 <img src={user.photoURL} alt="" className="w-8 h-8 rounded-full flex-shrink-0 shadow-inner" />
               ) : (
@@ -136,7 +143,11 @@ export default function AdminLayout({ children, user, currentPage, onNavigate }:
               onClick={() => setSidebarOpen(true)}
               className="lg:hidden text-zinc-650 hover:text-zinc-900 p-1.5 rounded-lg border border-zinc-200 bg-white shadow-xs cursor-pointer"
             >
-              ☰
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
             </button>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-zinc-950 rounded-full animate-ping" />

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowDown, Globe, Mail, ArrowRight, ShieldAlert, CheckCircle2, Loader2, Sparkles } from 'lucide-react';
+import { ArrowDown, Globe, Mail, ArrowRight, ShieldAlert, CheckCircle2, Loader2, Sparkles, Lock } from 'lucide-react';
 
 export default function Hero() {
   const [url, setUrl] = useState('');
@@ -225,8 +225,8 @@ export default function Hero() {
                         </button>
                       </form>
 
-                      <div className="text-center font-mono text-[9px] text-zinc-400 uppercase tracking-wider font-bold">
-                        🔒 Relatório em PDF seguro enviado em minutos
+                      <div className="text-center font-mono text-[9px] text-zinc-400 uppercase tracking-wider font-bold flex items-center justify-center gap-1.5">
+                        <Lock className="w-3 h-3" /> Relatório em PDF seguro enviado em minutos
                       </div>
                     </motion.div>
                   )}

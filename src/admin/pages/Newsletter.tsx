@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
+import Modal from '../components/Modal';
+import { IconRocket, IconUsers, IconUpload } from '../components/icons';
 
 interface Subscriber {
   id: string;
@@ -14,6 +16,7 @@ export default function Newsletter() {
   const [htmlContent, setHtmlContent] = useState('');
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchSubscribers = async () => {
@@ -41,18 +44,18 @@ export default function Newsletter() {
     reader.onload = (event) => {
       const text = event.target?.result as string;
       setHtmlContent(text);
-      setMessage(`📄 Arquivo "${file.name}" carregado com sucesso.`);
+      setMessage(`Arquivo "${file.name}" carregado com sucesso.`);
     };
     reader.readAsText(file);
   };
 
   const handleSendBroadcast = async () => {
     if (!subject.trim()) {
-      setMessage('⚠️ Por favor, digite o assunto do e-mail.');
+      setMessage('Por favor, digite o assunto do e-mail.');
       return;
     }
     if (!htmlContent.trim()) {
-      setMessage('⚠️ Por favor, cole ou faça upload do arquivo HTML do e-mail.');
+      setMessage('Por favor, cole ou faça upload do arquivo HTML do e-mail.');
       return;
     }
 
@@ -60,7 +63,7 @@ export default function Newsletter() {
     if (!confirmSend) return;
 
     setSending(true);
-    setMessage('⏳ Enviando e-mails em lote...');
+    setMessage('Enviando e-mails em lote...');
     try {
       const res = await fetch('/api/admin/newsletter/broadcast', {
         method: 'POST',
@@ -69,15 +72,15 @@ export default function Newsletter() {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage(`✅ E-mail enviado com sucesso para ${data.count} inscritos!`);
+        setMessage(`E-mail enviado com sucesso para ${data.count} inscritos!`);
         setSubject('');
         setHtmlContent('');
         if (fileInputRef.current) fileInputRef.current.value = '';
       } else {
-        setMessage(`❌ Erro no envio: ${data.error}`);
+        setMessage(`Erro no envio: ${data.error}`);
       }
     } catch (err: any) {
-      setMessage(`❌ Erro de conexão: ${err.message}`);
+      setMessage(`Erro de conexão: ${err.message}`);
     } finally {
       setSending(false);
     }
@@ -100,8 +103,8 @@ export default function Newsletter() {
         {/* Disparo de E-mail */}
         <div className="lg:col-span-7 space-y-6">
           <div className="tactile-raised p-6 bg-white/60 space-y-5">
-            <h2 className="font-display font-bold text-zinc-950 text-base border-b border-zinc-200/50 pb-3">
-              🚀 Disparar E-mail em Massa
+            <h2 className="font-display font-bold text-zinc-950 text-base border-b border-zinc-200/50 pb-3 flex items-center gap-2">
+              <IconRocket className="w-4 h-4" /> Disparar E-mail em Massa
             </h2>
 
             {/* Subject */}
@@ -113,7 +116,7 @@ export default function Newsletter() {
                 type="text"
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
-                placeholder="Ex: [b.rocket] Novas descobertas em Otimização GEO 🔬"
+                placeholder="Ex: [b.rocket] Novas descobertas em Otimização GEO"
                 className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-800 focus:outline-none focus:border-zinc-900 shadow-inner"
               />
             </div>
@@ -135,9 +138,9 @@ export default function Newsletter() {
                   />
                   <label
                     htmlFor="html-file-upload"
-                    className="text-xs bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer block"
+                    className="text-xs bg-white hover:bg-zinc-50 border border-zinc-200 hover:border-zinc-300 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
                   >
-                    📂 Fazer Upload (.html)
+                    <IconUpload className="w-3.5 h-3.5" /> Fazer Upload (.html)
                   </label>
                 </div>
               </div>
@@ -152,14 +155,23 @@ export default function Newsletter() {
             </div>
 
             {/* Action */}
-            <div className="pt-2">
+            <div className="pt-2 flex gap-2">
+              {htmlContent.trim() && (
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(true)}
+                  className="bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-700 font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-xs cursor-pointer"
+                >
+                  Pré-visualizar
+                </button>
+              )}
               <button
                 id="btn-broadcast-newsletter"
                 onClick={handleSendBroadcast}
                 disabled={sending}
-                className="w-full bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer flex items-center justify-center gap-2"
+                className="flex-1 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
               >
-                {sending ? '⏳ Disparando...' : `✉️ Disparar para ${subscribers.length} inscritos`}
+                {sending ? 'Disparando...' : `Disparar para ${subscribers.length} inscritos`}
               </button>
             </div>
 
@@ -167,10 +179,26 @@ export default function Newsletter() {
             {htmlContent.trim() && (
               <div className="space-y-2 mt-4 pt-4 border-t border-zinc-200/50">
                 <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Pré-visualização</h3>
-                <div className="border border-zinc-250 rounded-xl p-4 bg-white overflow-auto max-h-80 shadow-inner">
-                  <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+                <div className="border border-zinc-250 rounded-xl bg-white overflow-hidden max-h-80 shadow-inner">
+                  <iframe
+                    srcDoc={htmlContent}
+                    title="Pré-visualização do e-mail"
+                    sandbox=""
+                    className="w-full h-80 border-0"
+                  />
                 </div>
               </div>
+            )}
+
+            {showPreview && (
+              <Modal onClose={() => setShowPreview(false)} title="Pré-visualização do E-mail" subtitle={subject || undefined}>
+                <iframe
+                  srcDoc={htmlContent}
+                  title="Pré-visualização completa do e-mail"
+                  sandbox=""
+                  className="w-full flex-1 min-h-[70vh] border-0 rounded-xl bg-white"
+                />
+              </Modal>
             )}
 
             {message && (
@@ -184,8 +212,8 @@ export default function Newsletter() {
         {/* Lista de Inscritos */}
         <div className="lg:col-span-5 space-y-6">
           <div className="tactile-raised p-6 bg-white/60">
-            <h2 className="font-display font-bold text-zinc-950 text-base border-b border-zinc-200/50 pb-3 mb-4">
-              👥 Lista de Inscritos
+            <h2 className="font-display font-bold text-zinc-950 text-base border-b border-zinc-200/50 pb-3 mb-4 flex items-center gap-2">
+              <IconUsers className="w-4 h-4" /> Lista de Inscritos
             </h2>
 
             <div className="divide-y divide-zinc-200/40 max-h-[480px] overflow-auto pr-1">
