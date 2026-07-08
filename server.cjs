@@ -924,7 +924,232 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
         return res.status(400).json({ error: `Agente desconhecido: ${agentName}` });
     }
 
-    res.json({ success: true, result });
+
+// ─── NEWSLETTER CAPTURE ───────────────────────────────────────────────────
+app.post('/api/leads/newsletter', async (req, res) => {
+  const { name, email } = req.body;
+  if (!email) return res.status(400).json({ error: 'E-mail é obrigatório' });
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const subId = `sub_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter`;
+    const subDoc = {
+      fields: {
+        id: { stringValue: subId },
+        name: { stringValue: name || '' },
+        email: { stringValue: email },
+        subscribedAt: { stringValue: new Date().toISOString() },
+      }
+    };
+
+    await fetch(firestoreUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(subDoc),
+    });
+
+    res.json({ success: true, subId });
+  } catch (err) {
+    console.error('Newsletter subscribe error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET NEWSLETTER LIST ──────────────────────────────────────────────────
+app.get('/api/admin/newsletter', verifyAdminToken, async (req, res) => {
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter?pageSize=300`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    const subscribers = (data.documents || []).map(doc => {
+      const f = doc.fields || {};
+      return {
+        id: f.id?.stringValue || doc.name.split('/').pop(),
+        name: f.name?.stringValue || '',
+        email: f.email?.stringValue || '',
+        subscribedAt: f.subscribedAt?.stringValue || '',
+      };
+    });
+
+    res.json({ subscribers });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── BROADCAST TO SUBSCRIBERS ─────────────────────────────────────────────
+app.post('/api/admin/newsletter/broadcast', verifyAdminToken, async (req, res) => {
+  const { subject, htmlContent } = req.body;
+  if (!subject || !htmlContent) {
+    return res.status(400).json({ error: 'Assunto e HTML de e-mail são obrigatórios' });
+  }
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    // Fetch all subscribers
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter?pageSize=500`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    const emails = (data.documents || []).map(doc => doc.fields?.email?.stringValue).filter(Boolean);
+
+    if (emails.length === 0) {
+      return res.json({ success: true, message: 'Nenhum inscrito para enviar.' });
+    }
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error('Credenciais de e-mail ausentes no servidor (EMAIL_USER / EMAIL_PASS).');
+    }
+
+    // Send emails in batches of 20 to avoid rate limiting issues
+    const batchSize = 20;
+    for (let i = 0; i < emails.length; i += batchSize) {
+      const batch = emails.slice(i, i + batchSize);
+      await Promise.all(batch.map(email => {
+        return transporter.sendMail({
+          from: `"b.rocket" <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject: subject,
+          html: htmlContent,
+        });
+      }));
+    }
+
+    res.json({ success: true, count: emails.length });
+  } catch (err) {
+    console.error('Newsletter broadcast error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET AGENT CONFIGS ────────────────────────────────────────────────────
+app.get('/api/admin/agents/configs', verifyAdminToken, async (req, res) => {
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/agent_configs`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    function fromFirestoreValue(val) {
+      if (!val) return null;
+      if ('stringValue' in val) return val.stringValue;
+      if ('integerValue' in val) return parseInt(val.integerValue);
+      if ('doubleValue' in val) return val.doubleValue;
+      if ('booleanValue' in val) return val.booleanValue;
+      if ('nullValue' in val) return null;
+      if ('arrayValue' in val) return (val.arrayValue?.values || []).map(fromFirestoreValue);
+      if ('mapValue' in val) {
+        const result = {};
+        for (const [k, v] of Object.entries(val.mapValue?.fields || {})) {
+          result[k] = fromFirestoreValue(v);
+        }
+        return result;
+      }
+      return null;
+    }
+
+    const configs = (data.documents || []).map(doc => {
+      const config = {};
+      for (const [k, v] of Object.entries(doc.fields || {})) {
+        config[k] = fromFirestoreValue(v);
+      }
+      config.firestoreId = doc.name.split('/').pop();
+      return config;
+    });
+
+    // Default configuration if collection is empty
+    if (configs.length === 0) {
+      const defaultConfigs = [
+        {
+          id: 'gatekeeper',
+          name: 'Technical Gatekeeper',
+          soul: '# SOUL.md - Technical Gatekeeper\\nSua missão é auditar a infraestrutura básica de um site para saber se os robôs de IA conseguem acessá-lo. Você foca em indexabilidade e velocidade.',
+          identity: '# IDENTITY.md\\nResponsabilidades:\\n1. Analisar robots.txt\\n2. Verificar ativação de SSR\\n3. Medir latência de resposta.',
+          skills: '# SKILLS.md\\nScript de análise técnica estrutural e diagnóstico básico do robots.txt.'
+        },
+        {
+          id: 'metadata',
+          name: 'Metadata Entity',
+          soul: '# SOUL.md - Metadata Entity\\nSua missão é dar semântica e estrutura de banco de dados orientada a grafos para o site. Você pensa em termos de Entidades e Atributos.',
+          identity: '# IDENTITY.md\\nResponsabilidades:\\n1. Verificar tags Schema JSON-LD.\\n2. Indicar marcação sameAs de confiança.\\n3. Gerar arquivos /llms.txt',
+          skills: '# SKILLS.md\\nValidação de Schemas JSON-LD e compilação do arquivo de mapa /llms.txt'
+        },
+        {
+          id: 'content',
+          name: 'Content Absorption',
+          soul: '# SOUL.md - Content Absorption\\nSua missão é otimizar o conteúdo do cliente de forma que as IAs consigam digerir perfeitamente as informações, priorizando modularidade e clareza.',
+          identity: '# IDENTITY.md\\nResponsabilidades:\\n1. Encontrar resposta direta no início do conteúdo (AEO).\\n2. Auditar densidade de estatísticas e aspas de especialistas.',
+          skills: '# SKILLS.md\\nMedição de chunking semântico e fatores de citabilidade baseados na metodologia Princeton.'
+        },
+        {
+          id: 'intent',
+          name: 'Intent Prompt',
+          soul: '# SOUL.md - Intent Prompt\\nSua missão é testar de forma científica a reputação e recomendação da marca em diferentes motores de IA corporativos.',
+          identity: '# IDENTITY.md\\nResponsabilidades:\\n1. Elaborar prompts de intenção real de busca do usuário.\\n2. Computar Citation Share comparativo entre marca e concorrentes.',
+          skills: '# SKILLS.md\\nIntegração com OpenRouter e medição de sentimento comparativo das menções.'
+        }
+      ];
+      return res.json({ configs: defaultConfigs });
+    }
+
+    res.json({ configs });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SAVE AGENT CONFIGS ───────────────────────────────────────────────────
+app.post('/api/admin/agents/configs', verifyAdminToken, async (req, res) => {
+  const { id, name, soul, identity, skills } = req.body;
+  if (!id) return res.status(400).json({ error: 'ID do agente é obrigatório' });
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+
+    // Query configs to check if document exists or need update
+    const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/agent_configs`;
+    const listResponse = await fetch(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const listData = await listResponse.json();
+
+    let existingDocName = null;
+    for (const doc of (listData.documents || [])) {
+      if (doc.fields?.id?.stringValue === id) {
+        existingDocName = doc.name;
+        break;
+      }
+    }
+
+    const configDoc = {
+      fields: {
+        id: { stringValue: id },
+        name: { stringValue: name || '' },
+        soul: { stringValue: soul || '' },
+        identity: { stringValue: identity || '' },
+        skills: { stringValue: skills || '' },
+      }
+    };
+
+    if (existingDocName) {
+      // UPDATE (PATCH)
+      await fetch(`https://firestore.googleapis.com/v1/${existingDocName}`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(configDoc),
+      });
+    } else {
+      // CREATE (POST)
+      await fetch(listUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(configDoc),
+      });
+    }
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -932,6 +1157,7 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
 
 // Serve frontend static assets from the 'dist' directory
 app.use(express.static(path.join(__dirname, 'dist')));
+
 
 // Fallback all routes to frontend index.html
 app.get('*', (req, res) => {

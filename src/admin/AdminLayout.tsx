@@ -13,9 +13,12 @@ const navItems = [
   { id: 'dashboard', icon: '⚡', label: 'Dashboard' },
   { id: 'leads', icon: '📋', label: 'Leads' },
   { id: 'clients', icon: '🚀', label: 'Clientes' },
+  { id: 'newsletter', icon: '✉️', label: 'Newsletter' },
+  { id: 'configs', icon: '⚙️', label: 'Agentes' },
 ];
 
 export default function AdminLayout({ children, user, currentPage, onNavigate }: AdminLayoutProps) {
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (

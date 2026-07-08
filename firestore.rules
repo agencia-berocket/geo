@@ -27,10 +27,22 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // Newsletter — anyone can register, only admin can list/delete
+    match /newsletter/{subId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Agent Configs — only admin
+    match /agent_configs/{configId} {
+      allow read, write: if isAdmin();
+    }
+
     // Diagnostics — only admin
     match /diagnostics/{diagId} {
       allow read, write: if isAdmin();
     }
+
 
     // Clients — only admin
     match /clients/{clientId} {

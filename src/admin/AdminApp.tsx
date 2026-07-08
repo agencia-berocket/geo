@@ -4,9 +4,11 @@ import AdminLayout from './AdminLayout';
 import Dashboard from './pages/Dashboard';
 import LeadsList from './pages/LeadsList';
 import ClientsList from './pages/ClientsList';
+import Newsletter from './pages/Newsletter';
+import AgentConfig from './pages/AgentConfig';
 import { useAuth } from './hooks/useAuth';
 
-type Page = 'dashboard' | 'leads' | 'clients';
+type Page = 'dashboard' | 'leads' | 'clients' | 'newsletter' | 'configs';
 
 export default function AdminApp() {
   const { user, authState } = useAuth();
@@ -31,9 +33,9 @@ export default function AdminApp() {
   // Loading state
   if (authState === 'loading') {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f4f5f8] flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="w-8 h-8 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
           <span className="text-zinc-500 text-sm font-mono">b.rocket // VERIFICANDO ACESSO...</span>
         </div>
       </div>
@@ -48,19 +50,19 @@ export default function AdminApp() {
   // Wrong email
   if (authState === 'unauthorized') {
     return (
-      <div className="min-h-screen bg-[#09090b] flex items-center justify-center">
+      <div className="min-h-screen bg-[#f4f5f8] flex items-center justify-center">
         <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-red-900/30 border border-red-800 rounded-2xl flex items-center justify-center mx-auto text-3xl">
+          <div className="w-16 h-16 bg-red-50 border border-red-200 rounded-2xl flex items-center justify-center mx-auto text-3xl shadow-sm">
             🚫
           </div>
-          <h1 className="text-white font-bold text-xl">Acesso Negado</h1>
-          <p className="text-zinc-400 text-sm">
-            Seu e-mail <span className="text-zinc-200">{user?.email}</span><br />
+          <h1 className="text-zinc-950 font-bold text-xl font-display">Acesso Negado</h1>
+          <p className="text-zinc-500 text-sm">
+            Seu e-mail <span className="text-zinc-950 font-mono">{user?.email}</span><br />
             não tem permissão para acessar este painel.
           </p>
           <button
             onClick={() => import('../lib/firebase').then(m => m.logout())}
-            className="text-sm text-red-400 hover:text-red-300 transition-colors"
+            className="text-sm text-red-500 hover:text-red-700 font-bold transition-colors cursor-pointer"
           >
             ← Sair e tentar com outro e-mail
           </button>
@@ -74,6 +76,8 @@ export default function AdminApp() {
     switch (currentPage) {
       case 'leads': return <LeadsList onNavigate={handleNavigate} selectedLeadId={selectedId} />;
       case 'clients': return <ClientsList onNavigate={handleNavigate} />;
+      case 'newsletter': return <Newsletter />;
+      case 'configs': return <AgentConfig />;
       default: return <Dashboard onNavigate={handleNavigate} />;
     }
   };
@@ -84,3 +88,4 @@ export default function AdminApp() {
     </AdminLayout>
   );
 }
+

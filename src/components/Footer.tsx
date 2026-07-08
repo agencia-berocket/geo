@@ -11,6 +11,17 @@ export default function Footer() {
     e.preventDefault();
     if (name.trim() && email.trim()) {
       setSubscribed(true);
+
+      // Register subscriber in Firestore via backend
+      fetch('/api/leads/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      })
+        .then(res => res.json())
+        .then(data => console.log('Inscrição newsletter:', data))
+        .catch(err => console.error('Erro newsletter:', err));
+
       setTimeout(() => {
         setSubscribed(false);
         setName('');
@@ -18,6 +29,7 @@ export default function Footer() {
       }, 5000);
     }
   };
+
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
