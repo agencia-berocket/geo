@@ -60,6 +60,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
   // Visitor details state
   const [name, setName] = useState('');
   const [visitorEmail, setVisitorEmail] = useState('');
+  const [whatsapp, setWhatsapp] = useState('');
   const [company, setCompany] = useState('');
   const [url, setUrl] = useState('');
   const [notes, setNotes] = useState('');
@@ -396,6 +397,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
         body: JSON.stringify({
           name,
           email: visitorEmail,
+          whatsapp,
           company,
           url,
           notes,
@@ -430,6 +432,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
       setCreatedEvent(null);
       setName('');
       setVisitorEmail('');
+      setWhatsapp('');
       setCompany('');
       setUrl('');
       setNotes('');
@@ -653,6 +656,19 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                       />
                     </div>
 
+                    {/* WhatsApp */}
+                    <div className="space-y-1">
+                      <label className="font-mono text-[9px] text-zinc-400 uppercase font-bold block">WhatsApp (com DDD) *</label>
+                      <input 
+                        type="tel" 
+                        required
+                        value={whatsapp}
+                        onChange={(e) => setWhatsapp(e.target.value)}
+                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
+                        placeholder="(11) 99999-9999"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       {/* Company */}
                       <div className="space-y-1">
@@ -704,10 +720,10 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     </button>
                     
                     <button
-                      disabled={!name || !visitorEmail || !company || !url || !visitorEmail.includes('@')}
+                      disabled={!name || !visitorEmail || !whatsapp || !company || !url || !visitorEmail.includes('@')}
                       onClick={() => setStep('confirm')}
                       className={`font-mono text-xs font-bold px-6 py-3.5 tracking-widest uppercase transition-all duration-200 flex items-center gap-1.5 rounded-xl ${
-                        name && visitorEmail && company && url && visitorEmail.includes('@')
+                        name && visitorEmail && whatsapp && company && url && visitorEmail.includes('@')
                           ? 'bg-zinc-950 text-white hover:bg-zinc-900 cursor-pointer'
                           : 'bg-zinc-150 text-zinc-400 cursor-not-allowed'
                       }`}

@@ -152,9 +152,9 @@ app.get('/api/calendar/availability', async (req, res) => {
 
 // API: Book a new meeting and sync it automatically to Google Calendar
 app.post('/api/calendar/book', async (req, res) => {
-  const { name, email, company, url, notes, date, slot } = req.body;
+  const { name, email, whatsapp, company, url, notes, date, slot } = req.body;
 
-  if (!name || !email || !company || !url || !date || !slot) {
+  if (!name || !email || !whatsapp || !company || !url || !date || !slot) {
     return res.status(400).json({ error: 'Missing required booking fields.' });
   }
 
@@ -168,18 +168,17 @@ app.post('/api/calendar/book', async (req, res) => {
     const end = new Date(start);
     end.setMinutes(end.getMinutes() + 40);
 
-    // 2. Build Google Calendar Event Payload
+    // 2. Build Google Calendar Event Payload (no conferenceData - not supported by service accounts on personal Gmail)
     const eventPayload = {
       summary: `Mentoria b.rocket: Diagnóstico GEO & RAG (${company})`,
-      description: `Olá ${name},\n\nSua sessão estratégica de 40 minutos com o especialista Guilherme (b.rocket) foi agendada e confirmada!\n\n` +
+      description: `AGENDAMENTO b.rocket - GEO & RAG\n\n` +
                    `🎯 DETALHES DO PARTICIPANTE:\n` +
-                   `• Nome completo: ${name}\n` +
+                   `• Nome: ${name}\n` +
                    `• E-mail: ${email}\n` +
+                   `• WhatsApp: ${whatsapp}\n` +
                    `• Empresa: ${company}\n` +
                    `• Website: ${url}\n` +
-                   `• Notas/Gargalos: ${notes || 'Análise geral sem anotações.'}\n\n` +
-                   `🔗 A sala oficial do Google Meet foi criada automaticamente e está disponível no link do evento.\n\n` +
-                   `📩 Enviar link do Meet para o cliente: ${email}`,
+                   `• Notas: ${notes || 'Nenhuma observação.'}`,
       start: {
         dateTime: start.toISOString(),
         timeZone: 'America/Sao_Paulo'
@@ -187,19 +186,11 @@ app.post('/api/calendar/book', async (req, res) => {
       end: {
         dateTime: end.toISOString(),
         timeZone: 'America/Sao_Paulo'
-      },
-      conferenceData: {
-        createRequest: {
-          requestId: `brocket-meet-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          conferenceSolutionKey: {
-            type: 'hangoutsMeet'
-          }
-        }
       }
     };
 
     // 3. Create Google Calendar Event
-    const createEventUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_OWNER_EMAIL)}/events?conferenceDataVersion=1`;
+    const createEventUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_OWNER_EMAIL)}/events`;
     const createRes = await fetch(createEventUrl, {
       method: 'POST',
       headers: {
@@ -224,6 +215,7 @@ app.post('/api/calendar/book', async (req, res) => {
       fields: {
         name: { stringValue: name },
         email: { stringValue: email },
+        whatsapp: { stringValue: whatsapp },
         company: { stringValue: company },
         url: { stringValue: url },
         notes: { stringValue: notes || '' },
@@ -231,7 +223,6 @@ app.post('/api/calendar/book', async (req, res) => {
         slot: { stringValue: slot },
         createdAt: { stringValue: new Date().toISOString() },
         synced: { booleanValue: true },
-        meetLink: { stringValue: meetLink },
         googleEventId: { stringValue: googleEventId }
       }
     };
