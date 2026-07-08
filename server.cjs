@@ -20,11 +20,18 @@ if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
     if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
       jsonStr = jsonStr.slice(1, -1).trim();
     }
-    // Convert multiple backslashes + quote to just quote, and backslashes + n to escaped \n
+    // Convert multiple backslashes + quote to just a single quote
     jsonStr = jsonStr.replace(/\\+"/g, '"');
-    jsonStr = jsonStr.replace(/\\+n/g, '\\\\n');
-    
+    // Keep \\n as the literal two-char sequence \n so JSON.parse can decode it correctly
+    jsonStr = jsonStr.replace(/\\{3,}n/g, '\\n');
+
     serviceAccount = JSON.parse(jsonStr);
+
+    // After JSON.parse, the private_key field may contain literal \n instead of real newlines
+    // Node crypto requires real newlines in PEM keys
+    if (serviceAccount && serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
   } catch (err) {
     console.error('Error parsing GOOGLE_SERVICE_ACCOUNT_JSON env var:', err);
     console.error('Raw GOOGLE_SERVICE_ACCOUNT_JSON:', process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
