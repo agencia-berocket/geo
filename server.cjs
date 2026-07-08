@@ -130,6 +130,16 @@ function getGoogleAccessToken() {
   });
 }
 
+// Helper for Firestore REST API calls to assert non-error responses
+async function fetchFirestore(url, options = {}) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Firestore request failed (${response.status}): ${errorText}`);
+  }
+  return response.json();
+}
+
 // API: Get Google Calendar availability for a specific date
 app.get('/api/calendar/availability', async (req, res) => {
   const { date } = req.query;
@@ -258,17 +268,17 @@ app.post('/api/calendar/book', async (req, res) => {
       }
     };
 
-    const firestoreRes = await fetch(firestoreUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(bookingDoc)
-    });
-
-    if (!firestoreRes.ok) {
-      console.error('Firestore save failed (non-blocking for user):', await firestoreRes.text());
+    try {
+      await fetchFirestore(firestoreUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bookingDoc)
+      });
+    } catch (fsErr) {
+      console.error('Firestore save failed (non-blocking for user):', fsErr);
     }
 
     // 5. Generate .ics file and Send Emails via Nodemailer
@@ -414,7 +424,7 @@ app.post('/api/leads/capture', async (req, res) => {
       }
     };
 
-    await fetch(firestoreUrl, {
+    await fetchFirestore(firestoreUrl, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(leadDoc),
@@ -442,8 +452,7 @@ app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
   try {
     const accessToken = await getGoogleAccessToken();
     const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?orderBy=createdAt+desc&pageSize=100`;
-    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-    const data = await response.json();
+    const data = await fetchFirestore(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
 
     const leads = (data.documents || []).map(doc => {
       const f = doc.fields || {};
@@ -480,9 +489,7 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
       const accessToken = await getGoogleAccessToken();
 
       // Fetch lead data
-      const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-      const leadsRes = await fetch(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-      const leadsData = await leadsRes.json();
+      const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
 
       let lead = null;
       let leadDocPath = null;
@@ -504,7 +511,7 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
       if (!lead) throw new Error('Lead não encontrado');
 
       // Update status to processing
-      await fetch(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=status`, {
+      await fetchFirestore(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=status`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields: { status: { stringValue: 'processing' } } }),
@@ -580,14 +587,14 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
         diagFields[k] = toFirestoreValue(v);
       }
 
-      await fetch(diagUrl, {
+      await fetchFirestore(diagUrl, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ fields: diagFields }),
       });
 
       // Update lead with score and diagnosticId
-      await fetch(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=status&updateMask.fieldPaths=geoScore&updateMask.fieldPaths=diagnosticId`, {
+      await fetchFirestore(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=status&updateMask.fieldPaths=geoScore&updateMask.fieldPaths=diagnosticId`, {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -612,8 +619,7 @@ app.get('/api/admin/diagnostic/:leadId', verifyAdminToken, async (req, res) => {
   try {
     const accessToken = await getGoogleAccessToken();
     const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=50`;
-    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-    const data = await response.json();
+    const data = await fetchFirestore(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
 
     // Find diagnostic for this leadId
     function fromFirestoreValue(val) {
@@ -659,10 +665,9 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
     const accessToken = await getGoogleAccessToken();
 
     // Fetch lead
-    const leadsRes = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
+    const leadsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
-    const leadsData = await leadsRes.json();
     let lead = null;
     for (const doc of (leadsData.documents || [])) {
       const f = doc.fields || {};
@@ -674,10 +679,9 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
     if (!lead) throw new Error('Lead não encontrado');
 
     // Fetch diagnostic
-    const diagRes = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
+    const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
-    const diagData = await diagRes.json();
     let htmlReport = null;
     let diagnostic = null;
 
@@ -949,7 +953,7 @@ app.post('/api/leads/newsletter', async (req, res) => {
       }
     };
 
-    await fetch(firestoreUrl, {
+    await fetchFirestore(firestoreUrl, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(subDoc),
