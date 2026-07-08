@@ -1,38 +1,35 @@
 import { useEffect, useState } from 'react';
 
-interface AgentConfig {
-  id: string;
-  name: string;
-  soul: string;
-  identity: string;
-  skills: string;
+interface AgentFile {
+  filename: string;
+  content: string;
 }
 
-const agentLabels = {
-  gatekeeper: '🛡️ Agente 2 — Technical Gatekeeper',
-  metadata: '🗂️ Agente 3 — Metadata Entity',
-  content: '📝 Agente 4 — Content Absorption',
-  intent: '🔍 Agente 5 — Intent Prompt (OpenRouter)',
+const fileLabels = {
+  'Soul.md': '🧠 Soul.md (Essência & Visão Geral dos Agentes)',
+  'Introducao.md': '🚀 Introducao.md (Metodologia e Arquitetura GEO)',
+  'Estrutura.md': '📁 Estrutura.md (Mapeamento de Pastas, Skills e Fluxos)',
 };
 
 export default function AgentConfig() {
-  const [configs, setConfigs] = useState<AgentConfig[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('gatekeeper');
+  const [files, setFiles] = useState<AgentFile[]>([]);
+  const [selectedFilename, setSelectedFilename] = useState<string>('Soul.md');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Field values
-  const [soul, setSoul] = useState('');
-  const [identity, setIdentity] = useState('');
-  const [skills, setSkills] = useState('');
+  // Field value
+  const [content, setContent] = useState('');
 
-  const fetchConfigs = async () => {
+  const fetchFiles = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/agents/configs');
+      const res = await fetch('/api/admin/agents/files');
       const data = await res.json();
-      setConfigs(data.configs || []);
+      if (data.success) {
+        setFiles(data.files || []);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -41,41 +38,33 @@ export default function AgentConfig() {
   };
 
   useEffect(() => {
-    fetchConfigs();
+    fetchFiles();
   }, []);
 
   useEffect(() => {
-    const active = configs.find(c => c.id === selectedAgentId);
+    const active = files.find(f => f.filename === selectedFilename);
     if (active) {
-      setSoul(active.soul || '');
-      setIdentity(active.identity || '');
-      setSkills(active.skills || '');
+      setContent(active.content || '');
     }
-  }, [selectedAgentId, configs]);
+  }, [selectedFilename, files]);
 
-  const handleSaveConfig = async () => {
+  const handleSaveFile = async () => {
     setSaving(true);
     setMessage(null);
-    const active = configs.find(c => c.id === selectedAgentId);
-    if (!active) return;
-
     try {
-      const res = await fetch('/api/admin/agents/configs', {
+      const res = await fetch('/api/admin/agents/files/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: selectedAgentId,
-          name: active.name,
-          soul,
-          identity,
-          skills
+          filename: selectedFilename,
+          content,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setMessage('✅ Configuração salva com sucesso no Firestore.');
+        setMessage('✅ Arquivo salvo localmente com sucesso.');
         // Update local state
-        setConfigs(prev => prev.map(c => c.id === selectedAgentId ? { ...c, soul, identity, skills } : c));
+        setFiles(prev => prev.map(f => f.filename === selectedFilename ? { ...f, content } : f));
       } else {
         setMessage(`❌ Erro ao salvar: ${data.error}`);
       }
@@ -86,62 +75,92 @@ export default function AgentConfig() {
     }
   };
 
-  const selectedAgent = configs.find(c => c.id === selectedAgentId);
+  const handleGitSync = async () => {
+    setSyncing(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/admin/agents/git/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage(`☁️ ${data.message || 'Sincronizado com sucesso!'}`);
+      } else {
+        setMessage(`❌ Erro de sincronização: ${data.error}`);
+      }
+    } catch (err: any) {
+      setMessage(`❌ Erro de conexão: ${err.message}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const selectedFile = files.find(f => f.filename === selectedFilename);
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-display font-bold text-zinc-900">Configurações de Agentes</h1>
-        <p className="text-zinc-500 text-sm mt-1 font-medium">Edite as diretrizes, comportamento e prompts dos agentes GEO</p>
+      <div className="flex justify-between items-start flex-wrap gap-4">
+        <div>
+          <h1 className="text-3xl font-display font-bold text-zinc-900">Arquivos e Prompting dos Agentes</h1>
+          <p className="text-zinc-500 text-sm mt-1 font-medium">Edite os arquivos conceituais de comportamento e engenharia dos agentes em tempo real</p>
+        </div>
+        <button
+          onClick={handleGitSync}
+          disabled={syncing}
+          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md cursor-pointer flex items-center gap-2 border-t border-emerald-400"
+        >
+          {syncing ? '⏳ Enviando ao GitHub...' : '☁️ Enviar e Sincronizar com GitHub (Push)'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Lista de Agentes para Selecionar */}
+        {/* Lista de Arquivos */}
         <div className="lg:col-span-4 space-y-3">
           <div className="tactile-raised p-4 bg-white/60 space-y-2">
             <h2 className="font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
-              Selecione o Agente
+              Selecione o Arquivo
             </h2>
             {loading ? (
-              <p className="text-zinc-400 text-xs font-mono py-4 text-center">Carregando agentes...</p>
+              <p className="text-zinc-400 text-xs font-mono py-4 text-center">Carregando arquivos...</p>
             ) : (
-              configs.map(config => (
+              files.map(file => (
                 <button
-                  key={config.id}
-                  id={`config-select-${config.id}`}
-                  onClick={() => { setSelectedAgentId(config.id); setMessage(null); }}
+                  key={file.filename}
+                  id={`file-select-${file.filename.replace('.', '-')}`}
+                  onClick={() => { setSelectedFilename(file.filename); setMessage(null); }}
                   className={`w-full flex items-center justify-between p-3.5 rounded-xl text-left text-xs font-semibold tracking-tight transition-all cursor-pointer ${
-                    selectedAgentId === config.id
+                    selectedFilename === file.filename
                       ? 'bg-zinc-950 text-white shadow-md'
                       : 'bg-white text-zinc-600 hover:text-zinc-900 border border-zinc-200/60 hover:bg-zinc-50'
                   }`}
                 >
-                  <span>{agentLabels[config.id as keyof typeof agentLabels] || config.name}</span>
+                  <span>{fileLabels[file.filename as keyof typeof fileLabels] || file.filename}</span>
                 </button>
               ))
             )}
           </div>
         </div>
 
-        {/* Editor de Arquivos do Agente */}
+        {/* Editor de Texto Markdown */}
         <div className="lg:col-span-8">
-          {selectedAgent ? (
+          {selectedFile ? (
             <div className="tactile-raised p-6 bg-white/60 space-y-6">
               <div className="border-b border-zinc-200 pb-4 flex justify-between items-center">
                 <div>
                   <h2 className="font-display font-bold text-zinc-900 text-base">
-                    Workspace: {selectedAgent.name}
+                    Arquivo: {selectedFile.filename}
                   </h2>
-                  <p className="text-zinc-500 text-xs font-medium">ID: {selectedAgentId}</p>
+                  <p className="text-zinc-550 text-xs font-mono font-bold">Caminho: Base/Estrutura de Agentes/{selectedFile.filename}</p>
                 </div>
                 <button
-                  id="btn-save-agent-configs"
-                  onClick={handleSaveConfig}
+                  id="btn-save-agent-file"
+                  onClick={handleSaveFile}
                   disabled={saving}
                   className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer"
                 >
-                  {saving ? '⏳ Salvando...' : '💾 Salvar Configurações'}
+                  {saving ? '⏳ Salvando...' : '💾 Salvar Rascunho'}
                 </button>
               </div>
 
@@ -151,60 +170,25 @@ export default function AgentConfig() {
                 </p>
               )}
 
-              {/* Editor Tabs (SOUL.md, IDENTITY.md, SKILLS.md) */}
-              <div className="space-y-5">
-                {/* SOUL.md */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      SOUL.md (Essência & Visão)
-                    </label>
-                    <span className="text-[9px] text-zinc-400 font-mono">markdown</span>
-                  </div>
-                  <textarea
-                    value={soul}
-                    onChange={e => setSoul(e.target.value)}
-                    rows={6}
-                    className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3.5 text-xs text-zinc-800 font-mono focus:outline-none focus:border-zinc-900 shadow-inner"
-                  />
+              {/* Editor */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                    Editor de Conteúdo Markdown
+                  </label>
+                  <span className="text-[9px] text-zinc-400 font-mono font-bold bg-white border border-zinc-200 px-2 py-0.5 rounded shadow-xs">markdown</span>
                 </div>
-
-                {/* IDENTITY.md */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      IDENTITY.md (Papel Funcional & Responsabilidades)
-                    </label>
-                    <span className="text-[9px] text-zinc-400 font-mono">markdown</span>
-                  </div>
-                  <textarea
-                    value={identity}
-                    onChange={e => setIdentity(e.target.value)}
-                    rows={6}
-                    className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3.5 text-xs text-zinc-800 font-mono focus:outline-none focus:border-zinc-900 shadow-inner"
-                  />
-                </div>
-
-                {/* SKILLS.md */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                      SKILLS.md / SKILL.md (Scripts & Abstrações)
-                    </label>
-                    <span className="text-[9px] text-zinc-400 font-mono">markdown</span>
-                  </div>
-                  <textarea
-                    value={skills}
-                    onChange={e => setSkills(e.target.value)}
-                    rows={6}
-                    className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3.5 text-xs text-zinc-800 font-mono focus:outline-none focus:border-zinc-900 shadow-inner"
-                  />
-                </div>
+                <textarea
+                  value={content}
+                  onChange={e => setContent(e.target.value)}
+                  rows={20}
+                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3.5 text-xs text-zinc-850 font-mono focus:outline-none focus:border-zinc-900 shadow-inner leading-relaxed"
+                />
               </div>
             </div>
           ) : (
             <div className="tactile-raised p-12 text-center bg-white/60">
-              <p className="text-zinc-450 text-sm font-medium">Selecione um agente na barra lateral para começar a configurar</p>
+              <p className="text-zinc-450 text-sm font-medium">Selecione um arquivo na barra lateral para começar a configurar</p>
             </div>
           )}
         </div>

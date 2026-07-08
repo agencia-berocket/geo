@@ -1149,11 +1149,76 @@ app.post('/api/admin/agents/configs', verifyAdminToken, async (req, res) => {
       });
     }
 
+
+// ─── READ PHYSICAL AGENT MARKDOWN FILES ───────────────────────────────────
+app.get('/api/admin/agents/files', verifyAdminToken, async (req, res) => {
+  const dirPath = path.join(__dirname, 'Base', 'Estrutura de Agentes');
+  try {
+    const filenames = ['Estrutura.md', 'Introducao.md', 'Soul.md'];
+    const files = [];
+
+    for (const filename of filenames) {
+      const filePath = path.join(dirPath, filename);
+      let content = '';
+      try {
+        content = await fs.promises.readFile(filePath, 'utf8');
+      } catch (err) {
+        content = `# ${filename}\n\nArquivo de configuração do agente.`;
+      }
+      files.push({ filename, content });
+    }
+
+    res.json({ success: true, files });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SAVE PHYSICAL AGENT MARKDOWN FILE ────────────────────────────────────
+app.post('/api/admin/agents/files/save', verifyAdminToken, async (req, res) => {
+  const { filename, content } = req.body;
+  if (!filename || content === undefined) {
+    return res.status(400).json({ error: 'Nome do arquivo e conteúdo são obrigatórios' });
+  }
+
+  // Sanitize filename to avoid path traversal
+  const safeFilename = path.basename(filename);
+  const filePath = path.join(__dirname, 'Base', 'Estrutura de Agentes', safeFilename);
+
+  try {
+    // Ensure parent directory exists
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, content, 'utf8');
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── GIT SYNC AGENTS FILES TO GITHUB ──────────────────────────────────────
+app.post('/api/admin/agents/git/sync', verifyAdminToken, async (req, res) => {
+  const { exec } = require('child_process');
+  
+  try {
+    const cmd = 'git add Base/Estrutura\\ de\\ Agentes/*.md && git commit -m "chore(agents): update agent markdown configs from admin panel" && git push origin main';
+    
+    exec(cmd, { cwd: __dirname }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('Git sync error:', error, stderr);
+        // Even if commit fails (e.g. no changes), don't necessarily crash
+        if (stderr.includes('nothing to commit') || stdout.includes('nothing to commit')) {
+          return res.json({ success: true, message: 'Já está sincronizado com o GitHub (sem alterações).' });
+        }
+        return res.status(500).json({ error: `Erro no Git Sync: ${stderr || error.message}` });
+      }
+      
+      res.json({ success: true, message: 'Arquivos sincronizados com sucesso no GitHub!', output: stdout });
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Serve frontend static assets from the 'dist' directory
 app.use(express.static(path.join(__dirname, 'dist')));
