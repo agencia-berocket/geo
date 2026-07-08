@@ -143,55 +143,21 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     return () => window.removeEventListener('open-booking-modal', handleOpen);
   }, []);
 
-  // Load busy timeslots from Firestore (combining cached Google Calendar + active bookings)
+  // Load busy timeslots from Google Calendar via backend API
   const loadAvailability = async (date: Date) => {
     setIsLoadingBusy(true);
     setFetchError(null);
     try {
-      const busyList: any[] = [];
-
-      // 1. Fetch cached Google Calendar availability from settings/calendar_availability doc
-      const availRef = doc(db, 'settings', 'calendar_availability');
-      const availSnap = await getDoc(availRef);
-      if (availSnap.exists()) {
-        const data = availSnap.data();
-        setCalendarLastUpdated(data.lastUpdated || null);
-        const cachedBusy = data.busySlots || [];
-        cachedBusy.forEach((b: any) => {
-          busyList.push({ start: b.start, end: b.end });
-        });
+      const formattedDate = date.toISOString().split('T')[0];
+      const res = await fetch(`/api/calendar/availability?date=${formattedDate}`);
+      if (!res.ok) {
+        throw new Error('Falha ao consultar disponibilidade do servidor.');
       }
-
-      // 2. Fetch all local Firestore bookings for this date to prevent double bookings in real-time
-      const startOfDay = new Date(date);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(date);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      const q = query(
-        collection(db, 'bookings'),
-        where('date', '>=', startOfDay.toISOString()),
-        where('date', '<=', endOfDay.toISOString())
-      );
-      const querySnap = await getDocs(q);
-      querySnap.forEach((doc) => {
-        const b = doc.data();
-        const [hours, minutes] = b.slot.split(':').map(Number);
-        const bStart = new Date(date);
-        bStart.setHours(hours, minutes, 0, 0);
-        const bEnd = new Date(bStart);
-        bEnd.setMinutes(bEnd.getMinutes() + 40);
-
-        busyList.push({
-          start: bStart.toISOString(),
-          end: bEnd.toISOString()
-        });
-      });
-
-      setBusyEvents(busyList);
+      const data = await res.json();
+      setBusyEvents(data.busySlots || []);
     } catch (err: any) {
       console.error('Error fetching availability:', err);
-      setFetchError('Não foi possível obter a disponibilidade atualizada. Mostrando horários padrão.');
+      setFetchError('Não foi possível obter a disponibilidade em tempo real.');
       setBusyEvents([]);
     } finally {
       setIsLoadingBusy(false);
@@ -413,7 +379,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     }
   };
 
-  // Create booking in Firestore collection for clients (without Google popups)
+  // Create booking via backend API (creates event in Google Calendar and records in Firestore)
   const handleConfirmBooking = async () => {
     if (!selectedDate || !selectedSlot) return;
 
@@ -421,31 +387,33 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     setBookingError(null);
 
     try {
-      const newBooking = {
-        name,
-        email: visitorEmail,
-        company,
-        url,
-        notes,
-        date: selectedDate.toISOString(),
-        slot: selectedSlot,
-        createdAt: new Date().toISOString(),
-        synced: false,
-        meetLink: ''
-      };
-
-      const docRef = await addDoc(collection(db, 'bookings'), newBooking);
-      
-      // Store in state to present details on success screen
-      setCreatedEvent({
-        id: docRef.id,
-        ...newBooking
+      const res = await fetch('/api/calendar/book', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          email: visitorEmail,
+          company,
+          url,
+          notes,
+          date: selectedDate.toISOString(),
+          slot: selectedSlot
+        })
       });
 
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Erro ao realizar agendamento.');
+      }
+
+      const result = await res.json();
+      setCreatedEvent(result.booking);
       setStep('success');
     } catch (err: any) {
       console.error('Error saving booking:', err);
-      setBookingError('Não foi possível registrar seu agendamento no momento. Tente novamente ou use nosso WhatsApp.');
+      setBookingError(err.message || 'Não foi possível registrar seu agendamento no momento. Tente novamente.');
     } finally {
       setIsBooking(false);
     }
@@ -518,20 +486,10 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
                 <span className="font-mono text-[9px] md:text-[10px] text-zinc-500 font-extrabold uppercase tracking-widest">
-                  {step === 'admin' ? 'PAINEL_DO_ESPECIALISTA // B.ROCKET_ADMIN' : 'GOOGLE_CALENDAR_ENGINE // B.ROCKET_MEETING'}
+                  GOOGLE_CALENDAR_ENGINE // B.ROCKET_MEETING
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                {step !== 'admin' && (
-                  <button
-                    onClick={handleAdminAccess}
-                    className="flex items-center gap-1.5 font-mono text-[9px] text-zinc-400 hover:text-zinc-900 transition-colors uppercase font-bold"
-                    title="Acesso de Guilherme"
-                  >
-                    <Settings className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Guilherme</span>
-                  </button>
-                )}
                 <button
                   onClick={handleClose}
                   className="p-1.5 hover:bg-zinc-200/80 active:scale-95 transition-all text-zinc-500 hover:text-zinc-950 rounded-full cursor-pointer"
@@ -636,15 +594,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                   )}
 
                   {/* Navigation Actions */}
-                  <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
-                    <button
-                      onClick={handleAdminAccess}
-                      className="flex items-center gap-1 font-mono text-[9px] text-zinc-400 hover:text-zinc-600 transition-colors uppercase font-bold"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Área do Especialista</span>
-                    </button>
-                    
+                  <div className="pt-4 border-t border-zinc-100 flex items-center justify-end">
                     <button
                       disabled={!selectedSlot}
                       onClick={() => setStep('details')}
