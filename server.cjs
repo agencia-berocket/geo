@@ -178,7 +178,8 @@ app.post('/api/calendar/book', async (req, res) => {
                    `• Empresa: ${company}\n` +
                    `• Website: ${url}\n` +
                    `• Notas/Gargalos: ${notes || 'Análise geral sem anotações.'}\n\n` +
-                   `🔗 A sala oficial do Google Meet foi criada automaticamente e está disponível no link do evento.`,
+                   `🔗 A sala oficial do Google Meet foi criada automaticamente e está disponível no link do evento.\n\n` +
+                   `📩 Enviar link do Meet para o cliente: ${email}`,
       start: {
         dateTime: start.toISOString(),
         timeZone: 'America/Sao_Paulo'
@@ -187,10 +188,6 @@ app.post('/api/calendar/book', async (req, res) => {
         dateTime: end.toISOString(),
         timeZone: 'America/Sao_Paulo'
       },
-      attendees: [
-        { email: CALENDAR_OWNER_EMAIL },
-        { email: email }
-      ],
       conferenceData: {
         createRequest: {
           requestId: `brocket-meet-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
