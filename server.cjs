@@ -13,14 +13,17 @@ let serviceAccount = null;
 if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
   try {
     let jsonStr = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.trim();
-    // Remove wrapped single quotes if added by shell or Coolify
+    // Remove wrapped single or double quotes
     if (jsonStr.startsWith("'") && jsonStr.endsWith("'")) {
-      jsonStr = jsonStr.slice(1, -1);
+      jsonStr = jsonStr.slice(1, -1).trim();
     }
-    // Fix double-escaped quotes if any
-    if (jsonStr.includes('\\"')) {
-      jsonStr = jsonStr.replace(/\\"/g, '"');
+    if (jsonStr.startsWith('"') && jsonStr.endsWith('"')) {
+      jsonStr = jsonStr.slice(1, -1).trim();
     }
+    // Convert multiple backslashes + quote to just quote, and backslashes + n to newline
+    jsonStr = jsonStr.replace(/\\+"/g, '"');
+    jsonStr = jsonStr.replace(/\\+n/g, '\n');
+    
     serviceAccount = JSON.parse(jsonStr);
   } catch (err) {
     console.error('Error parsing GOOGLE_SERVICE_ACCOUNT_JSON env var:', err);
