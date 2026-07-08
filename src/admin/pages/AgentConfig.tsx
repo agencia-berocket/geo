@@ -185,8 +185,8 @@ export default function AgentConfig() {
         {/* Navegação Lateral */}
         <div className="lg:col-span-4 space-y-4">
           {activeMode === 'general' ? (
-            <div className="tactile-raised p-4 bg-white/60 space-y-2">
-              <h2 className="font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
+            <div className="tactile-raised p-4 bg-white/60 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-3 lg:pb-4 scrollbar-none">
+              <h2 className="hidden lg:block font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
                 Arquivos de Arquitetura
               </h2>
               {loading ? (
@@ -196,7 +196,7 @@ export default function AgentConfig() {
                   <button
                     key={file.filename}
                     onClick={() => setSelectedFilename(file.filename)}
-                    className={`w-full flex items-center justify-between p-3.5 rounded-xl text-left text-xs font-semibold tracking-tight transition-all cursor-pointer ${
+                    className={`flex-shrink-0 w-44 lg:w-full flex items-center justify-between p-3.5 rounded-xl text-left text-xs font-semibold tracking-tight transition-all cursor-pointer ${
                       selectedFilename === file.filename
                         ? 'bg-zinc-950 text-white shadow-md'
                         : 'bg-white text-zinc-600 hover:text-zinc-900 border border-zinc-200/60 hover:bg-zinc-50'
@@ -210,22 +210,22 @@ export default function AgentConfig() {
           ) : (
             <div className="space-y-4">
               {/* Seletor de Agentes */}
-              <div className="tactile-raised p-4 bg-white/60 space-y-2">
-                <h2 className="font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
+              <div className="tactile-raised p-4 bg-white/60 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-3 lg:pb-4 scrollbar-none">
+                <h2 className="hidden lg:block font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
                   Escolha o Agente
                 </h2>
                 {agentsList.map(agent => (
                   <button
                     key={agent.id}
                     onClick={() => setSelectedAgentId(agent.id)}
-                    className={`w-full text-left p-3.5 rounded-xl transition-all cursor-pointer border ${
+                    className={`flex-shrink-0 w-52 lg:w-full text-left p-3.5 rounded-xl transition-all cursor-pointer border ${
                       selectedAgentId === agent.id
                         ? 'bg-zinc-950 text-white border-zinc-950 shadow-md'
                         : 'bg-white text-zinc-650 hover:text-zinc-900 border-zinc-200/60 hover:bg-zinc-50'
                     }`}
                   >
                     <p className="text-xs font-bold font-display">{agent.name}</p>
-                    <p className={`text-[10px] mt-1 leading-normal ${selectedAgentId === agent.id ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                    <p className={`hidden lg:block text-[10px] mt-1 leading-normal ${selectedAgentId === agent.id ? 'text-zinc-300' : 'text-zinc-400'}`}>
                       {agent.desc}
                     </p>
                   </button>
@@ -233,8 +233,8 @@ export default function AgentConfig() {
               </div>
 
               {/* Seletor de Arquivos do Agente */}
-              <div className="tactile-raised p-4 bg-white/60 space-y-2">
-                <h2 className="font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
+              <div className="tactile-raised p-4 bg-white/60 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-3 lg:pb-4 scrollbar-none">
+                <h2 className="hidden lg:block font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
                   Estrutura OpenClaw
                 </h2>
                 {loading ? (
@@ -244,13 +244,13 @@ export default function AgentConfig() {
                     <button
                       key={file.filename}
                       onClick={() => setSelectedFilename(file.filename)}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer ${
+                      className={`flex-shrink-0 w-44 lg:w-full flex items-center justify-between p-3 rounded-xl text-left text-xs font-semibold transition-all cursor-pointer ${
                         selectedFilename === file.filename
                           ? 'bg-zinc-800 text-white shadow-sm'
                           : 'bg-white text-zinc-600 hover:text-zinc-900 border border-zinc-200/60 hover:bg-zinc-50'
                       }`}
                     >
-                      <span>{fileLabels[file.filename] || file.filename}</span>
+                      <span className="truncate">{fileLabels[file.filename] || file.filename}</span>
                     </button>
                   ))
                 )}

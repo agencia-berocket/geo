@@ -154,31 +154,31 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
           </span>
         </div>
 
-        <div className="flex divide-x divide-zinc-200/60 flex-1 min-h-[480px]">
+        <div className="flex flex-col lg:flex-row lg:divide-x divide-zinc-200/60 flex-1 min-h-[480px] gap-6 lg:gap-0">
           {/* Agent tabs */}
-          <div className="w-60 flex-shrink-0 pr-4 space-y-2">
+          <div className="w-full lg:w-60 flex-shrink-0 lg:pr-4 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-2 lg:pb-0 scrollbar-none">
             {agents.map(agent => (
               <button
                 key={agent.id}
                 id={`agent-tab-${agent.id}`}
                 onClick={() => { setActiveAgent(agent.id); setResult(null); setLogs([]); setChatError(null); }}
-                className={`w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all cursor-pointer ${
+                className={`flex-shrink-0 w-48 lg:w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all cursor-pointer ${
                   activeAgent === agent.id
                     ? 'bg-zinc-950 text-white shadow-md'
-                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/40'
+                    : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/40 border border-zinc-200 lg:border-transparent'
                 }`}
               >
                 <span className="text-lg flex-shrink-0 mt-0.5">{agent.icon}</span>
-                <div>
-                  <p className="text-xs font-semibold font-display leading-tight">{agent.name}</p>
-                  <p className={`text-[10px] leading-tight mt-0.5 ${activeAgent === agent.id ? 'text-zinc-300' : 'text-zinc-400'}`}>{agent.description}</p>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold font-display leading-tight truncate">{agent.name}</p>
+                  <p className={`hidden lg:block text-[10px] leading-tight mt-0.5 ${activeAgent === agent.id ? 'text-zinc-300' : 'text-zinc-400'}`}>{agent.description}</p>
                 </div>
               </button>
             ))}
           </div>
 
           {/* Agent workspace */}
-          <div className="flex-1 pl-6 space-y-4 flex flex-col">
+          <div className="flex-1 lg:pl-6 space-y-4 flex flex-col min-w-0">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">{currentAgent.icon}</span>
