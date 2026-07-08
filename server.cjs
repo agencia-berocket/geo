@@ -8,13 +8,23 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 
-// Load Google Service Account credentials
+// Load Google Service Account credentials with robust sanitization
 let serviceAccount = null;
 if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
   try {
-    serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+    let jsonStr = process.env.GOOGLE_SERVICE_ACCOUNT_JSON.trim();
+    // Remove wrapped single quotes if added by shell or Coolify
+    if (jsonStr.startsWith("'") && jsonStr.endsWith("'")) {
+      jsonStr = jsonStr.slice(1, -1);
+    }
+    // Fix double-escaped quotes if any
+    if (jsonStr.includes('\\"')) {
+      jsonStr = jsonStr.replace(/\\"/g, '"');
+    }
+    serviceAccount = JSON.parse(jsonStr);
   } catch (err) {
     console.error('Error parsing GOOGLE_SERVICE_ACCOUNT_JSON env var:', err);
+    console.error('Raw GOOGLE_SERVICE_ACCOUNT_JSON:', process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
   }
 }
 
