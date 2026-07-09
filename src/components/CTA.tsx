@@ -183,7 +183,7 @@ export default function CTA() {
       `- Escala da Base: ${scale === 'small' ? 'Até 100 docs' : scale === 'medium' ? '100 a 1.000 docs' : 'Mais de 1.000 docs'}\n\n` +
       `Gostaria de agendar a sessão de diagnóstico e entender como corrigir os gargalos identificados.`
     );
-    window.open(`https://wa.me/5511999999999?text=${text}`, '_blank');
+    window.open(`https://wa.me/5511940595792?text=${text}`, '_blank');
   };
 
   return (

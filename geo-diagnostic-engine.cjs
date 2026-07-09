@@ -1,27 +1,14 @@
-/**
- * b.rocket GEO Diagnostic Engine
- * Implements the 5-agent pipeline using OpenRouter as LLM orchestrator.
- *
- * Agents:
- *  1. Orchestrator   — controls the flow, calculates GEO Score
- *  2. Gatekeeper     — robots.txt + SSR + latency audit
- *  3. MetadataEntity — JSON-LD schema validation + llms.txt
- *  4. ContentAbsorb  — chunking, AEO, density analysis
- *  5. IntentPrompt   — real LLM citation share via OpenRouter
- */
-
-const https = require('https');
 const http = require('http');
-const { URL } = require('url');
+const https = require('https');
 
-// ─── HTTP helper ────────────────────────────────────────────────────────────
-function fetchUrl(rawUrl, options = {}) {
+// Helper to fetch URL content
+function fetchUrl(url, options = {}) {
   return new Promise((resolve, reject) => {
     let parsedUrl;
     try {
-      parsedUrl = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
+      parsedUrl = new URL(url);
     } catch (e) {
-      return reject(new Error(`URL inválida: ${rawUrl}`));
+      return reject(new Error('Invalid URL'));
     }
 
     const lib = parsedUrl.protocol === 'https:' ? https : http;
@@ -203,11 +190,11 @@ async function runMetadataAgent(htmlContent, domain) {
   const siteDesc = descMatch ? descMatch[1] : 'Empresa especializada.';
 
   const suggestedLlmsTxt = `# ${siteTitle}
-
+ 
 > ${siteDesc}
-
+ 
 ## Páginas Principais
-
+ 
 - [Home](https://${domain}): Página principal com serviços e proposta de valor.
 - [Sobre](https://${domain}/sobre): Informações sobre a empresa e equipe.
 - [Serviços](https://${domain}/servicos): Detalhamento de soluções oferecidas.
@@ -231,7 +218,7 @@ async function runContentAgent(htmlContent) {
   // Extract main text content (strip HTML tags)
   const mainContent = htmlContent
     .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<style[\s\S]*?<\/script>/gi, '')
     .replace(/<nav[\s\S]*?<\/nav>/gi, '')
     .replace(/<footer[\s\S]*?<\/footer>/gi, '')
     .replace(/<[^>]+>/g, ' ')
@@ -522,6 +509,44 @@ function generateHtmlReport(lead, diagnostic) {
   const fontSans = `font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
   const fontMono = `font-family:'JetBrains Mono', 'Courier New', monospace;`;
 
+  // Custom sales pitch based on diagnostic results using psychological triggers (urgency, authority, social proof)
+  let salesArgument = '';
+  if (score < 40) {
+    salesArgument = `
+      <div style="background:#fef2f2; border-left:4px solid #dc2626; padding:16px; border-radius:8px; margin-top:16px; text-align:left;">
+        <p style="margin:0 0 8px; font-weight:bold; color:#991b1b; ${fontDisplay} font-size:14px; text-transform:uppercase;">🚨 Alerta Crítico de Visibilidade por Inteligência Artificial</p>
+        <p style="margin:0; color:#7f1d1d; font-size:12.5px; line-height:1.5;">
+          Seu site está atualmente <strong>invisível para as respostas do ChatGPT, Claude e Gemini</strong> (Score de ${score}%). Os decisores de compras que usam IA para buscar as melhores soluções no seu segmento nunca encontrarão sua marca. Isto significa perda diária de leads qualificados para concorrentes que já otimizaram seus sites. A boa notícia é que com a metodologia científica da <strong>b.rocket</strong>, conseguimos reverter esse cenário e fazer sua marca figurar como a principal recomendação destas IAs em poucas semanas.
+        </p>
+      </div>
+    `;
+  } else if (score < 70) {
+    salesArgument = `
+      <div style="background:#fff7ed; border-left:4px solid #d97706; padding:16px; border-radius:8px; margin-top:16px; text-align:left;">
+        <p style="margin:0 0 8px; font-weight:bold; color:#9a3412; ${fontDisplay} font-size:14px; text-transform:uppercase;">⚠️ Risco Comercial de Perda de Mercado</p>
+        <p style="margin:0; color:#7c2d12; font-size:12.5px; line-height:1.5;">
+          Você já possui parte da infraestrutura pronta, mas ainda tem <strong>gargalos severos de citabilidade</strong> que impedem sua marca de ser recomendada consistentemente. A concorrência está se movendo rapidamente. Ao agendar nossa mentoria de 40 minutos, vamos desenhar o mapa de RAG ideal para seu nicho de mercado e garantir que sua marca passe a ser citada com relevância nas consultas das principais ferramentas generativas.
+        </p>
+      </div>
+    `;
+  } else {
+    salesArgument = `
+      <div style="background:#f0fdf4; border-left:4px solid #16a34a; padding:16px; border-radius:8px; margin-top:16px; text-align:left;">
+        <p style="margin:0 0 8px; font-weight:bold; color:#166534; ${fontDisplay} font-size:14px; text-transform:uppercase;">✨ Ótimo Potencial de Escalar Resultados</p>
+        <p style="margin:0; color:#14532d; font-size:12.5px; line-height:1.5;">
+          Parabéns! Seu site possui bases sólidas para motores de recomendação de IA (Score de ${score}%). No entanto, o mercado de GEO (Engine Optimization para IAs) é extremamente dinâmico e o refinamento semântico contínuo é o que separa os líderes do restante da lista. Vamos consolidar sua autoridade para garantir o monopólio das recomendações no seu setor?
+        </p>
+      </div>
+    `;
+  }
+
+  // Pure SVG Icons representation to replace emojis (formal standard vectors)
+  const iconShield = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+  const iconFolder = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`;
+  const iconNote = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+  const iconChart = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
+  const iconList = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+
   const formatCheck = (ok) => ok
     ? `<span style="display:inline-block;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-height:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-align:middle;">✓</span>`
     : `<span style="display:inline-block;color:#dc2626;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;width:18px;height:18px;line-height:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-align:middle;">✗</span>`;
@@ -550,7 +575,7 @@ function generateHtmlReport(lead, diagnostic) {
   }
 </style>
 </head>
-<body style="background-color:#f4f5f8;color:#0c0d0e;${fontSans} margin:0;padding:0;-webkit-font-smoothing:antialiased;min-height:100vh;">
+<body style="background-color:#f4f5f8; background-image:radial-gradient(#e2e4e9 1px, transparent 1px), radial-gradient(#e2e4e9 1px, transparent 1px); background-size:20px 20px; background-position:0 0, 10px 10px; color:#0c0d0e;${fontSans} margin:0;padding:0;-webkit-font-smoothing:antialiased;min-height:100vh;">
 <div class="container" style="max-width:650px;margin:0 auto;padding:30px 15px;">
 
   <!-- Header -->
@@ -595,6 +620,8 @@ function generateHtmlReport(lead, diagnostic) {
       <div style="${fontMono} font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;text-transform:uppercase;">
         GEO SCORE // <span style="color:${scoreColor};font-weight:bold;">${score >= 70 ? 'BOM' : score >= 40 ? 'MÉDIO' : 'CRÍTICO'}</span>
       </div>
+      <!-- Resumo didático comercial sob o score -->
+      ${salesArgument}
     </div>
   </div>
 
@@ -603,7 +630,7 @@ function generateHtmlReport(lead, diagnostic) {
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
         <td align="left" style="vertical-align:middle;">
-          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🛡️</span>
+          ${iconShield}
           <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Technical Gatekeeper</span>
         </td>
         <td align="right" style="vertical-align:middle;">
@@ -647,7 +674,7 @@ function generateHtmlReport(lead, diagnostic) {
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
         <td align="left" style="vertical-align:middle;">
-          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🗂️</span>
+          ${iconFolder}
           <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Metadata Entity</span>
         </td>
         <td align="right" style="vertical-align:middle;">
@@ -682,7 +709,7 @@ function generateHtmlReport(lead, diagnostic) {
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
         <td align="left" style="vertical-align:middle;">
-          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">📝</span>
+          ${iconNote}
           <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Content Absorption</span>
         </td>
         <td align="right" style="vertical-align:middle;">
@@ -727,7 +754,7 @@ function generateHtmlReport(lead, diagnostic) {
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
         <td align="left" style="vertical-align:middle;">
-          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🔍</span>
+          ${iconChart}
           <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Citation Share nas IAs</span>
         </td>
         <td align="right" style="vertical-align:middle;">
@@ -768,7 +795,7 @@ function generateHtmlReport(lead, diagnostic) {
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
         <td align="left" style="vertical-align:middle;">
-          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">📋</span>
+          ${iconList}
           <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Plano de Ação Priorizado</span>
         </td>
       </tr>

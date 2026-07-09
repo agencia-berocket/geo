@@ -20,9 +20,9 @@ export default function AdminApp() {
   useEffect(() => {
     if (authState === 'authorized') {
       const pageTitle = currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
-      document.title = `b.rocket Admin // ${pageTitle}`;
+      document.title = `Admin GEO | b.rocket - ${pageTitle}`;
     } else {
-      document.title = 'b.rocket Admin // Restrito';
+      document.title = 'Admin GEO | b.rocket - Restrito';
     }
   }, [authState, currentPage]);
 

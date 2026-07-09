@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useClients, type Client } from '../hooks/useFirestore';
 import Modal from '../components/Modal';
+import { LeadChat } from '../components/LeadChat';
 import {
   IconEdit, IconTrash, IconPlay, IconChat, IconBot, IconShield, IconFolder,
   IconNote, IconHourglass, IconRocket, IconCheck, IconWarning,
@@ -249,66 +250,7 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
 
             {/* TAB: CHAT 360 */}
             {activeTab === 'chat' && (
-              <div className="flex-1 flex flex-col bg-zinc-250/30 rounded-2xl border border-zinc-200 overflow-hidden min-h-[350px]">
-                {/* Messages Box */}
-                <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[360px]">
-                  {currentChatMessages.length === 0 ? (
-                    <div className="text-center py-12 text-zinc-400 space-y-2">
-                      <IconBot className="w-6 h-6 mx-auto text-zinc-300" />
-                      <p className="text-xs font-bold font-display">Inicie a conversa com o {currentAgent.name}</p>
-                      <p className="text-[10px] max-w-sm mx-auto font-medium text-zinc-400 leading-relaxed">
-                        Tire dúvidas sobre o diagnóstico do cliente, pergunte sobre estratégias recomendadas ou peça ajuda sobre a implantação GEO neste domínio.
-                      </p>
-                    </div>
-                  ) : (
-                    currentChatMessages.map((msg, idx) => (
-                      <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-xs border leading-relaxed ${
-                          msg.role === 'user'
-                            ? 'bg-zinc-950 text-white border-zinc-900'
-                            : 'bg-white text-zinc-850 border-zinc-250/50'
-                        }`}>
-                          <p className="font-semibold text-[9px] uppercase tracking-wider mb-1 opacity-70">
-                            {msg.role === 'user' ? 'Você' : currentAgent.name}
-                          </p>
-                          <p className="whitespace-pre-wrap">{msg.content}</p>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                  {chatLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-white border border-zinc-250/50 text-zinc-550 rounded-2xl px-4 py-3 text-xs shadow-xs animate-pulse flex items-center gap-2">
-                        <IconHourglass className="w-3.5 h-3.5" /> {currentAgent.name} está analisando o contexto e respondendo...
-                      </div>
-                    </div>
-                  )}
-                  {chatError && (
-                    <div className="text-center text-[10px] text-red-650 bg-red-50/50 border border-red-200 rounded-xl p-2.5 flex items-center justify-center gap-1.5">
-                      <IconWarning className="w-3.5 h-3.5" /> {chatError}
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-
-                {/* Input Area */}
-                <div className="p-3 bg-white border-t border-zinc-250/50 flex gap-2">
-                  <input
-                    value={inputMessage}
-                    onChange={e => setInputMessage(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSendChatMessage(); }}
-                    placeholder={`Pergunte algo sobre este cliente para o ${currentAgent.name}...`}
-                    className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white"
-                  />
-                  <button
-                    onClick={handleSendChatMessage}
-                    disabled={chatLoading}
-                    className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1.5"
-                  >
-                    Enviar
-                  </button>
-                </div>
-              </div>
+              <LeadChat leadId={client.id} agentName={activeAgent} leadUrl={client.url} />
             )}
           </div>
         </div>

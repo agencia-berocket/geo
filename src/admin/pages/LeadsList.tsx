@@ -114,115 +114,7 @@ function DiagnosticDashboard({ diagnostic }: { diagnostic: any }) {
   );
 }
 
-// ─── Lead Chat Box ──────────────────────────────────────────────────────────
-function LeadChat({ lead }: { lead: Lead }) {
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg = { role: 'user' as const, content: input };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/admin/chat/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
-        },
-        body: JSON.stringify({
-          clientId: lead.id,
-          agentName: 'orchestrator',
-          message: userMsg.content,
-          history: messages
-        })
-      });
-      const data = await res.json();
-      if (data.success && data.reply) {
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply }]);
-      } else {
-        setError(data.error || 'Erro ao processar mensagem.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Erro de conexão.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading]);
-
-  return (
-    <div className="flex flex-col bg-zinc-100 rounded-2xl border border-zinc-200 overflow-hidden min-h-[350px]">
-      <div className="bg-zinc-950 text-white px-4 py-2.5 text-xs font-mono font-bold flex items-center gap-2">
-        <IconBot className="w-3.5 h-3.5" />
-        <span>ORQUESTRADOR IA: Analisar {lead.url}</span>
-      </div>
-      <div className="flex-1 p-4 overflow-y-auto space-y-4 max-h-[300px] bg-zinc-50/50">
-        {messages.length === 0 ? (
-          <div className="text-center py-12 text-zinc-400 space-y-2">
-            <IconChat className="w-6 h-6 mx-auto text-zinc-300" />
-            <p className="font-bold font-display text-xs">Pergunte algo sobre este Lead</p>
-            <p className="text-[10px] max-w-sm mx-auto leading-relaxed text-zinc-400">
-              Tire dúvidas com o agente orquestrador sobre o diagnóstico obtido, peça sugestões de abordagem comercial ou estratégias específicas de otimização de GEO para este domínio.
-            </p>
-          </div>
-        ) : (
-          messages.map((m, idx) => (
-            <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs border leading-relaxed ${
-                m.role === 'user' ? 'bg-zinc-950 text-white border-zinc-900 shadow-sm' : 'bg-white text-zinc-850 border-zinc-250/50 shadow-sm'
-              }`}>
-                <p className="font-bold text-[9px] uppercase tracking-wider mb-1 opacity-70">
-                  {m.role === 'user' ? 'Você' : 'Orquestrador IA'}
-                </p>
-                <p className="whitespace-pre-wrap">{m.content}</p>
-              </div>
-            </div>
-          ))
-        )}
-        {loading && (
-          <div className="flex justify-start animate-pulse">
-            <div className="bg-white border border-zinc-250/50 text-zinc-500 rounded-2xl px-4 py-3 text-xs shadow-xs flex items-center gap-2">
-              <IconBot className="w-3.5 h-3.5" />
-              Orquestrador analisando o contexto e formulando resposta...
-            </div>
-          </div>
-        )}
-        {error && (
-          <div className="text-xs text-red-650 text-center font-bold flex items-center justify-center gap-1.5">
-            <IconWarning className="w-3.5 h-3.5" /> {error}
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-      <div className="p-3 bg-white border-t border-zinc-200 flex gap-2">
-        <input
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
-          placeholder="Pergunte ao Orquestrador sobre gargalos ou argumentos de vendas..."
-          className="flex-1 bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-zinc-950 focus:bg-white"
-        />
-        <button
-          onClick={handleSend}
-          disabled={loading}
-          className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold px-4 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-xs"
-        >
-          Enviar
-        </button>
-      </div>
-    </div>
-  );
-}
+import { LeadChat } from '../components/LeadChat';
 
 // ─── Lead Edit Form ─────────────────────────────────────────────────────────
 function LeadEditPanel({ lead, onSave, onCancel }: { lead: Lead, onSave: (updated: Partial<Lead>) => void, onCancel: () => void }) {
@@ -604,7 +496,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                     )}
 
                     {activeTab === 'chat' && (
-                      <LeadChat lead={lead} />
+                      <LeadChat leadId={lead.id} agentName="orchestrator" leadUrl={lead.url} />
                     )}
                   </>
                 )}

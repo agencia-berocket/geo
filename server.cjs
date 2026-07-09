@@ -1332,6 +1332,278 @@ app.post('/api/admin/newsletter/broadcast', verifyAdminToken, async (req, res) =
   }
 });
 
+// ─── DELETE NEWSLETTER SUBSCRIBER ──────────────────────────────────────────
+app.delete('/api/admin/newsletter/:id', verifyAdminToken, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    
+    // Buscar o docName real do inscrito no Firestore
+    const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter?pageSize=300`;
+    const response = await fetch(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+    
+    let subDocPath = null;
+    for (const doc of (data.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === id || f.id?.stringValue === id) {
+        subDocPath = doc.name;
+        break;
+      }
+    }
+    
+    if (!subDocPath) {
+      return res.status(404).json({ error: 'Inscrito não encontrado' });
+    }
+    
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${subDocPath}`;
+    await fetchFirestore(firestoreUrl, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${accessToken}` },
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SEND TEST EMAIL ──────────────────────────────────────────────────────
+app.post('/api/admin/newsletter/test-email', verifyAdminToken, async (req, res) => {
+  const { subject, htmlContent, testEmail } = req.body;
+  if (!subject || !htmlContent || !testEmail) {
+    return res.status(400).json({ error: 'Assunto, HTML e E-mail de teste são obrigatórios' });
+  }
+  try {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error('Credenciais de e-mail ausentes no servidor (EMAIL_USER / EMAIL_PASS).');
+    }
+
+    await transporter.sendMail({
+      from: `"b.rocket (Teste)" <${process.env.EMAIL_USER}>`,
+      to: testEmail,
+      subject: `[TESTE] ${subject}`,
+      html: htmlContent,
+    });
+
+    res.json({ success: true, message: `E-mail de teste enviado com sucesso para ${testEmail}!` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SEND SINGLE EMAIL (OUTBOUND ESPECÍFICO) ─────────────────────────────────
+app.post('/api/admin/newsletter/send-single', verifyAdminToken, async (req, res) => {
+  const { subject, htmlContent, email, name } = req.body;
+  if (!subject || !htmlContent || !email) {
+    return res.status(400).json({ error: 'Assunto, HTML e E-mail de destino são obrigatórios' });
+  }
+  try {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error('Credenciais de e-mail ausentes no servidor (EMAIL_USER / EMAIL_PASS).');
+    }
+
+    const broadcastId = `single_${Date.now()}`;
+    const subId = email.replace(/[^a-zA-Z0-9]/g, '_');
+    
+    // Injetar pixel e link track
+    const trackOpenUrl = `http://localhost/api/newsletter/track-open/${broadcastId}/${subId}`;
+    const trackingPixel = `<img src="${trackOpenUrl}" width="1" height="1" style="display:none;" />`;
+    const finalHtml = htmlContent + trackingPixel;
+
+    await transporter.sendMail({
+      from: `"b.rocket" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: subject,
+      html: finalHtml,
+    });
+
+    // Salvar no histórico
+    const accessToken = await getGoogleAccessToken();
+    const historyId = `hist_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter_history`;
+    
+    const historyDoc = {
+      fields: {
+        id: { stringValue: historyId },
+        email: { stringValue: email },
+        name: { stringValue: name || '' },
+        subject: { stringValue: subject },
+        broadcastId: { stringValue: broadcastId },
+        sentAt: { stringValue: new Date().toISOString() },
+        status: { stringValue: 'sent' }, // sent, opened, clicked
+        openedAt: { stringValue: '' },
+        clickedAt: { stringValue: '' }
+      }
+    };
+
+    await fetchFirestore(firestoreUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(historyDoc)
+    });
+
+    res.json({ success: true, message: `E-mail enviado para ${email}!` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── NEWSLETTER ANALYTICS & BROADCAST HISTORY ──────────────────────────────
+app.get('/api/admin/newsletter/broadcasts', verifyAdminToken, async (req, res) => {
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter_history?pageSize=100`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    const historyItems = (data.documents || []).map(doc => {
+      const f = doc.fields || {};
+      return {
+        id: f.id?.stringValue || doc.name.split('/').pop(),
+        email: f.email?.stringValue || '',
+        name: f.name?.stringValue || '',
+        subject: f.subject?.stringValue || '',
+        broadcastId: f.broadcastId?.stringValue || '',
+        sentAt: f.sentAt?.stringValue || '',
+        status: f.status?.stringValue || 'sent',
+        openedAt: f.openedAt?.stringValue || '',
+        clickedAt: f.clickedAt?.stringValue || ''
+      };
+    });
+
+    res.json({ history: historyItems });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET INDIVIDUAL SUBSCRIBER HISTORY ──────────────────────────────────────
+app.get('/api/admin/newsletter/history/:email', verifyAdminToken, async (req, res) => {
+  const { email } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    // Podemos fazer uma query estruturada ou listar e filtrar
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter_history?pageSize=100`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    const history = (data.documents || []).map(doc => {
+      const f = doc.fields || {};
+      return {
+        id: f.id?.stringValue || doc.name.split('/').pop(),
+        email: f.email?.stringValue || '',
+        name: f.name?.stringValue || '',
+        subject: f.subject?.stringValue || '',
+        sentAt: f.sentAt?.stringValue || '',
+        status: f.status?.stringValue || 'sent',
+        openedAt: f.openedAt?.stringValue || '',
+        clickedAt: f.clickedAt?.stringValue || ''
+      };
+    }).filter(item => item.email.toLowerCase() === email.toLowerCase());
+
+    res.json({ history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── TRACK OPEN PIXEL ──────────────────────────────────────────────────────
+app.get('/api/newsletter/track-open/:broadcastId/:subId', async (req, res) => {
+  const { broadcastId, subId } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter_history?pageSize=100`;
+    const response = await fetch(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    let targetDocPath = null;
+    let fields = null;
+    for (const doc of (data.documents || [])) {
+      const f = doc.fields || {};
+      const bid = f.broadcastId?.stringValue || '';
+      const email = f.email?.stringValue || '';
+      const docSubId = email.replace(/[^a-zA-Z0-9]/g, '_');
+      if (bid === broadcastId && (docSubId === subId || f.id?.stringValue === subId)) {
+        targetDocPath = doc.name;
+        fields = f;
+        break;
+      }
+    }
+
+    if (targetDocPath && fields && fields.status?.stringValue !== 'opened' && fields.status?.stringValue !== 'clicked') {
+      const firestoreUrl = `https://firestore.googleapis.com/v1/${targetDocPath}?updateMask.fieldPaths=status&updateMask.fieldPaths=openedAt`;
+      await fetchFirestore(firestoreUrl, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            status: { stringValue: 'opened' },
+            openedAt: { stringValue: new Date().toISOString() }
+          }
+        })
+      });
+    }
+  } catch (err) {
+    console.error('Error tracking open:', err);
+  }
+
+  // Retornar pixel de imagem 1x1 transparente
+  const pixel = Buffer.from(
+    'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    'base64'
+  );
+  res.writeHead(200, {
+    'Content-Type': 'image/gif',
+    'Content-Length': pixel.length
+  });
+  res.end(pixel);
+});
+
+// ─── TRACK CLICK REDIRECT ──────────────────────────────────────────────────
+app.get('/api/newsletter/track-click', async (req, res) => {
+  const { url, broadcastId, email } = req.query;
+  if (!url) return res.redirect('/');
+  
+  try {
+    if (broadcastId && email) {
+      const accessToken = await getGoogleAccessToken();
+      const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/newsletter_history?pageSize=100`;
+      const response = await fetch(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const data = await response.json();
+
+      let targetDocPath = null;
+      for (const doc of (data.documents || [])) {
+        const f = doc.fields || {};
+        if (f.broadcastId?.stringValue === broadcastId && f.email?.stringValue?.toLowerCase() === (email as string).toLowerCase()) {
+          targetDocPath = doc.name;
+          break;
+        }
+      }
+
+      if (targetDocPath) {
+        const firestoreUrl = `https://firestore.googleapis.com/v1/${targetDocPath}?updateMask.fieldPaths=status&updateMask.fieldPaths=clickedAt`;
+        await fetchFirestore(firestoreUrl, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fields: {
+              status: { stringValue: 'clicked' },
+              clickedAt: { stringValue: new Date().toISOString() }
+            }
+          })
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error tracking click:', err);
+  }
+
+  res.redirect(url as string);
+});
+
+
 // ─── GET AGENT CONFIGS ────────────────────────────────────────────────────
 app.get('/api/admin/agents/configs', verifyAdminToken, async (req, res) => {
   try {
@@ -1720,7 +1992,7 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
       },
       generationConfig: {
         temperature: 0.5,
-        maxOutputTokens: 1000
+        maxOutputTokens: 2500
       }
     };
 
@@ -1745,11 +2017,110 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
     }
 
     const reply = parsed.candidates?.[0]?.content?.parts?.[0]?.text || 'Não consegui formular uma resposta.';
+
+    // ─── SALVAR HISTÓRICO NO FIRESTORE ───────────────────────────────────────
+    try {
+      const accessToken = await getGoogleAccessToken();
+      const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/chat_history`;
+      
+      const userMsgDoc = {
+        fields: {
+          clientId: { stringValue: clientId || 'default' },
+          agentName: { stringValue: agentName },
+          role: { stringValue: 'user' },
+          content: { stringValue: message },
+          timestamp: { stringValue: new Date().toISOString() }
+        }
+      };
+
+      const assistantMsgDoc = {
+        fields: {
+          clientId: { stringValue: clientId || 'default' },
+          agentName: { stringValue: agentName },
+          role: { stringValue: 'assistant' },
+          content: { stringValue: reply },
+          timestamp: { stringValue: new Date().toISOString() }
+        }
+      };
+
+      await Promise.all([
+        fetch(firestoreUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(userMsgDoc)
+        }),
+        fetch(firestoreUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(assistantMsgDoc)
+        })
+      ]);
+    } catch (dbErr) {
+      console.error('Erro ao salvar mensagens do chat no Firestore:', dbErr);
+    }
+
     res.json({ success: true, reply });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── GET CHAT HISTORY ──────────────────────────────────────────────────────
+app.get('/api/admin/chat/history/:clientId/:agentName', verifyAdminToken, async (req, res) => {
+  const { clientId, agentName } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/chat_history?pageSize=500`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    const history = (data.documents || []).map(doc => {
+      const f = doc.fields || {};
+      return {
+        id: doc.name.split('/').pop(),
+        clientId: f.clientId?.stringValue || '',
+        agentName: f.agentName?.stringValue || '',
+        role: f.role?.stringValue || '',
+        content: f.content?.stringValue || '',
+        timestamp: f.timestamp?.stringValue || ''
+      };
+    })
+    .filter(item => item.clientId === clientId && item.agentName === agentName)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    res.json({ history });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── CLEAR CHAT HISTORY ────────────────────────────────────────────────────
+app.delete('/api/admin/chat/history/:clientId/:agentName', verifyAdminToken, async (req, res) => {
+  const { clientId, agentName } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/chat_history?pageSize=500`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    const toDelete = (data.documents || []).filter(doc => {
+      const f = doc.fields || {};
+      return f.clientId?.stringValue === clientId && f.agentName?.stringValue === agentName;
+    });
+
+    await Promise.all(toDelete.map(doc => {
+      return fetch(`https://firestore.googleapis.com/v1/${doc.name}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+    }));
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 
 // Serve frontend static assets from the 'dist' directory
