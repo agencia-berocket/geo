@@ -66,9 +66,3 @@ export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
 };
-
-export const ADMIN_EMAIL = 'berocket@berocket.com.br';
-
-export const isAdminUser = (user: User | null): boolean => {
-  return user?.email === ADMIN_EMAIL;
-};

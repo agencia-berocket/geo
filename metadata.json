@@ -1,6 +1,1 @@
-{
-  "name": "b.rocket",
-  "description": "b.rocket é a agência pioneira em Generative Engine Optimization (GEO). Estruturamos a visibilidade semântica e RAG para sua marca dominar as recomendações dos assistentes de IA como ChatGPT, Perplexity e Gemini.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
+{"name":"b.rocket","description":"b.rocket é a agência pioneira em Generative Engine Optimization (GEO). Estruturamos a visibilidade semântica e RAG para sua marca dominar as recomendações dos assistentes de IA como ChatGPT, Perplexity e Gemini.","requestFramePermissions":[],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}

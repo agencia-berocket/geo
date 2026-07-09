@@ -11,17 +11,6 @@ export default function Footer() {
     e.preventDefault();
     if (name.trim() && email.trim()) {
       setSubscribed(true);
-
-      // Register subscriber in Firestore via backend
-      fetch('/api/leads/newsletter', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email }),
-      })
-        .then(res => res.json())
-        .then(data => console.log('Inscrição newsletter:', data))
-        .catch(err => console.error('Erro newsletter:', err));
-
       setTimeout(() => {
         setSubscribed(false);
         setName('');
@@ -29,7 +18,6 @@ export default function Footer() {
       }, 5000);
     }
   };
-
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -164,9 +152,9 @@ export default function Footer() {
                 Legal
               </h4>
               <ul className="space-y-2.5 font-display text-sm text-zinc-600 font-medium">
-                <li><a href="#hero" className="hover:text-zinc-950 transition-colors">Políticas de Privacidade</a></li>
-                <li><a href="#hero" className="hover:text-zinc-950 transition-colors">Termos de Uso</a></li>
-                <li><a href="#hero" className="hover:text-zinc-950 transition-colors">Isenção de Responsabilidade</a></li>
+                <li><a href="#/privacidade" className="hover:text-zinc-950 transition-colors">Políticas de Privacidade</a></li>
+                <li><a href="#/termos" className="hover:text-zinc-950 transition-colors">Termos de Uso</a></li>
+                <li><a href="#/isencao" className="hover:text-zinc-950 transition-colors">Isenção de Responsabilidade</a></li>
               </ul>
             </div>
 
@@ -206,6 +194,8 @@ export default function Footer() {
           {/* Contact Details (Col-4) */}
           <div className="md:col-span-4 flex flex-col gap-1 text-zinc-500 font-light">
             <span className="font-bold text-zinc-950 uppercase block tracking-wider mb-1">Contato</span>
+            <span className="block font-mono text-[10px] text-zinc-600 font-medium">BE ROCKET AGENCIA DIGITAL LTDA</span>
+            <span className="block font-mono text-[10px]">CNPJ: 37.375.164/0001-03</span>
             <a href="mailto:berocket@berocket.com.br" className="hover:text-zinc-950 transition-colors block font-mono">berocket@berocket.com.br</a>
             <span className="block font-mono">(11) 94059-5792</span>
             <span className="text-[10px] text-zinc-450 block mt-2 font-bold">© 2026 b.rocket. Todos os direitos reservados.</span>

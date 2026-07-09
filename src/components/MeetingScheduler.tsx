@@ -60,7 +60,6 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
   // Visitor details state
   const [name, setName] = useState('');
   const [visitorEmail, setVisitorEmail] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
   const [company, setCompany] = useState('');
   const [url, setUrl] = useState('');
   const [notes, setNotes] = useState('');
@@ -133,49 +132,66 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     setSelectedSlot(null); // Reset selected slot when date changes
   }, [selectedDate]);
 
-  // Listener for custom open event and URL hash/params
+  // Listener for custom open event
   useEffect(() => {
     const handleOpen = () => {
       setIsOpen(true);
       // Reset flow to date-time when opening
       setStep('date-time');
     };
-
-    const checkUrl = () => {
-      const hash = window.location.hash;
-      const params = new URLSearchParams(window.location.search);
-      if (hash === '#booking' || hash === '#agendar' || params.has('booking') || params.get('open_booking') === 'true') {
-        handleOpen();
-      }
-    };
-
-    // Check on load
-    checkUrl();
-
     window.addEventListener('open-booking-modal', handleOpen);
-    window.addEventListener('hashchange', checkUrl);
-    return () => {
-      window.removeEventListener('open-booking-modal', handleOpen);
-      window.removeEventListener('hashchange', checkUrl);
-    };
+    return () => window.removeEventListener('open-booking-modal', handleOpen);
   }, []);
 
-  // Load busy timeslots from Google Calendar via backend API
+  // Load busy timeslots from Firestore (combining cached Google Calendar + active bookings)
   const loadAvailability = async (date: Date) => {
     setIsLoadingBusy(true);
-    setBusyEvents([]); // Clear busy events immediately so no slots show while loading
     setFetchError(null);
     try {
-      const formattedDate = date.toISOString().split('T')[0];
-      const res = await fetch(`/api/calendar/availability?date=${formattedDate}`);
-      if (!res.ok) {
-        throw new Error('Falha ao consultar disponibilidade do servidor.');
+      const busyList: any[] = [];
+
+      // 1. Fetch cached Google Calendar availability from settings/calendar_availability doc
+      const availRef = doc(db, 'settings', 'calendar_availability');
+      const availSnap = await getDoc(availRef);
+      if (availSnap.exists()) {
+        const data = availSnap.data();
+        setCalendarLastUpdated(data.lastUpdated || null);
+        const cachedBusy = data.busySlots || [];
+        cachedBusy.forEach((b: any) => {
+          busyList.push({ start: b.start, end: b.end });
+        });
       }
-      const data = await res.json();
-      setBusyEvents(data.busySlots || []);
+
+      // 2. Fetch all local Firestore bookings for this date to prevent double bookings in real-time
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const q = query(
+        collection(db, 'bookings'),
+        where('date', '>=', startOfDay.toISOString()),
+        where('date', '<=', endOfDay.toISOString())
+      );
+      const querySnap = await getDocs(q);
+      querySnap.forEach((doc) => {
+        const b = doc.data();
+        const [hours, minutes] = b.slot.split(':').map(Number);
+        const bStart = new Date(date);
+        bStart.setHours(hours, minutes, 0, 0);
+        const bEnd = new Date(bStart);
+        bEnd.setMinutes(bEnd.getMinutes() + 40);
+
+        busyList.push({
+          start: bStart.toISOString(),
+          end: bEnd.toISOString()
+        });
+      });
+
+      setBusyEvents(busyList);
     } catch (err: any) {
       console.error('Error fetching availability:', err);
-      setFetchError('Não foi possível obter a disponibilidade em tempo real.');
+      setFetchError('Não foi possível obter a disponibilidade atualizada. Mostrando horários padrão.');
       setBusyEvents([]);
     } finally {
       setIsLoadingBusy(false);
@@ -304,7 +320,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
         updatedBy: user.email
       });
       setCalendarLastUpdated(lastUpdatedStr);
-      addLog('OK: Slots livres de Guilherme sincronizados com sucesso!');
+      addLog('✔ Slots livres de Guilherme sincronizados com sucesso!');
 
       // 2. Fetch and process Unsynced bookings from clients
       addLog('Buscando novos agendamentos recebidos de clientes...');
@@ -330,13 +346,13 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
         const eventPayload = {
           summary: `Mentoria b.rocket: Diagnóstico GEO & RAG (${b.company})`,
           description: `Olá ${b.name},\n\nSua sessão estratégica de 40 minutos com o especialista Guilherme (b.rocket) foi agendada e confirmada!\n\n` +
-                       `DETALHES DO PARTICIPANTE:\n` +
+                       `🎯 DETALHES DO PARTICIPANTE:\n` +
                        `• Nome completo: ${b.name}\n` +
                        `• E-mail: ${b.email}\n` +
                        `• Empresa: ${b.company}\n` +
                        `• Website: ${b.url}\n` +
                        `• Notas/Gargalos: ${b.notes || 'Análise geral sem anotações.'}\n\n` +
-                       `A sala oficial do Google Meet foi criada automaticamente e está disponível em anexo neste convite.`,
+                       `🔗 A sala oficial do Google Meet foi criada automaticamente e está disponível em anexo neste convite.`,
           start: {
             dateTime: start.toISOString(),
             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -380,24 +396,24 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
             googleEventId: eventId
           });
 
-          addLog(`OK: Sucesso! Convite enviado para ${b.email}. Google Meet gerado: ${meetLink || 'Google Meet link criado'}`);
+          addLog(`✔ Sucesso! Convite enviado para ${b.email}. Google Meet gerado: ${meetLink || 'Google Meet link criado'}`);
         } else {
           const errData = await createRes.json();
-          addLog(`ERRO: Erro ao criar convite de ${b.name}: ${errData.error?.message || 'Erro de API'}`);
+          addLog(`❌ Erro ao criar convite de ${b.name}: ${errData.error?.message || 'Erro de API'}`);
         }
       }
 
-      addLog('OK: Todo o ciclo de sincronização foi finalizado com sucesso!');
+      addLog('🎉 Todo o ciclo de sincronização foi finalizado com sucesso!');
       loadAllBookings();
     } catch (err: any) {
       console.error('Sync error:', err);
-      addLog(`ERRO: Erro crítico: ${err.message || 'Falha de comunicação.'}`);
+      addLog(`❌ Erro crítico: ${err.message || 'Falha de comunicação.'}`);
     } finally {
       setIsSyncing(false);
     }
   };
 
-  // Create booking via backend API (creates event in Google Calendar and records in Firestore)
+  // Create booking in Firestore collection for clients (without Google popups)
   const handleConfirmBooking = async () => {
     if (!selectedDate || !selectedSlot) return;
 
@@ -405,34 +421,31 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     setBookingError(null);
 
     try {
-      const res = await fetch('/api/calendar/book', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name,
-          email: visitorEmail,
-          whatsapp,
-          company,
-          url,
-          notes,
-          date: selectedDate.toISOString(),
-          slot: selectedSlot
-        })
+      const newBooking = {
+        name,
+        email: visitorEmail,
+        company,
+        url,
+        notes,
+        date: selectedDate.toISOString(),
+        slot: selectedSlot,
+        createdAt: new Date().toISOString(),
+        synced: false,
+        meetLink: ''
+      };
+
+      const docRef = await addDoc(collection(db, 'bookings'), newBooking);
+      
+      // Store in state to present details on success screen
+      setCreatedEvent({
+        id: docRef.id,
+        ...newBooking
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Erro ao realizar agendamento.');
-      }
-
-      const result = await res.json();
-      setCreatedEvent(result.booking);
       setStep('success');
     } catch (err: any) {
       console.error('Error saving booking:', err);
-      setBookingError(err.message || 'Não foi possível registrar seu agendamento no momento. Tente novamente.');
+      setBookingError('Não foi possível registrar seu agendamento no momento. Tente novamente ou use nosso WhatsApp.');
     } finally {
       setIsBooking(false);
     }
@@ -448,7 +461,6 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
       setCreatedEvent(null);
       setName('');
       setVisitorEmail('');
-      setWhatsapp('');
       setCompany('');
       setUrl('');
       setNotes('');
@@ -476,14 +488,12 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     if (!createdEvent) return;
     const dateFormatted = new Date(createdEvent.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
     const text = encodeURIComponent(
-      `Olá Guilherme!\n\n` +
-      `Acabei de agendar uma Reunião Diagnóstica pelo site da b.rocket.\n\n` +
-      `Detalhes do agendamento:\n` +
-      `- Nome: ${createdEvent.name}\n` +
-      `- Empresa: ${createdEvent.company}\n` +
-      `- E-mail: ${createdEvent.email}\n` +
-      `- Data: ${dateFormatted} às ${createdEvent.slot}\n\n` +
-      `Gostaria de agilizar o envio do link do Google Meet para nossa sessão.`
+      `Olá Guilherme, acabei de agendar uma Reunião Diagnóstica pelo site!\n\n` +
+      `📅 Data: ${dateFormatted} às ${createdEvent.slot}\n` +
+      `👤 Nome: ${createdEvent.name}\n` +
+      `🏢 Empresa: ${createdEvent.company}\n` +
+      `📧 E-mail: ${createdEvent.email}\n` +
+      `Gostaria de agilizar o envio do link de acesso!`
     );
     window.open(`https://wa.me/5511940595792?text=${text}`, '_blank');
   };
@@ -508,10 +518,20 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
                 <span className="font-mono text-[9px] md:text-[10px] text-zinc-500 font-extrabold uppercase tracking-widest">
-                  GOOGLE_CALENDAR_ENGINE // B.ROCKET_MEETING
+                  {step === 'admin' ? 'PAINEL_DO_ESPECIALISTA // B.ROCKET_ADMIN' : 'GOOGLE_CALENDAR_ENGINE // B.ROCKET_MEETING'}
                 </span>
               </div>
               <div className="flex items-center gap-3">
+                {step !== 'admin' && (
+                  <button
+                    onClick={handleAdminAccess}
+                    className="flex items-center gap-1.5 font-mono text-[9px] text-zinc-400 hover:text-zinc-900 transition-colors uppercase font-bold"
+                    title="Acesso de Guilherme"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Guilherme</span>
+                  </button>
+                )}
                 <button
                   onClick={handleClose}
                   className="p-1.5 hover:bg-zinc-200/80 active:scale-95 transition-all text-zinc-500 hover:text-zinc-950 rounded-full cursor-pointer"
@@ -584,35 +604,29 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                       )}
                     </div>
 
-                    {isLoadingBusy ? (
-                      <div className="grid grid-cols-4 gap-2">
-                        {[...Array(8)].map((_, i) => (
-                          <div
-                            key={i}
-                            className="py-3.5 rounded-xl border border-zinc-100 bg-zinc-100 animate-pulse h-10"
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-4 gap-2">
-                        {TIME_SLOTS.filter((slot) => !isSlotBusy(slot)).map((slot) => {
-                          const isSelected = selectedSlot === slot;
-                          return (
-                            <button
-                              key={slot}
-                              onClick={() => setSelectedSlot(slot)}
-                              className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 cursor-pointer ${
-                                isSelected
-                                  ? 'bg-red-600 border-red-600 text-white shadow-md'
-                                  : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-100 hover:border-zinc-300'
-                              }`}
-                            >
-                              <span>{slot}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <div className="grid grid-cols-4 gap-2">
+                      {TIME_SLOTS.map((slot) => {
+                        const busy = isSlotBusy(slot);
+                        const isSelected = selectedSlot === slot;
+                        return (
+                          <button
+                            key={slot}
+                            disabled={busy}
+                            onClick={() => setSelectedSlot(slot)}
+                            className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 ${
+                              busy
+                                ? 'bg-zinc-100/60 border-zinc-150 text-zinc-350 cursor-not-allowed line-through'
+                                : isSelected
+                                ? 'bg-red-600 border-red-600 text-white shadow-md'
+                                : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-100 cursor-pointer hover:border-zinc-300'
+                            }`}
+                          >
+                            <span>{slot}</span>
+                            {busy && <span className="block text-[8px] text-zinc-400 mt-0.5 leading-none">Ocupado</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {bookingError && (
@@ -622,7 +636,15 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                   )}
 
                   {/* Navigation Actions */}
-                  <div className="pt-4 border-t border-zinc-100 flex items-center justify-end">
+                  <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+                    <button
+                      onClick={handleAdminAccess}
+                      className="flex items-center gap-1 font-mono text-[9px] text-zinc-400 hover:text-zinc-600 transition-colors uppercase font-bold"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Área do Especialista</span>
+                    </button>
+                    
                     <button
                       disabled={!selectedSlot}
                       onClick={() => setStep('details')}
@@ -671,19 +693,6 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                         onChange={(e) => setVisitorEmail(e.target.value)}
                         className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
                         placeholder="joao@empresa.com.br"
-                      />
-                    </div>
-
-                    {/* WhatsApp */}
-                    <div className="space-y-1">
-                      <label className="font-mono text-[9px] text-zinc-400 uppercase font-bold block">WhatsApp (com DDD) *</label>
-                      <input 
-                        type="tel" 
-                        required
-                        value={whatsapp}
-                        onChange={(e) => setWhatsapp(e.target.value)}
-                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
-                        placeholder="(11) 99999-9999"
                       />
                     </div>
 
@@ -738,10 +747,10 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     </button>
                     
                     <button
-                      disabled={!name || !visitorEmail || !whatsapp || !company || !url || !visitorEmail.includes('@')}
+                      disabled={!name || !visitorEmail || !company || !url || !visitorEmail.includes('@')}
                       onClick={() => setStep('confirm')}
                       className={`font-mono text-xs font-bold px-6 py-3.5 tracking-widest uppercase transition-all duration-200 flex items-center gap-1.5 rounded-xl ${
-                        name && visitorEmail && whatsapp && company && url && visitorEmail.includes('@')
+                        name && visitorEmail && company && url && visitorEmail.includes('@')
                           ? 'bg-zinc-950 text-white hover:bg-zinc-900 cursor-pointer'
                           : 'bg-zinc-150 text-zinc-400 cursor-not-allowed'
                       }`}
@@ -847,10 +856,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                       Agendamento Pré-Aprovado!
                     </h3>
                     <p className="text-zinc-500 text-xs md:text-sm font-light max-w-sm mx-auto leading-relaxed">
-                      Seu diagnóstico foi agendado e registrado com sucesso. Enviamos um e-mail de confirmação (com convite de calendário) para <strong className="text-zinc-900 font-bold">{createdEvent.email}</strong>.
-                    </p>
-                    <p className="text-amber-600 bg-amber-50 border border-amber-200 p-2 rounded-lg text-xs font-bold max-w-sm mx-auto flex items-center justify-center gap-2">
-                      <AlertTriangle className="w-3.5 h-3.5" /> Verifique sua caixa de SPAM / Lixo Eletrônico!
+                      Seu diagnóstico foi agendado e registrado com sucesso. Guilherme irá validar o briefing e enviar o convite oficial do Google Meet para o e-mail <strong className="text-zinc-900 font-bold">{createdEvent.email}</strong> em instantes!
                     </p>
                   </div>
 
@@ -934,7 +940,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     <div className="bg-zinc-950 border border-zinc-800 rounded-xl p-4 font-mono text-[10px] text-zinc-300 space-y-1 max-h-36 overflow-y-auto shadow-inner select-text">
                       <div className="text-zinc-500 border-b border-zinc-800 pb-1 mb-1.5 uppercase font-bold text-[9px]">Console de Sincronização:</div>
                       {syncLogs.map((log, idx) => (
-                        <div key={idx} className={log.startsWith('OK:') ? 'text-emerald-400 font-bold' : log.startsWith('ERRO:') ? 'text-red-500 font-bold' : 'text-zinc-350'}>
+                        <div key={idx} className={log.includes('✔') ? 'text-emerald-400 font-bold' : log.includes('❌') ? 'text-red-500 font-bold' : 'text-zinc-350'}>
                           {log}
                         </div>
                       ))}
