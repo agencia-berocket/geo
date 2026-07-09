@@ -524,14 +524,25 @@ function generateHtmlReport(lead, diagnostic) {
     return 'background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
   };
 
+  // Neumorphic tactile card styles compatible with Gmail and email readers (using 3D borders)
+  const cardStyle = `background-color:#ffffff; border-top:2px solid #ffffff; border-left:2px solid #ffffff; border-right:2px solid #e4e4e7; border-bottom:2px solid #e4e4e7; border-radius:24px; box-shadow:6px 6px 16px -4px rgba(13,20,33,0.06), -6px -6px 16px 0px rgba(255,255,255,0.95); padding:24px; margin-bottom:24px;`;
+  const scoreCardStyle = `background-color:#ffffff; border-top:2px solid #ffffff; border-left:2px solid #ffffff; border-right:2px solid #e4e4e7; border-bottom:2px solid #e4e4e7; border-radius:24px; box-shadow:6px 6px 16px -4px rgba(13,20,33,0.06), -6px -6px 16px 0px rgba(255,255,255,0.95); padding:32px; display:inline-block; min-width:240px; text-align:center;`;
+  
+  // Font Family strings
+  const fontDisplay = `font-family:'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;`;
+  const fontSans = `font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;`;
+  const fontMono = `font-family:'JetBrains Mono', 'Courier New', monospace;`;
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Raio-X de GEO — ${lead.url} | b.rocket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;750;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap');
   @media (max-width: 600px) {
     .container { padding: 15px !important; }
     .grid2 { grid-template-columns: 1fr !important; gap: 10px !important; }
@@ -540,127 +551,130 @@ function generateHtmlReport(lead, diagnostic) {
   }
 </style>
 </head>
-<body style="background-color:#f4f5f8;color:#0c0d0e;font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;margin:0;padding:0;-webkit-font-smoothing:antialiased;min-height:100vh;">
+<body style="background-color:#f4f5f8;color:#0c0d0e;${fontSans} margin:0;padding:0;-webkit-font-smoothing:antialiased;min-height:100vh;">
 <div class="container" style="max-width:650px;margin:0 auto;padding:30px 15px;">
 
   <!-- Header -->
-  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:20px;border-bottom:1px solid #e4e4e7;padding-bottom:15px;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;border-bottom:1px solid #e4e4e7;padding-bottom:15px;">
     <tr>
       <td align="left">
-        <div style="font-family:'Space Grotesk', sans-serif;font-weight:700;font-size:20px;color:#09090b;letter-spacing:-0.5px;">
-          <span style="color:#dc2626;">b.</span>rocket <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#71717a;background:#e4e4e7;border:1px solid #d1d5db;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:bold;vertical-align:middle;">GEO_CORE_V10</span>
+        <div style="${fontDisplay} font-weight:800;font-size:22px;color:#09090b;letter-spacing:-0.8px;display:inline-block;vertical-align:middle;">
+          <span style="color:#dc2626;">b</span><span style="color:#dc2626;font-weight:900;">.</span>rocket
+        </div>
+        <div style="display:inline-block;background:#f1f2f5;border-top:1px solid #ffffff;border-left:1px solid #ffffff;border-right:1px solid #d1d5db;border-bottom:1px solid #d1d5db;box-shadow:inset 1px 1px 2px rgba(13,20,33,0.05);border-radius:8px;padding:3.5px 8px;margin-left:8px;vertical-align:middle;text-align:center;">
+          <span style="${fontMono} font-size:9.5px;color:#52525b;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">GEO_CORE_V10</span>
         </div>
       </td>
-      <td align="right" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#71717a;font-weight:bold;">
+      <td align="right" style="${fontMono} font-size:9px;color:#71717a;font-weight:bold;">
         DIAGNÓSTICO // ${new Date().toLocaleDateString('pt-BR')} // CONFIDENCIAL
       </td>
     </tr>
   </table>
 
   <!-- Hero & Score -->
-  <div style="text-align:center;margin-bottom:30px;">
-    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#dc2626;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:bold;">DIAGNÓSTICO SEMÂNTICO DE GEO</div>
-    <h1 class="hero-title" style="font-family:'Space Grotesk', sans-serif;font-size:36px;font-weight:700;color:#0c0d0e;margin:0 0 4px;letter-spacing:-1px;">Raio-X de GEO</h1>
-    <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#71717a;word-break:break-all;margin-bottom:25px;">${lead.url}</div>
+  <div style="text-align:center;margin-bottom:32px;">
+    <div style="${fontMono} font-size:9.5px;color:#dc2626;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:bold;">DIAGNÓSTICO SEMÂNTICO DE GEO</div>
+    <h1 class="hero-title" style="${fontDisplay} font-size:36px;font-weight:800;color:#0c0d0e;margin:0 0 6px;letter-spacing:-1px;text-transform:uppercase;">Raio-X de GEO</h1>
+    <div style="${fontMono} font-size:13px;color:#71717a;word-break:break-all;margin-bottom:28px;">${lead.url}</div>
 
     <!-- Score Card Neumórfico -->
-    <div class="score-card" style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:32px;display:inline-block;min-width:240px;text-align:center;">
-      <div style="font-size:64px;font-weight:800;color:${scoreColor};font-family:'JetBrains Mono',monospace;line-height:1;margin:0 auto 10px;">${score}%</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;">
+    <div class="score-card" style="${scoreCardStyle}">
+      <div style="font-size:64px;font-weight:800;color:${scoreColor};${fontMono} line-height:1;margin:0 auto 10px;">${score}%</div>
+      <div style="${fontMono} font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;text-transform:uppercase;">
         GEO SCORE // <span style="color:${scoreColor};font-weight:bold;">${scoreLabel.toUpperCase()}</span>
       </div>
     </div>
   </div>
 
   <!-- Technical Gatekeeper -->
-  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
-    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
-        <td align="left">
+        <td align="left" style="vertical-align:middle;">
           <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🛡️</span>
-          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Technical Gatekeeper</span>
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Technical Gatekeeper</span>
         </td>
-        <td align="right">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
             ${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'OK' : 'CRÍTICO'}
           </span>
         </td>
       </tr>
     </table>
     
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(diagnostic.gatekeeperStatus.robotsTxtAllowAiBots)} Bots de IA autorizados no robots.txt
     </div>
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(diagnostic.gatekeeperStatus.ssrActive)} Conteúdo acessível sem Javascript (SSR)
     </div>
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(!diagnostic.gatekeeperStatus.hasPriceGatekeeperIssue)} Preços explícitos no HTML para IA
     </div>
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(!diagnostic.gatekeeperStatus.staleTimestampDetected)} Timestamps atualizados recentemente
     </div>
     
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:14px;border-top:1px solid #f1f2f5;padding-top:10px;font-size:12px;">
       <tr>
-        <td style="color:#71717a;font-family:'JetBrains Mono',monospace;">LATÊNCIA DO SERVIDOR:</td>
-        <td align="right" style="font-family:'JetBrains Mono',monospace;font-weight:bold;color:${diagnostic.gatekeeperStatus.serverLatencyMs < 800 ? '#16a34a' : '#d97706'}">
+        <td style="color:#71717a;${fontMono}">LATÊNCIA DO SERVIDOR:</td>
+        <td align="right" style="${fontMono} font-weight:bold;color:${diagnostic.gatekeeperStatus.serverLatencyMs < 800 ? '#16a34a' : '#d97706'}">
           ${diagnostic.gatekeeperStatus.serverLatencyMs}ms
         </td>
       </tr>
     </table>
     
     ${diagnostic.gatekeeperStatus.blockedCrawlers.length > 0 ? `
-    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:#b91c1c;line-height:1.4;font-family:'JetBrains Mono',monospace;">
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:#b91c1c;line-height:1.4;${fontMono}">
       ⚠️ <strong>Bots Bloqueados:</strong> ${diagnostic.gatekeeperStatus.blockedCrawlers.join(', ')}
     </div>` : ''}
   </div>
 
   <!-- Metadata Entity -->
-  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
-    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
-        <td align="left">
+        <td align="left" style="vertical-align:middle;">
           <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🗂️</span>
-          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Metadata Entity</span>
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Metadata Entity</span>
         </td>
-        <td align="right">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'color:#b45309;background:#fff7ed;border:1px solid #fed7aa;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'color:#b45309;background:#fff7ed;border:1px solid #fed7aa;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
             ${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'PARCIAL' : 'CRÍTICO'}
           </span>
         </td>
       </tr>
     </table>
     
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(diagnostic.metadataAnalysis.organizationSchemaPresent)} Schema Organization ou LocalBusiness
     </div>
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(diagnostic.metadataAnalysis.personSchemaPresent)} Schema Person (Credenciais de Autor)
     </div>
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(diagnostic.metadataAnalysis.llmsTxtPublished)} Arquivo /llms.txt publicado
     </div>
-    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
       ${formatCheck(diagnostic.metadataAnalysis.organizationSameAsCount > 0)} Mapeamento de redes sociais (sameAs)
     </div>
     
     ${diagnostic.metadataAnalysis.missingSchemas.length > 0 ? `
-    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:#b45309;line-height:1.4;font-family:'JetBrains Mono',monospace;">
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:#b45309;line-height:1.4;${fontMono}">
       ⚠️ <strong>Schemas Faltantes:</strong> ${diagnostic.metadataAnalysis.missingSchemas.join(', ')}
     </div>` : ''}
   </div>
 
   <!-- Content Absorption -->
-  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
-    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
-        <td align="left">
+        <td align="left" style="vertical-align:middle;">
           <span style="font-size:18px;margin-right:8px;vertical-align:middle;">📝</span>
-          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Content Absorption</span>
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Content Absorption</span>
         </td>
-        <td align="right">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;">
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;">
             ANÁLISE
           </span>
         </td>
@@ -668,69 +682,69 @@ function generateHtmlReport(lead, diagnostic) {
     </table>
     
     <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
-      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
         ${formatCheck(diagnostic.contentReview.factorsDetected.hasTldrAnswerFirstParagraph)} Resposta direta no início
       </div>
-      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
         ${formatCheck(diagnostic.contentReview.factorsDetected.hasStatisticsPer150Words)} Estatísticas frequentes
       </div>
-      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
         ${formatCheck(diagnostic.contentReview.factorsDetected.hasExpertQuotes)} Citações de especialistas
       </div>
-      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
         ${formatCheck(diagnostic.contentReview.factorsDetected.hasHtmlComparisonTables)} Tabelas comparativas HTML
       </div>
     </div>
     
-    <div style="border-top:1px solid #f1f2f5;padding-top:12px;margin-top:12px;font-size:12px;font-family:'JetBrains Mono',monospace;">
+    <div style="border-top:1px solid #f1f2f5;padding-top:12px;margin-top:12px;font-size:12px;${fontMono}">
       <table cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr style="height:24px;">
-          <td style="color:#71717a;">TAMANHO MÉDIO DE CHUNK:</td>
-          <td align="right" style="font-weight:bold;color:#09090b;">${diagnostic.contentReview.meanChunkSizeTokens} tokens</td>
+          <td style="color:#71717a;${fontMono}">TAMANHO MÉDIO DE CHUNK:</td>
+          <td align="right" style="font-weight:bold;color:#09090b;${fontMono}">${diagnostic.contentReview.meanChunkSizeTokens} tokens</td>
         </tr>
         <tr style="height:24px;">
-          <td style="color:#71717a;">PREÇOS VISÍVEIS:</td>
-          <td align="right" style="font-weight:bold;color:#09090b;">${!diagnostic.contentReview.priceNotMentioned ? '✓ Sim' : '✗ Não'}</td>
+          <td style="color:#71717a;${fontMono}">PREÇOS VISÍVEIS:</td>
+          <td align="right" style="font-weight:bold;color:#09090b;${fontMono}">${!diagnostic.contentReview.priceNotMentioned ? '✓ Sim' : '✗ Não'}</td>
         </tr>
       </table>
     </div>
   </div>
 
   <!-- Citation Share nas IAs -->
-  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
-    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
-        <td align="left">
+        <td align="left" style="vertical-align:middle;">
           <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🔍</span>
-          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Citation Share nas IAs</span>
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Citation Share nas IAs</span>
         </td>
-        <td align="right">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.visibilityBenchmarking.citationSharePercentage >= 0.3 ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.visibilityBenchmarking.citationSharePercentage >= 0.3 ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
             ${(diagnostic.visibilityBenchmarking.citationSharePercentage * 100).toFixed(0)}% SHARE
           </span>
         </td>
       </tr>
     </table>
     
-    <div style="font-size:13px;color:#4b5563;margin-bottom:6px;">Porcentagem de Citações:</div>
+    <div style="font-size:13px;color:#4b5563;margin-bottom:6px;${fontSans}">Porcentagem de Citações:</div>
     <div style="height:10px;background:#e4e4e7;border-radius:9999px;overflow:hidden;margin-bottom:12px;border:1px solid #d1d5db;">
       <div style="height:100%;background:#dc2626;border-radius:9999px;width:${Math.min(100, diagnostic.visibilityBenchmarking.citationSharePercentage * 100)}%;"></div>
     </div>
     
-    <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:#4b5563;line-height:1.6;margin-top:14px;border-top:1px solid #f1f2f5;padding-top:10px;">
+    <div style="font-size:12px;${fontMono} color:#4b5563;line-height:1.6;margin-top:14px;border-top:1px solid #f1f2f5;padding-top:10px;">
       <table cellpadding="0" cellspacing="0" border="0" width="100%">
         <tr style="height:24px;">
-          <td style="color:#71717a;">SENTIMENTO DE MARCA:</td>
-          <td align="right" style="font-weight:bold;color:#0c0d0e;">${diagnostic.visibilityBenchmarking.brandSentimentScore}</td>
+          <td style="color:#71717a;${fontMono}">SENTIMENTO DE MARCA:</td>
+          <td align="right" style="font-weight:bold;color:#0c0d0e;${fontMono}">${diagnostic.visibilityBenchmarking.brandSentimentScore}</td>
         </tr>
         <tr style="height:24px;">
-          <td style="color:#71717a;">PROMPTS TESTADOS:</td>
-          <td align="right" style="font-weight:bold;color:#0c0d0e;">${diagnostic.visibilityBenchmarking.totalPromptsTest}</td>
+          <td style="color:#71717a;${fontMono}">PROMPTS TESTADOS:</td>
+          <td align="right" style="font-weight:bold;color:#0c0d0e;${fontMono}">${diagnostic.visibilityBenchmarking.totalPromptsTest}</td>
         </tr>
         ${Object.entries(diagnostic.visibilityBenchmarking.citationsByModel).map(([model, count]) => `
-        <tr style="height:24px;border-top:1px solid #f9fafb;">
-          <td style="color:#71717a;font-family:'JetBrains Mono',monospace;font-size:11px;">${model}:</td>
-          <td align="right" style="font-weight:bold;color:#0c0d0e;">${count} citações</td>
+        <tr style="height:24px;">
+          <td style="color:#71717a;${fontMono} font-size:11px;">${model}:</td>
+          <td align="right" style="font-weight:bold;color:#0c0d0e;${fontMono}">${count} citações</td>
         </tr>
         `).join('')}
       </table>
@@ -738,24 +752,24 @@ function generateHtmlReport(lead, diagnostic) {
   </div>
 
   <!-- Plano de Ação Priorizado -->
-  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
-    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
-        <td align="left">
+        <td align="left" style="vertical-align:middle;">
           <span style="font-size:18px;margin-right:8px;vertical-align:middle;">📋</span>
-          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Plano de Ação Priorizado</span>
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Plano de Ação Priorizado</span>
         </td>
       </tr>
     </table>
     
     ${diagnostic.actionItemsPriorityList.map(item => `
-    <div style="background:#fdfefe;border:1px solid rgba(0,0,0,0.04);border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.9);display:table;width:100%;box-sizing:border-box;">
+    <div style="background:#fdfefe;border-top:1px solid #ffffff;border-left:1px solid #ffffff;border-right:1px solid #e4e4e7;border-bottom:1px solid #e4e4e7;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:3px 3px 8px rgba(13,20,33,0.03);display:table;width:100%;box-sizing:border-box;">
       <div style="display:table-cell;vertical-align:top;width:75px;padding-right:10px;">
-        <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:2px 6px;border-radius:4px;text-align:center;text-transform:uppercase;${impactStyles(item.impact)}">
+        <span style="display:inline-block;${fontMono} font-size:9px;font-weight:bold;padding:2.5px 6px;border-radius:4px;text-align:center;text-transform:uppercase;${impactStyles(item.impact)}">
           ${item.impact.split(' ')[0]}
         </span>
       </div>
-      <div style="display:table-cell;vertical-align:top;font-size:12px;color:#4b5563;line-height:1.4;">
+      <div style="display:table-cell;vertical-align:top;font-size:12px;color:#4b5563;line-height:1.4;${fontSans}">
         ${item.task}
       </div>
     </div>
@@ -763,20 +777,20 @@ function generateHtmlReport(lead, diagnostic) {
   </div>
 
   <!-- CTA de Agendamento -->
-  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:32px;text-align:center;margin-top:25px;border-top:3px solid #dc2626;">
-    <h3 style="font-family:'Space Grotesk', sans-serif;font-size:20px;font-weight:700;color:#09090b;margin:0 0 8px;text-transform:uppercase;letter-spacing:-0.2px;">Pronto para dominar as recomendações das IAs?</h3>
-    <p style="font-size:13px;color:#4b5563;line-height:1.5;max-width:480px;margin:0 auto 20px;font-weight:light;">
+  <div style="background-color:#ffffff; border-top:2px solid #ffffff; border-left:2px solid #ffffff; border-right:2px solid #e4e4e7; border-bottom:2px solid #e4e4e7; border-radius:24px; box-shadow:6px 6px 16px -4px rgba(13,20,33,0.06), -6px -6px 16px 0px rgba(255,255,255,0.95); padding:32px; text-align:center; margin-top:25px; border-top:3px solid #dc2626;">
+    <h3 style="${fontDisplay} font-size:20px;font-weight:800;color:#09090b;margin:0 0 8px;text-transform:uppercase;letter-spacing:-0.2px;">Pronto para dominar as recomendações das IAs?</h3>
+    <p style="font-size:13px;color:#4b5563;line-height:1.5;max-width:480px;margin:0 auto 20px;font-weight:light;${fontSans}">
       Este diagnóstico revela os gargalos. Nossa equipe de especialistas resolve cada um deles — metodologia científica, resultados mensuráveis.
     </p>
     <div style="margin-top:20px;">
-      <a href="https://geo.berocket.com.br/#booking" class="cta-btn" style="display:inline-block;background:#dc2626;color:#ffffff;font-family:'JetBrains Mono',monospace;font-weight:bold;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;box-shadow:0px 4px 10px rgba(220,38,38,0.25);transition:background 0.2s;">
+      <a href="https://geo.berocket.com.br/#booking" class="cta-btn" style="display:inline-block;background:#dc2626;color:#ffffff;${fontMono} font-weight:bold;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;box-shadow:0px 4px 10px rgba(220,38,38,0.25);transition:background 0.2s;">
         Agendar Reunião de Diagnóstico →
       </a>
     </div>
   </div>
 
   <!-- Footer -->
-  <div style="text-align:center;padding:24px 0 10px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#9ca3af;font-weight:bold;">
+  <div style="text-align:center;padding:24px 0 10px;${fontMono} font-size:9px;color:#9ca3af;font-weight:bold;">
     b.rocket © ${new Date().getFullYear()} // GEO_CORE_V10 // CONFIDENCIAL
   </div>
 
