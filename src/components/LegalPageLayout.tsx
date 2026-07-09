@@ -19,6 +19,21 @@ export default function LegalPageLayout({ title, subtitle, lastUpdated, sections
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, index: number) => {
+    e.preventDefault();
+    const element = document.getElementById(`section-${index}`);
+    if (element) {
+      const headerOffset = 100;
+      const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+      const offsetPosition = elementPosition - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#f4f5f8] text-zinc-950 font-sans antialiased">
       
@@ -115,7 +130,8 @@ export default function LegalPageLayout({ title, subtitle, lastUpdated, sections
                     <a
                       key={index}
                       href={`#section-${index}`}
-                      className="block font-display text-sm text-zinc-500 hover:text-zinc-950 transition-colors py-1.5 border-l-2 border-transparent hover:border-zinc-950 pl-3 truncate"
+                      onClick={(e) => handleAnchorClick(e, index)}
+                      className="block font-display text-sm text-zinc-500 hover:text-zinc-950 transition-colors py-1.5 border-l-2 border-transparent hover:border-zinc-950 pl-3 truncate cursor-pointer"
                     >
                       <span className="font-mono text-[9px] text-zinc-400 mr-2">{String(index + 1).padStart(2, '0')}</span>
                       {section.title}
