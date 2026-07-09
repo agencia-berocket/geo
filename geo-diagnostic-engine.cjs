@@ -512,7 +512,15 @@ function buildActionList(gatekeeper, metadata, content, visibility) {
 function generateHtmlReport(lead, diagnostic) {
   const score = diagnostic.overallGeoScore;
   const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
-  const scoreLabel = score >= 70 ? 'Bom' : score >= 40 ? 'Médio' : 'Crítico';
+  
+  // Neumorphic cards that replicate .tactile-raised (without heavy borders, utilizing soft shadow depth)
+  const cardStyle = `background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:28px; margin-bottom:24px;`;
+  const scoreCardStyle = `background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:32px; display:inline-block; min-width:240px; text-align:center;`;
+  
+  // Font Family strings fallback stack for maximum system cleanliness (replicates sans-serif look in Gmail)
+  const fontDisplay = `font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
+  const fontSans = `font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
+  const fontMono = `font-family:'JetBrains Mono', 'Courier New', monospace;`;
 
   const formatCheck = (ok) => ok
     ? `<span style="display:inline-block;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-height:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-align:middle;">✓</span>`
@@ -524,21 +532,12 @@ function generateHtmlReport(lead, diagnostic) {
     return 'background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
   };
 
-  // Neumorphic tactile card styles compatible with Gmail and email readers (using 3D borders)
-  const cardStyle = `background-color:#ffffff; border-top:2px solid #ffffff; border-left:2px solid #ffffff; border-right:2px solid #e4e4e7; border-bottom:2px solid #e4e4e7; border-radius:24px; box-shadow:6px 6px 16px -4px rgba(13,20,33,0.06), -6px -6px 16px 0px rgba(255,255,255,0.95); padding:24px; margin-bottom:24px;`;
-  const scoreCardStyle = `background-color:#ffffff; border-top:2px solid #ffffff; border-left:2px solid #ffffff; border-right:2px solid #e4e4e7; border-bottom:2px solid #e4e4e7; border-radius:24px; box-shadow:6px 6px 16px -4px rgba(13,20,33,0.06), -6px -6px 16px 0px rgba(255,255,255,0.95); padding:32px; display:inline-block; min-width:240px; text-align:center;`;
-  
-  // Font Family strings
-  const fontDisplay = `font-family:'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;`;
-  const fontSans = `font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;`;
-  const fontMono = `font-family:'JetBrains Mono', 'Courier New', monospace;`;
-
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Raio-X de GEO — ${lead.url} | b.rocket</title>
+<title>Raio-X de GEO — ${lead.url} | B.ROCKET</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;750;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -555,17 +554,30 @@ function generateHtmlReport(lead, diagnostic) {
 <div class="container" style="max-width:650px;margin:0 auto;padding:30px 15px;">
 
   <!-- Header -->
-  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;border-bottom:1px solid #e4e4e7;padding-bottom:15px;">
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:28px;border-bottom:1px solid #e4e4e7;padding-bottom:18px;">
     <tr>
-      <td align="left">
-        <div style="${fontDisplay} font-weight:800;font-size:22px;color:#09090b;letter-spacing:-0.8px;display:inline-block;vertical-align:middle;">
-          <span style="color:#dc2626;">b</span><span style="color:#dc2626;font-weight:900;">.</span>rocket
+      <td align="left" style="vertical-align:middle;">
+        <!-- Logo do Astronauta do site -->
+        <div style="display:inline-block;width:32px;height:32px;background-color:#09090b;border:1px solid #27272a;border-radius:10px;vertical-align:middle;position:relative;margin-right:10px;text-align:center;">
+          <div style="display:inline-block;width:22px;height:22px;background-color:#ffffff;border:1px solid #f4f4f5;border-radius:50%;margin-top:4px;position:relative;text-align:center;">
+            <div style="display:inline-block;width:14px;height:10px;background-color:#09090b;border-radius:3px;margin-top:4.5px;position:relative;overflow:hidden;">
+              <div style="position:absolute;top:1px;left:1px;width:3px;height:3px;background-color:rgba(255,255,255,0.4);border-radius:50%;"></div>
+              <div style="position:absolute;bottom:1px;right:1px;width:3px;height:3px;background-color:#10b981;border-radius:50%;"></div>
+            </div>
+            <div style="position:absolute;bottom:2px;left:6px;width:10px;height:2px;background-color:#d4d4d8;border-radius:999px;"></div>
+          </div>
         </div>
-        <div style="display:inline-block;background:#f1f2f5;border-top:1px solid #ffffff;border-left:1px solid #ffffff;border-right:1px solid #d1d5db;border-bottom:1px solid #d1d5db;box-shadow:inset 1px 1px 2px rgba(13,20,33,0.05);border-radius:8px;padding:3.5px 8px;margin-left:8px;vertical-align:middle;text-align:center;">
+        <!-- Nome da marca -->
+        <div style="${fontDisplay} font-weight:900;font-size:18px;color:#09090b;letter-spacing:1.5px;display:inline-block;vertical-align:middle;text-transform:uppercase;margin-right:2px;">
+          B.ROCKET
+        </div>
+        <div style="${fontDisplay} font-weight:900;font-size:18px;color:#dc2626;display:inline-block;vertical-align:middle;margin-right:6px;">*</div>
+        <!-- Badge Neumórfico -->
+        <div style="display:inline-block;background:#e4e4e7;border-top:1px solid #ffffff;border-left:1px solid #ffffff;border-right:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;border-radius:8px;padding:3px 8px;vertical-align:middle;text-align:center;box-shadow:inset 1px 1px 2px rgba(13,20,33,0.03);">
           <span style="${fontMono} font-size:9.5px;color:#52525b;font-weight:bold;letter-spacing:1px;text-transform:uppercase;">GEO_CORE_V10</span>
         </div>
       </td>
-      <td align="right" style="${fontMono} font-size:9px;color:#71717a;font-weight:bold;">
+      <td align="right" style="${fontMono} font-size:9px;color:#71717a;font-weight:bold;vertical-align:middle;">
         DIAGNÓSTICO // ${new Date().toLocaleDateString('pt-BR')} // CONFIDENCIAL
       </td>
     </tr>
@@ -581,7 +593,7 @@ function generateHtmlReport(lead, diagnostic) {
     <div class="score-card" style="${scoreCardStyle}">
       <div style="font-size:64px;font-weight:800;color:${scoreColor};${fontMono} line-height:1;margin:0 auto 10px;">${score}%</div>
       <div style="${fontMono} font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;text-transform:uppercase;">
-        GEO SCORE // <span style="color:${scoreColor};font-weight:bold;">${scoreLabel.toUpperCase()}</span>
+        GEO SCORE // <span style="color:${scoreColor};font-weight:bold;">${score >= 70 ? 'BOM' : score >= 40 ? 'MÉDIO' : 'CRÍTICO'}</span>
       </div>
     </div>
   </div>
@@ -763,7 +775,7 @@ function generateHtmlReport(lead, diagnostic) {
     </table>
     
     ${diagnostic.actionItemsPriorityList.map(item => `
-    <div style="background:#fdfefe;border-top:1px solid #ffffff;border-left:1px solid #ffffff;border-right:1px solid #e4e4e7;border-bottom:1px solid #e4e4e7;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:3px 3px 8px rgba(13,20,33,0.03);display:table;width:100%;box-sizing:border-box;">
+    <div style="background:#fdfefe;border:1px solid #e8e8eb;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:3px 3px 8px rgba(13,20,33,0.02);display:table;width:100%;box-sizing:border-box;">
       <div style="display:table-cell;vertical-align:top;width:75px;padding-right:10px;">
         <span style="display:inline-block;${fontMono} font-size:9px;font-weight:bold;padding:2.5px 6px;border-radius:4px;text-align:center;text-transform:uppercase;${impactStyles(item.impact)}">
           ${item.impact.split(' ')[0]}
@@ -777,13 +789,13 @@ function generateHtmlReport(lead, diagnostic) {
   </div>
 
   <!-- CTA de Agendamento -->
-  <div style="background-color:#ffffff; border-top:2px solid #ffffff; border-left:2px solid #ffffff; border-right:2px solid #e4e4e7; border-bottom:2px solid #e4e4e7; border-radius:24px; box-shadow:6px 6px 16px -4px rgba(13,20,33,0.06), -6px -6px 16px 0px rgba(255,255,255,0.95); padding:32px; text-align:center; margin-top:25px; border-top:3px solid #dc2626;">
+  <div style="background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:32px; text-align:center; margin-top:25px; border-top:3px solid #dc2626;">
     <h3 style="${fontDisplay} font-size:20px;font-weight:800;color:#09090b;margin:0 0 8px;text-transform:uppercase;letter-spacing:-0.2px;">Pronto para dominar as recomendações das IAs?</h3>
     <p style="font-size:13px;color:#4b5563;line-height:1.5;max-width:480px;margin:0 auto 20px;font-weight:light;${fontSans}">
       Este diagnóstico revela os gargalos. Nossa equipe de especialistas resolve cada um deles — metodologia científica, resultados mensuráveis.
     </p>
     <div style="margin-top:20px;">
-      <a href="https://geo.berocket.com.br/#booking" class="cta-btn" style="display:inline-block;background:#dc2626;color:#ffffff;${fontMono} font-weight:bold;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;box-shadow:0px 4px 10px rgba(220,38,38,0.25);transition:background 0.2s;">
+      <a href="https://geo.berocket.com.br/#booking" style="display:inline-block;background-color:#09090b;color:#ffffff;border:1px solid #27272a;${fontMono}font-weight:bold;padding:16px 36px;border-radius:14px;text-decoration:none;font-size:11.5px;letter-spacing:2px;text-transform:uppercase;box-shadow:0px 6px 18px rgba(9,9,11,0.15);transition:all 0.2s;">
         Agendar Reunião de Diagnóstico →
       </a>
     </div>
