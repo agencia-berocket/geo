@@ -313,9 +313,9 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   // 5 prompts per model, 4 models = 20 total
   const models = [
     'openai/gpt-4o-mini',
-    'anthropic/claude-haiku-3-5',
-    'google/gemini-flash-1.5',
-    'perplexity/llama-3.1-sonar-small-128k-online',
+    'anthropic/claude-3.5-haiku',
+    'google/gemini-1.5-flash',
+    'perplexity/sonar',
   ];
 
   const systemPrompt = `Você é um assistente honesto. Responda em português. Seja direto e objetivo.`;

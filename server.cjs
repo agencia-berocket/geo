@@ -529,8 +529,27 @@ app.patch('/api/admin/leads/:id', verifyAdminToken, async (req, res) => {
   const fieldsToUpdate = req.body;
   try {
     const accessToken = await getGoogleAccessToken();
+    
+    // Buscar o docName real do lead
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    
+    let leadDocPath = null;
+    for (const doc of (leadsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === id || f.id?.stringValue === id) {
+        leadDocPath = doc.name;
+        break;
+      }
+    }
+    
+    if (!leadDocPath) {
+      return res.status(404).json({ error: 'Lead não encontrado' });
+    }
+    
     const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
-    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads/${id}?${updateMask}`;
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${leadDocPath}?${updateMask}`;
     
     const fields = {};
     for (const [k, v] of Object.entries(fieldsToUpdate)) {
@@ -554,7 +573,26 @@ app.delete('/api/admin/leads/:id', verifyAdminToken, async (req, res) => {
   const { id } = req.params;
   try {
     const accessToken = await getGoogleAccessToken();
-    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads/${id}`;
+    
+    // Buscar o docName real do lead
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    
+    let leadDocPath = null;
+    for (const doc of (leadsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === id || f.id?.stringValue === id) {
+        leadDocPath = doc.name;
+        break;
+      }
+    }
+    
+    if (!leadDocPath) {
+      return res.status(404).json({ error: 'Lead não encontrado' });
+    }
+    
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${leadDocPath}`;
     
     await fetchFirestore(firestoreUrl, {
       method: 'DELETE',
@@ -977,8 +1015,28 @@ app.patch('/api/admin/clients/:id', verifyAdminToken, async (req, res) => {
   const fieldsToUpdate = req.body;
   try {
     const accessToken = await getGoogleAccessToken();
+    
+    // Buscar o docName real do cliente
+    const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
+    const clientsResponse = await fetch(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const clientsData = await clientsResponse.json();
+    
+    let clientDocPath = null;
+    for (const doc of (clientsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === id || f.id?.stringValue === id) {
+        clientDocPath = doc.name;
+        break;
+      }
+    }
+    
+    if (!clientDocPath) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
+    
     const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
-    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients/${id}?${updateMask}`;
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${clientDocPath}?${updateMask}`;
     
     const fields = {};
     for (const [k, v] of Object.entries(fieldsToUpdate)) {
@@ -1002,7 +1060,27 @@ app.delete('/api/admin/clients/:id', verifyAdminToken, async (req, res) => {
   const { id } = req.params;
   try {
     const accessToken = await getGoogleAccessToken();
-    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients/${id}`;
+    
+    // Buscar o docName real do cliente
+    const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
+    const clientsResponse = await fetch(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const clientsData = await clientsResponse.json();
+    
+    let clientDocPath = null;
+    for (const doc of (clientsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === id || f.id?.stringValue === id) {
+        clientDocPath = doc.name;
+        break;
+      }
+    }
+    
+    if (!clientDocPath) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
+    
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${clientDocPath}`;
     
     await fetchFirestore(firestoreUrl, {
       method: 'DELETE',
@@ -1523,7 +1601,7 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
     ];
 
     const body = JSON.stringify({
-      model: 'google/gemini-flash-1.5',
+      model: 'google/gemini-1.5-flash',
       messages,
       max_tokens: 1000,
       temperature: 0.5,

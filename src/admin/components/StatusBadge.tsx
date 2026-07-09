@@ -1,10 +1,10 @@
 type Status = 'new' | 'processing' | 'completed' | 'converted';
 
 const config: Record<Status, { label: string; color: string; dot: string }> = {
-  new: { label: 'Novo', color: 'bg-zinc-700/50 text-zinc-300 border-zinc-600', dot: 'bg-zinc-400' },
-  processing: { label: 'Processando', color: 'bg-blue-900/40 text-blue-300 border-blue-700', dot: 'bg-blue-400 animate-pulse' },
-  completed: { label: 'Concluído', color: 'bg-emerald-900/40 text-emerald-300 border-emerald-700', dot: 'bg-emerald-400' },
-  converted: { label: 'Cliente', color: 'bg-violet-900/40 text-violet-300 border-violet-700', dot: 'bg-violet-400' },
+  new: { label: 'Novo', color: 'bg-zinc-100 text-zinc-900 border-zinc-300', dot: 'bg-zinc-600' },
+  processing: { label: 'Processando', color: 'bg-blue-100 text-blue-950 border-blue-300', dot: 'bg-blue-600 animate-pulse' },
+  completed: { label: 'Concluído', color: 'bg-emerald-100 text-emerald-950 border-emerald-300', dot: 'bg-emerald-600' },
+  converted: { label: 'Cliente', color: 'bg-violet-100 text-violet-950 border-violet-300', dot: 'bg-violet-600' },
 };
 
 export default function StatusBadge({ status }: { status: Status }) {
