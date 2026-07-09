@@ -841,7 +841,7 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
       }
       if (diag.leadId === leadId) {
         diagnostic = diag;
-        htmlReport = diag.htmlReportContent || generateHtmlReport(lead, diag);
+        htmlReport = generateHtmlReport(lead, diag);
         break;
       }
     }

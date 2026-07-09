@@ -564,7 +564,7 @@ function generateHtmlReport(lead, diagnostic) {
     <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#71717a;word-break:break-all;margin-bottom:25px;">${lead.url}</div>
 
     <!-- Score Card Neumórfico -->
-    <div class="score-card" style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:24px;box-shadow:0px 8px 24px rgba(13,20,33,0.06), -8px -8px 24px rgba(255,255,255,0.95);padding:32px;display:inline-block;min-width:240px;text-align:center;">
+    <div class="score-card" style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:32px;display:inline-block;min-width:240px;text-align:center;">
       <div style="font-size:64px;font-weight:800;color:${scoreColor};font-family:'JetBrains Mono',monospace;line-height:1;margin:0 auto 10px;">${score}%</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;">
         GEO SCORE // <span style="color:${scoreColor};font-weight:bold;">${scoreLabel.toUpperCase()}</span>
@@ -572,8 +572,8 @@ function generateHtmlReport(lead, diagnostic) {
     </div>
   </div>
 
-  <!-- Agente 2: Technical Gatekeeper -->
-  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+  <!-- Technical Gatekeeper -->
+  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
       <tr>
         <td align="left">
@@ -616,8 +616,8 @@ function generateHtmlReport(lead, diagnostic) {
     </div>` : ''}
   </div>
 
-  <!-- Agente 3: Metadata Entity -->
-  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+  <!-- Metadata Entity -->
+  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
       <tr>
         <td align="left">
@@ -651,8 +651,8 @@ function generateHtmlReport(lead, diagnostic) {
     </div>` : ''}
   </div>
 
-  <!-- Agente 4: Content Absorption -->
-  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+  <!-- Content Absorption -->
+  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
       <tr>
         <td align="left">
@@ -696,8 +696,8 @@ function generateHtmlReport(lead, diagnostic) {
     </div>
   </div>
 
-  <!-- Agente 5: Citation Share nas IAs -->
-  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+  <!-- Citation Share nas IAs -->
+  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
       <tr>
         <td align="left">
@@ -738,7 +738,7 @@ function generateHtmlReport(lead, diagnostic) {
   </div>
 
   <!-- Plano de Ação Priorizado -->
-  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:24px;margin-bottom:24px;">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
       <tr>
         <td align="left">
@@ -763,13 +763,13 @@ function generateHtmlReport(lead, diagnostic) {
   </div>
 
   <!-- CTA de Agendamento -->
-  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:24px;box-shadow:0px 8px 24px rgba(13,20,33,0.06);padding:32px;text-align:center;margin-top:25px;border-top:3px solid #dc2626;">
+  <div style="background:#ffffff;border:1px solid rgba(255, 255, 255, 0.6);border-radius:24px;box-shadow:0px 1px 2px rgba(0, 0, 0, 0.02), 8px 12px 28px -4px rgba(13, 20, 33, 0.06);padding:32px;text-align:center;margin-top:25px;border-top:3px solid #dc2626;">
     <h3 style="font-family:'Space Grotesk', sans-serif;font-size:20px;font-weight:700;color:#09090b;margin:0 0 8px;text-transform:uppercase;letter-spacing:-0.2px;">Pronto para dominar as recomendações das IAs?</h3>
     <p style="font-size:13px;color:#4b5563;line-height:1.5;max-width:480px;margin:0 auto 20px;font-weight:light;">
       Este diagnóstico revela os gargalos. Nossa equipe de especialistas resolve cada um deles — metodologia científica, resultados mensuráveis.
     </p>
     <div style="margin-top:20px;">
-      <a href="https://geo.berocket.com.br#booking" class="cta-btn" style="display:inline-block;background:#dc2626;color:#ffffff;font-family:'JetBrains Mono',monospace;font-weight:bold;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;box-shadow:0px 4px 10px rgba(220,38,38,0.25);transition:background 0.2s;">
+      <a href="https://geo.berocket.com.br/#booking" class="cta-btn" style="display:inline-block;background:#dc2626;color:#ffffff;font-family:'JetBrains Mono',monospace;font-weight:bold;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;box-shadow:0px 4px 10px rgba(220,38,38,0.25);transition:background 0.2s;">
         Agendar Reunião de Diagnóstico →
       </a>
     </div>
