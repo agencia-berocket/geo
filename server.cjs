@@ -1576,7 +1576,7 @@ app.get('/api/newsletter/track-click', async (req, res) => {
       let targetDocPath = null;
       for (const doc of (data.documents || [])) {
         const f = doc.fields || {};
-        if (f.broadcastId?.stringValue === broadcastId && f.email?.stringValue?.toLowerCase() === (email as string).toLowerCase()) {
+        if (f.broadcastId?.stringValue === broadcastId && f.email?.stringValue?.toLowerCase() === String(email).toLowerCase()) {
           targetDocPath = doc.name;
           break;
         }
@@ -1600,7 +1600,7 @@ app.get('/api/newsletter/track-click', async (req, res) => {
     console.error('Error tracking click:', err);
   }
 
-  res.redirect(url as string);
+  res.redirect(String(url));
 });
 
 
