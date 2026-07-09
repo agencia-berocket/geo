@@ -7,3 +7,4 @@ coverage/
 .env*
 !.env.example
 .antigravity/
+geo-brocket-ae1f778b51b8.json

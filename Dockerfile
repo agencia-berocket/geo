@@ -1,5 +1,4 @@
-# Stage 1: Build the React application
-FROM node:22-alpine AS build
+FROM node:22-alpine
 
 WORKDIR /app
 
@@ -11,13 +10,8 @@ COPY . .
 
 RUN npm run build
 
-# Stage 2: Serve the static files using Nginx
-FROM nginx:alpine
-
-# Copy the build output to nginx public directory
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Expose port 80
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+ENV PORT=80
+
+CMD ["node", "server.cjs"]

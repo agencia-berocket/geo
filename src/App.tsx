@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Portfolio from './components/Portfolio';
@@ -19,41 +18,8 @@ import Team from './components/Team';
 import FAQ from './components/FAQ';
 import Footer from './components/Footer';
 import MeetingScheduler from './components/MeetingScheduler';
-import PrivacyPolicy from './components/PrivacyPolicy';
-import TermsOfUse from './components/TermsOfUse';
-import Disclaimer from './components/Disclaimer';
-
-type Route = 'home' | 'privacy' | 'terms' | 'disclaimer';
-
-function getRoute(): Route {
-  const hash = window.location.hash;
-  if (hash === '#/privacidade') return 'privacy';
-  if (hash === '#/termos') return 'terms';
-  if (hash === '#/isencao') return 'disclaimer';
-  return 'home';
-}
 
 export default function App() {
-  const [route, setRoute] = useState<Route>(getRoute);
-
-  useEffect(() => {
-    const handleHashChange = () => {
-      const newRoute = getRoute();
-      setRoute(newRoute);
-      if (newRoute !== 'home') {
-        window.scrollTo({ top: 0 });
-      }
-    };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
-
-  // Legal pages
-  if (route === 'privacy') return <PrivacyPolicy />;
-  if (route === 'terms') return <TermsOfUse />;
-  if (route === 'disclaimer') return <Disclaimer />;
-
-  // Home / Landing Page
   return (
     <div className="min-h-screen bg-[#f4f5f8] text-zinc-950 selection:bg-zinc-950 selection:text-white relative font-sans antialiased">
       {/* Sticky navigation */}
@@ -105,3 +71,4 @@ export default function App() {
     </div>
   );
 }
+
