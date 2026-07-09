@@ -1514,9 +1514,9 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
   }
 
   try {
-    const openrouterKey = process.env.OPENROUTER_API_KEY || '';
-    if (!openrouterKey) {
-      return res.status(500).json({ error: 'OPENROUTER_API_KEY não configurada no servidor' });
+    const geminiApiKey = process.env['GEO_-_Gemini_API_Key'] || process.env.GEMINI_API_KEY || '';
+    if (!geminiApiKey) {
+      return res.status(500).json({ error: 'A chave GEO_-_Gemini_API_Key (Gemini API Key) não foi configurada no servidor.' });
     }
 
     const safeAgentName = path.basename(agentName);
@@ -1594,48 +1594,61 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
       }
     }
 
-    const messages = [
-      { role: 'system', content: systemPrompt },
-      ...history,
-      { role: 'user', content: message }
-    ];
-
-    const body = JSON.stringify({
-      model: 'google/gemini-1.5-flash',
-      messages,
-      max_tokens: 1000,
-      temperature: 0.5,
+    // Formatar histórico e prompt de sistema para o modelo oficial do Gemini do Google
+    const contents = [];
+    
+    // Mapear o histórico para o formato do Gemini do Google (role: user/model, parts: [{ text }])
+    for (const msg of history) {
+      if (msg.role === 'system') continue;
+      contents.push({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      });
+    }
+    
+    // Adicionar a mensagem atual
+    contents.push({
+      role: 'user',
+      parts: [{ text: message }]
     });
 
-    const resUrl = await fetchUrl('https://openrouter.ai/api/v1/chat/completions', {
+    const payload = {
+      contents,
+      systemInstruction: {
+        parts: [{ text: systemPrompt }]
+      },
+      generationConfig: {
+        temperature: 0.5,
+        maxOutputTokens: 1000
+      }
+    };
+
+    const resUrl = await fetchUrl(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openrouterKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://geo.berocket.com.br',
-        'X-Title': 'b.rocket Chat Admin',
+        'Content-Type': 'application/json'
       },
-      body,
+      body: JSON.stringify(payload)
     });
 
     if (resUrl.statusCode < 200 || resUrl.statusCode >= 300) {
-      console.error(`OpenRouter retornou status ${resUrl.statusCode}:`, resUrl.body.slice(0, 500));
-      return res.status(502).json({ error: `A IA está indisponível no momento (status ${resUrl.statusCode}). Tente novamente em instantes.` });
+      console.error(`Gemini API retornou status ${resUrl.statusCode}:`, resUrl.body.slice(0, 500));
+      return res.status(502).json({ error: `A IA do Gemini está indisponível no momento (status ${resUrl.statusCode}). Tente novamente em instantes.` });
     }
 
     let parsed;
     try {
       parsed = JSON.parse(resUrl.body);
     } catch (parseErr) {
-      console.error('Resposta não-JSON do OpenRouter:', resUrl.body.slice(0, 500));
-      return res.status(502).json({ error: 'Resposta inválida da IA. Tente novamente.' });
+      console.error('Resposta não-JSON do Gemini:', resUrl.body.slice(0, 500));
+      return res.status(502).json({ error: 'Resposta inválida do Gemini. Tente novamente.' });
     }
 
     if (parsed.error) {
       return res.status(500).json({ error: parsed.error.message });
     }
 
-    const reply = parsed.choices?.[0]?.message?.content || 'Não consegui formular uma resposta.';
+    const reply = parsed.candidates?.[0]?.content?.parts?.[0]?.text || 'Não consegui formular uma resposta.';
     res.json({ success: true, reply });
   } catch (err) {
     res.status(500).json({ error: err.message });
