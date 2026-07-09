@@ -382,6 +382,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
       if (res.success) {
         setMessage('Lead atualizado com sucesso!');
         setIsEditing(false);
+        onLeadUpdated();
       }
     } catch (e: any) {
       setMessage(`Erro ao salvar: ${e.message}`);
@@ -533,7 +534,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                     {activeTab === 'agents' && (
                       <div className="space-y-4">
                         <AgentReport
-                          title="Agente 2 — Technical Gatekeeper"
+                          title="Technical Gatekeeper"
                           icon={<IconShield className="w-4 h-4" />}
                           status={d.gatekeeperStatus.robotsTxtAllowAiBots && d.gatekeeperStatus.ssrActive ? 'ok' : !d.gatekeeperStatus.robotsTxtAllowAiBots ? 'critical' : 'warning'}
                         >
@@ -560,7 +561,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                         </AgentReport>
 
                         <AgentReport
-                          title="Agente 3 — Metadata Entity"
+                          title="Metadata Entity"
                           icon={<IconFolder className="w-4 h-4" />}
                           status={d.metadataAnalysis.organizationSchemaPresent && d.metadataAnalysis.llmsTxtPublished ? 'ok' : d.metadataAnalysis.organizationSchemaPresent ? 'warning' : 'critical'}
                         >
@@ -579,7 +580,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                         </AgentReport>
 
                         <AgentReport
-                          title="Agente 4 — Content Absorption"
+                          title="Content Absorption"
                           icon={<IconNote className="w-4 h-4" />}
                           status={
                             Object.values(d.contentReview.factorsDetected).filter(Boolean).length >= 3 ? 'ok' : 'critical'
@@ -632,6 +633,15 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
       if (lead) setSelectedLead(lead);
     }
   }, [selectedLeadId, leads]);
+
+  useEffect(() => {
+    if (selectedLead) {
+      const updated = leads.find(l => l.id === selectedLead.id);
+      if (updated) {
+        setSelectedLead(updated);
+      }
+    }
+  }, [leads]);
 
   const filtered = filter === 'all' ? leads : leads.filter(l => l.status === filter);
 

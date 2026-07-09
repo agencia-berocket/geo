@@ -1596,21 +1596,42 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
 
     // Formatar histórico e prompt de sistema para o modelo oficial do Gemini do Google
     const contents = [];
-    
-    // Mapear o histórico para o formato do Gemini do Google (role: user/model, parts: [{ text }])
+    let lastRole = null;
+
+    // Garantir alternância estrita de papéis (user -> model -> user)
     for (const msg of history) {
       if (msg.role === 'system') continue;
+      const currentRole = msg.role === 'assistant' ? 'model' : 'user';
+      
+      if (currentRole === lastRole) {
+        if (contents.length > 0) {
+          contents[contents.length - 1].parts[0].text += '\n' + msg.content;
+        }
+      } else {
+        contents.push({
+          role: currentRole,
+          parts: [{ text: msg.content }]
+        });
+        lastRole = currentRole;
+      }
+    }
+
+    // Adicionar a mensagem atual
+    if (lastRole === 'user') {
+      if (contents.length > 0) {
+        contents[contents.length - 1].parts[0].text += '\n' + message;
+      } else {
+        contents.push({
+          role: 'user',
+          parts: [{ text: message }]
+        });
+      }
+    } else {
       contents.push({
-        role: msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
+        role: 'user',
+        parts: [{ text: message }]
       });
     }
-    
-    // Adicionar a mensagem atual
-    contents.push({
-      role: 'user',
-      parts: [{ text: message }]
-    });
 
     const payload = {
       contents,
@@ -1623,7 +1644,7 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
       }
     };
 
-    const resUrl = await fetchUrl(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1631,18 +1652,13 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
       body: JSON.stringify(payload)
     });
 
-    if (resUrl.statusCode < 200 || resUrl.statusCode >= 300) {
-      console.error(`Gemini API retornou status ${resUrl.statusCode}:`, resUrl.body.slice(0, 500));
-      return res.status(502).json({ error: `A IA do Gemini está indisponível no momento (status ${resUrl.statusCode}). Tente novamente em instantes.` });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Gemini API retornou status ${response.status}:`, errorText.slice(0, 500));
+      return res.status(502).json({ error: `A IA do Gemini está indisponível no momento (status ${response.status}). Tente novamente em instantes.` });
     }
 
-    let parsed;
-    try {
-      parsed = JSON.parse(resUrl.body);
-    } catch (parseErr) {
-      console.error('Resposta não-JSON do Gemini:', resUrl.body.slice(0, 500));
-      return res.status(502).json({ error: 'Resposta inválida do Gemini. Tente novamente.' });
-    }
+    const parsed = await response.json();
 
     if (parsed.error) {
       return res.status(500).json({ error: parsed.error.message });

@@ -55,6 +55,10 @@ function fetchUrl(rawUrl, options = {}) {
 
     req.on('error', reject);
     req.on('timeout', () => { req.destroy(); reject(new Error('Request timeout')); });
+    
+    if (options.body) {
+      req.write(options.body);
+    }
     req.end();
   });
 }
@@ -611,7 +615,7 @@ function generateHtmlReport(lead, diagnostic) {
   <div class="section">
     <div class="section-header">
       <span class="section-icon">🛡️</span>
-      <span class="section-title">Agente 2 — Technical Gatekeeper</span>
+      <span class="section-title">Technical Gatekeeper</span>
       <span class="section-status ${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'status-ok' : 'status-crit'}">
         ${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'OK' : 'CRÍTICO'}
       </span>
@@ -634,7 +638,7 @@ function generateHtmlReport(lead, diagnostic) {
   <div class="section">
     <div class="section-header">
       <span class="section-icon">🗂️</span>
-      <span class="section-title">Agente 3 — Metadata Entity</span>
+      <span class="section-title">Metadata Entity</span>
       <span class="section-status ${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'status-warn' : 'status-crit'}">
         ${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'PARCIAL' : 'CRÍTICO'}
       </span>
@@ -653,7 +657,7 @@ function generateHtmlReport(lead, diagnostic) {
   <div class="section">
     <div class="section-header">
       <span class="section-icon">📝</span>
-      <span class="section-title">Agente 4 — Content Absorption</span>
+      <span class="section-title">Content Absorption</span>
       <span class="section-status status-warn">ANÁLISE</span>
     </div>
     <div class="grid2">
@@ -674,7 +678,7 @@ function generateHtmlReport(lead, diagnostic) {
   <div class="section">
     <div class="section-header">
       <span class="section-icon">🔍</span>
-      <span class="section-title">Agente 5 — Citation Share nas IAs</span>
+      <span class="section-title">Citation Share nas IAs</span>
       <span class="section-status ${diagnostic.visibilityBenchmarking.citationSharePercentage >= 0.3 ? 'status-ok' : 'status-crit'}">
         ${(diagnostic.visibilityBenchmarking.citationSharePercentage * 100).toFixed(0)}% SHARE
       </span>
