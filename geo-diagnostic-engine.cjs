@@ -318,7 +318,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   const models = [
     'openai/gpt-4o-mini',
     'anthropic/claude-3.5-haiku',
-    'google/gemini-1.5-flash',
+    'google/gemini-2.5-flash',
     'perplexity/sonar',
   ];
 
@@ -511,19 +511,17 @@ function buildActionList(gatekeeper, metadata, content, visibility) {
 // ─── HTML Report Generator ────────────────────────────────────────────────────
 function generateHtmlReport(lead, diagnostic) {
   const score = diagnostic.overallGeoScore;
-  const scoreColor = score >= 70 ? '#22c55e' : score >= 40 ? '#f59e0b' : '#ef4444';
+  const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
   const scoreLabel = score >= 70 ? 'Bom' : score >= 40 ? 'Médio' : 'Crítico';
-  const circumference = 2 * Math.PI * 54;
-  const dashOffset = circumference * (1 - score / 100);
 
   const formatCheck = (ok) => ok
-    ? `<span style="color:#22c55e">✅</span>`
-    : `<span style="color:#ef4444">❌</span>`;
+    ? `<span style="display:inline-block;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-height:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-align:middle;">✓</span>`
+    : `<span style="display:inline-block;color:#dc2626;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;width:18px;height:18px;line-height:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-align:middle;">✗</span>`;
 
-  const impactColor = (impact) => {
-    if (impact.includes('Crítico')) return '#ef4444';
-    if (impact.includes('Alto')) return '#f59e0b';
-    return '#3b82f6';
+  const impactStyles = (impact) => {
+    if (impact.includes('Crítico')) return 'background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;';
+    if (impact.includes('Alto')) return 'background:#fff7ed;color:#d97706;border:1px solid #fed7aa;';
+    return 'background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
   };
 
   return `<!DOCTYPE html>
@@ -533,195 +531,253 @@ function generateHtmlReport(lead, diagnostic) {
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Raio-X de GEO — ${lead.url} | b.rocket</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{background:#09090b;color:#e4e4e7;font-family:'Inter',sans-serif;min-height:100vh}
-  .container{max-width:860px;margin:0 auto;padding:40px 20px}
-  .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:40px;padding-bottom:24px;border-bottom:1px solid #27272a}
-  .brand{display:flex;align-items:center;gap:10px}
-  .brand-icon{width:36px;height:36px;background:linear-gradient(135deg,#3b82f6,#7c3aed);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#fff}
-  .brand-name{font-weight:700;font-size:18px;color:#fff}
-  .brand-tag{font-size:10px;color:#52525b;font-family:'JetBrains Mono',monospace;background:#1c1c1f;border:1px solid #3f3f46;padding:2px 6px;border-radius:4px;margin-left:4px}
-  .sys-info{font-family:'JetBrains Mono',monospace;font-size:10px;color:#3f3f46}
-  .hero{text-align:center;padding:48px 0 32px}
-  .hero-tag{font-family:'JetBrains Mono',monospace;font-size:11px;color:#3b82f6;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
-  .hero-title{font-size:28px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:-0.5px}
-  .hero-url{font-size:14px;color:#71717a;font-family:'JetBrains Mono',monospace;margin-bottom:32px}
-  .score-card{background:#111113;border:1px solid #27272a;border-radius:20px;padding:32px;display:inline-block;margin-bottom:48px}
-  .score-label{font-size:11px;color:#52525b;font-family:'JetBrains Mono',monospace;letter-spacing:1px;text-align:center;margin-top:12px}
-  .section{background:#111113;border:1px solid #27272a;border-radius:16px;padding:24px;margin-bottom:20px}
-  .section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #1c1c1f}
-  .section-icon{font-size:20px}
-  .section-title{font-weight:700;color:#fff;font-size:15px}
-  .section-status{margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:9999px;border:1px solid}
-  .status-ok{color:#22c55e;border-color:#166534;background:#052e16}
-  .status-warn{color:#f59e0b;border-color:#92400e;background:#1c0a00}
-  .status-crit{color:#ef4444;border-color:#991b1b;background:#1c0000}
-  .check-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #1c1c1f;font-size:13px;color:#a1a1aa}
-  .check-row:last-child{border-bottom:none}
-  .metric{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #1c1c1f;font-size:13px;color:#a1a1aa}
-  .metric:last-child{border-bottom:none}
-  .metric-val{font-weight:600;color:#e4e4e7}
-  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .action-item{background:#1c1c1f;border-radius:10px;padding:14px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
-  .impact-tag{font-size:10px;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:9999px;font-weight:600;white-space:nowrap;flex-shrink:0;color:#fff}
-  .action-text{font-size:12px;color:#a1a1aa;line-height:1.5}
-  .citation-bar{height:6px;background:#1c1c1f;border-radius:9999px;overflow:hidden;margin-top:6px}
-  .citation-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#7c3aed);border-radius:9999px;transition:width 0.5s}
-  .cta{background:linear-gradient(135deg,#1d4ed8,#7c3aed);border-radius:16px;padding:32px;text-align:center;margin-top:40px}
-  .cta-title{font-size:20px;font-weight:800;color:#fff;margin-bottom:8px}
-  .cta-sub{font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:24px}
-  .cta-btn{display:inline-block;background:#fff;color:#1d4ed8;font-weight:700;padding:12px 28px;border-radius:9999px;text-decoration:none;font-size:14px}
-  .footer{text-align:center;padding:32px 0;font-family:'JetBrains Mono',monospace;font-size:10px;color:#3f3f46}
-  @media(max-width:600px){.grid2{grid-template-columns:1fr}.header{flex-direction:column;gap:12px}}
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+  @media (max-width: 600px) {
+    .container { padding: 15px !important; }
+    .grid2 { grid-template-columns: 1fr !important; gap: 10px !important; }
+    .score-card { padding: 24px !important; }
+    .hero-title { font-size: 28px !important; }
+  }
 </style>
 </head>
-<body>
-<div class="container">
+<body style="background-color:#f4f5f8;color:#0c0d0e;font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;margin:0;padding:0;-webkit-font-smoothing:antialiased;min-height:100vh;">
+<div class="container" style="max-width:650px;margin:0 auto;padding:30px 15px;">
 
   <!-- Header -->
-  <div class="header">
-    <div class="brand">
-      <div class="brand-icon">b.</div>
-      <span class="brand-name">rocket</span>
-      <span class="brand-tag">GEO_CORE_V10</span>
-    </div>
-    <div class="sys-info">RAIO-X DE GEO // ${new Date().toLocaleDateString('pt-BR')} // CONFIDENCIAL</div>
-  </div>
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:20px;border-bottom:1px solid #e4e4e7;padding-bottom:15px;">
+    <tr>
+      <td align="left">
+        <div style="font-family:'Space Grotesk', sans-serif;font-weight:700;font-size:20px;color:#09090b;letter-spacing:-0.5px;">
+          <span style="color:#dc2626;">b.</span>rocket <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#71717a;background:#e4e4e7;border:1px solid #d1d5db;padding:2px 6px;border-radius:4px;margin-left:4px;font-weight:bold;vertical-align:middle;">GEO_CORE_V10</span>
+        </div>
+      </td>
+      <td align="right" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#71717a;font-weight:bold;">
+        DIAGNÓSTICO // ${new Date().toLocaleDateString('pt-BR')} // CONFIDENCIAL
+      </td>
+    </tr>
+  </table>
 
-  <!-- Hero -->
-  <div class="hero">
-    <div class="hero-tag">DIAGNÓSTICO COMPLETO GEO</div>
-    <h1 class="hero-title">Raio-X de GEO</h1>
-    <div class="hero-url">${lead.url}</div>
+  <!-- Hero & Score -->
+  <div style="text-align:center;margin-bottom:30px;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#dc2626;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:bold;">DIAGNÓSTICO SEMÂNTICO DE GEO</div>
+    <h1 class="hero-title" style="font-family:'Space Grotesk', sans-serif;font-size:36px;font-weight:700;color:#0c0d0e;margin:0 0 4px;letter-spacing:-1px;">Raio-X de GEO</h1>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#71717a;word-break:break-all;margin-bottom:25px;">${lead.url}</div>
 
-    <!-- Score gauge -->
-    <div class="score-card">
-      <svg width="140" height="80" viewBox="0 0 140 80">
-        <circle cx="70" cy="70" r="54" fill="none" stroke="#27272a" stroke-width="10"
-          stroke-dasharray="${circumference / 2} ${circumference / 2}" stroke-linecap="round"
-          transform="rotate(-180 70 70)"/>
-        <circle cx="70" cy="70" r="54" fill="none" stroke="${scoreColor}" stroke-width="10"
-          stroke-dasharray="${(circumference / 2) * (score / 100)} ${circumference}" stroke-linecap="round"
-          transform="rotate(-180 70 70)"/>
-        <text x="70" y="72" text-anchor="middle" font-family="Inter,sans-serif" font-weight="800"
-          font-size="28" fill="${scoreColor}">${score}</text>
-      </svg>
-      <div class="score-label">GEO SCORE // ${scoreLabel.toUpperCase()}</div>
+    <!-- Score Card Neumórfico -->
+    <div class="score-card" style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:24px;box-shadow:0px 8px 24px rgba(13,20,33,0.06), -8px -8px 24px rgba(255,255,255,0.95);padding:32px;display:inline-block;min-width:240px;text-align:center;">
+      <div style="font-size:64px;font-weight:800;color:${scoreColor};font-family:'JetBrains Mono',monospace;line-height:1;margin:0 auto 10px;">${score}%</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;">
+        GEO SCORE // <span style="color:${scoreColor};font-weight:bold;">${scoreLabel.toUpperCase()}</span>
+      </div>
     </div>
   </div>
 
-  <!-- Agente 2: Gatekeeper -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-icon">🛡️</span>
-      <span class="section-title">Technical Gatekeeper</span>
-      <span class="section-status ${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'status-ok' : 'status-crit'}">
-        ${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'OK' : 'CRÍTICO'}
-      </span>
+  <!-- Agente 2: Technical Gatekeeper -->
+  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+      <tr>
+        <td align="left">
+          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🛡️</span>
+          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Technical Gatekeeper</span>
+        </td>
+        <td align="right">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
+            ${diagnostic.gatekeeperStatus.robotsTxtAllowAiBots ? 'OK' : 'CRÍTICO'}
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(diagnostic.gatekeeperStatus.robotsTxtAllowAiBots)} Bots de IA autorizados no robots.txt
     </div>
-    <div class="check-row">${formatCheck(diagnostic.gatekeeperStatus.robotsTxtAllowAiBots)} Bots de IA liberados no robots.txt</div>
-    <div class="check-row">${formatCheck(diagnostic.gatekeeperStatus.ssrActive)} Conteúdo acessível sem JavaScript (SSR)</div>
-    <div class="check-row">${formatCheck(!diagnostic.gatekeeperStatus.hasPriceGatekeeperIssue)} Preços explícitos para tomada de decisão</div>
-    <div class="check-row">${formatCheck(!diagnostic.gatekeeperStatus.staleTimestampDetected)} Timestamps recentes (conteúdo atualizado)</div>
-    <div class="metric">
-      <span>Latência do servidor</span>
-      <span class="metric-val" style="color:${diagnostic.gatekeeperStatus.serverLatencyMs < 800 ? '#22c55e' : '#f59e0b'}">${diagnostic.gatekeeperStatus.serverLatencyMs}ms</span>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(diagnostic.gatekeeperStatus.ssrActive)} Conteúdo acessível sem Javascript (SSR)
     </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(!diagnostic.gatekeeperStatus.hasPriceGatekeeperIssue)} Preços explícitos no HTML para IA
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(!diagnostic.gatekeeperStatus.staleTimestampDetected)} Timestamps atualizados recentemente
+    </div>
+    
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:14px;border-top:1px solid #f1f2f5;padding-top:10px;font-size:12px;">
+      <tr>
+        <td style="color:#71717a;font-family:'JetBrains Mono',monospace;">LATÊNCIA DO SERVIDOR:</td>
+        <td align="right" style="font-family:'JetBrains Mono',monospace;font-weight:bold;color:${diagnostic.gatekeeperStatus.serverLatencyMs < 800 ? '#16a34a' : '#d97706'}">
+          ${diagnostic.gatekeeperStatus.serverLatencyMs}ms
+        </td>
+      </tr>
+    </table>
+    
     ${diagnostic.gatekeeperStatus.blockedCrawlers.length > 0 ? `
-    <div style="background:#1c0000;border:1px solid #991b1b;border-radius:8px;padding:10px;margin-top:12px;font-size:12px;color:#fca5a5">
-      ⚠️ Bots bloqueados: ${diagnostic.gatekeeperStatus.blockedCrawlers.join(', ')}
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:#b91c1c;line-height:1.4;font-family:'JetBrains Mono',monospace;">
+      ⚠️ <strong>Bots Bloqueados:</strong> ${diagnostic.gatekeeperStatus.blockedCrawlers.join(', ')}
     </div>` : ''}
   </div>
 
-  <!-- Agente 3: Metadata -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-icon">🗂️</span>
-      <span class="section-title">Metadata Entity</span>
-      <span class="section-status ${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'status-warn' : 'status-crit'}">
-        ${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'PARCIAL' : 'CRÍTICO'}
-      </span>
+  <!-- Agente 3: Metadata Entity -->
+  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+      <tr>
+        <td align="left">
+          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🗂️</span>
+          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Metadata Entity</span>
+        </td>
+        <td align="right">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'color:#b45309;background:#fff7ed;border:1px solid #fed7aa;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
+            ${diagnostic.metadataAnalysis.organizationSchemaPresent ? 'PARCIAL' : 'CRÍTICO'}
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(diagnostic.metadataAnalysis.organizationSchemaPresent)} Schema Organization ou LocalBusiness
     </div>
-    <div class="check-row">${formatCheck(diagnostic.metadataAnalysis.organizationSchemaPresent)} Schema Organization (JSON-LD)</div>
-    <div class="check-row">${formatCheck(diagnostic.metadataAnalysis.personSchemaPresent)} Schema Person (autor com credenciais)</div>
-    <div class="check-row">${formatCheck(diagnostic.metadataAnalysis.llmsTxtPublished)} Arquivo /llms.txt publicado</div>
-    <div class="check-row">${formatCheck(diagnostic.metadataAnalysis.organizationSameAsCount > 0)} Links sameAs (Wikidata, LinkedIn, etc.)</div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(diagnostic.metadataAnalysis.personSchemaPresent)} Schema Person (Credenciais de Autor)
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(diagnostic.metadataAnalysis.llmsTxtPublished)} Arquivo /llms.txt publicado
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;">
+      ${formatCheck(diagnostic.metadataAnalysis.organizationSameAsCount > 0)} Mapeamento de redes sociais (sameAs)
+    </div>
+    
     ${diagnostic.metadataAnalysis.missingSchemas.length > 0 ? `
-    <div style="margin-top:12px;font-size:12px;color:#f59e0b">
-      Schemas ausentes: ${diagnostic.metadataAnalysis.missingSchemas.join(', ')}
+    <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:#b45309;line-height:1.4;font-family:'JetBrains Mono',monospace;">
+      ⚠️ <strong>Schemas Faltantes:</strong> ${diagnostic.metadataAnalysis.missingSchemas.join(', ')}
     </div>` : ''}
   </div>
 
-  <!-- Agente 4: Content -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-icon">📝</span>
-      <span class="section-title">Content Absorption</span>
-      <span class="section-status status-warn">ANÁLISE</span>
-    </div>
-    <div class="grid2">
-      <div>
-        <div class="check-row">${formatCheck(diagnostic.contentReview.factorsDetected.hasTldrAnswerFirstParagraph)} Resposta direta nos primeiros 60 tokens</div>
-        <div class="check-row">${formatCheck(diagnostic.contentReview.factorsDetected.hasStatisticsPer150Words)} Dados numéricos a cada 150 palavras</div>
+  <!-- Agente 4: Content Absorption -->
+  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+      <tr>
+        <td align="left">
+          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">📝</span>
+          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Content Absorption</span>
+        </td>
+        <td align="right">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;">
+            ANÁLISE
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div class="grid2" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+        ${formatCheck(diagnostic.contentReview.factorsDetected.hasTldrAnswerFirstParagraph)} Resposta direta no início
       </div>
-      <div>
-        <div class="check-row">${formatCheck(diagnostic.contentReview.factorsDetected.hasExpertQuotes)} Aspas de especialistas citadas</div>
-        <div class="check-row">${formatCheck(diagnostic.contentReview.factorsDetected.hasHtmlComparisonTables)} Tabelas comparativas HTML</div>
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+        ${formatCheck(diagnostic.contentReview.factorsDetected.hasStatisticsPer150Words)} Estatísticas frequentes
+      </div>
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+        ${formatCheck(diagnostic.contentReview.factorsDetected.hasExpertQuotes)} Citações de especialistas
+      </div>
+      <div style="font-size:13px;color:#4b5563;line-height:1.4;">
+        ${formatCheck(diagnostic.contentReview.factorsDetected.hasHtmlComparisonTables)} Tabelas comparativas HTML
       </div>
     </div>
-    <div class="metric"><span>Tamanho médio de chunk</span><span class="metric-val">${diagnostic.contentReview.meanChunkSizeTokens} tokens</span></div>
-    <div class="metric"><span>Preços visíveis</span><span class="metric-val">${!diagnostic.contentReview.priceNotMentioned ? '✅ Sim' : '❌ Não'}</span></div>
+    
+    <div style="border-top:1px solid #f1f2f5;padding-top:12px;margin-top:12px;font-size:12px;font-family:'JetBrains Mono',monospace;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr style="height:24px;">
+          <td style="color:#71717a;">TAMANHO MÉDIO DE CHUNK:</td>
+          <td align="right" style="font-weight:bold;color:#09090b;">${diagnostic.contentReview.meanChunkSizeTokens} tokens</td>
+        </tr>
+        <tr style="height:24px;">
+          <td style="color:#71717a;">PREÇOS VISÍVEIS:</td>
+          <td align="right" style="font-weight:bold;color:#09090b;">${!diagnostic.contentReview.priceNotMentioned ? '✓ Sim' : '✗ Não'}</td>
+        </tr>
+      </table>
+    </div>
   </div>
 
-  <!-- Agente 5: Intent -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-icon">🔍</span>
-      <span class="section-title">Citation Share nas IAs</span>
-      <span class="section-status ${diagnostic.visibilityBenchmarking.citationSharePercentage >= 0.3 ? 'status-ok' : 'status-crit'}">
-        ${(diagnostic.visibilityBenchmarking.citationSharePercentage * 100).toFixed(0)}% SHARE
-      </span>
+  <!-- Agente 5: Citation Share nas IAs -->
+  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+      <tr>
+        <td align="left">
+          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">🔍</span>
+          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Citation Share nas IAs</span>
+        </td>
+        <td align="right">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.visibilityBenchmarking.citationSharePercentage >= 0.3 ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b91c1c;background:#fef2f2;border:1px solid #fca5a5;'}">
+            ${(diagnostic.visibilityBenchmarking.citationSharePercentage * 100).toFixed(0)}% SHARE
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div style="font-size:13px;color:#4b5563;margin-bottom:6px;">Porcentagem de Citações:</div>
+    <div style="height:10px;background:#e4e4e7;border-radius:9999px;overflow:hidden;margin-bottom:12px;border:1px solid #d1d5db;">
+      <div style="height:100%;background:#dc2626;border-radius:9999px;width:${Math.min(100, diagnostic.visibilityBenchmarking.citationSharePercentage * 100)}%;"></div>
     </div>
-    <div class="metric">
-      <span>Citation Share</span>
-      <span class="metric-val" style="color:${diagnostic.visibilityBenchmarking.citationSharePercentage >= 0.3 ? '#22c55e' : '#ef4444'}">
-        ${(diagnostic.visibilityBenchmarking.citationSharePercentage * 100).toFixed(1)}%
-      </span>
+    
+    <div style="font-size:12px;font-family:'JetBrains Mono',monospace;color:#4b5563;line-height:1.6;margin-top:14px;border-top:1px solid #f1f2f5;padding-top:10px;">
+      <table cellpadding="0" cellspacing="0" border="0" width="100%">
+        <tr style="height:24px;">
+          <td style="color:#71717a;">SENTIMENTO DE MARCA:</td>
+          <td align="right" style="font-weight:bold;color:#0c0d0e;">${diagnostic.visibilityBenchmarking.brandSentimentScore}</td>
+        </tr>
+        <tr style="height:24px;">
+          <td style="color:#71717a;">PROMPTS TESTADOS:</td>
+          <td align="right" style="font-weight:bold;color:#0c0d0e;">${diagnostic.visibilityBenchmarking.totalPromptsTest}</td>
+        </tr>
+        ${Object.entries(diagnostic.visibilityBenchmarking.citationsByModel).map(([model, count]) => `
+        <tr style="height:24px;border-top:1px solid #f9fafb;">
+          <td style="color:#71717a;font-family:'JetBrains Mono',monospace;font-size:11px;">${model}:</td>
+          <td align="right" style="font-weight:bold;color:#0c0d0e;">${count} citações</td>
+        </tr>
+        `).join('')}
+      </table>
     </div>
-    <div class="citation-bar"><div class="citation-fill" style="width:${Math.min(100, diagnostic.visibilityBenchmarking.citationSharePercentage * 100)}%"></div></div>
-    <div class="metric" style="margin-top:12px"><span>Sentimento de Marca</span><span class="metric-val">${diagnostic.visibilityBenchmarking.brandSentimentScore}</span></div>
-    <div class="metric"><span>Prompts testados</span><span class="metric-val">${diagnostic.visibilityBenchmarking.totalPromptsTest}</span></div>
-    ${Object.entries(diagnostic.visibilityBenchmarking.citationsByModel).map(([model, count]) => `
-    <div class="metric"><span style="font-family:JetBrains Mono,monospace;font-size:11px">${model}</span><span class="metric-val">${count} citações</span></div>
-    `).join('')}
   </div>
 
-  <!-- Plano de Ação -->
-  <div class="section">
-    <div class="section-header">
-      <span class="section-icon">📋</span>
-      <span class="section-title">Plano de Ação Priorizado</span>
-    </div>
+  <!-- Plano de Ação Priorizado -->
+  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:20px;box-shadow:0px 4px 16px rgba(13,20,33,0.04);padding:24px;margin-bottom:20px;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:10px;">
+      <tr>
+        <td align="left">
+          <span style="font-size:18px;margin-right:8px;vertical-align:middle;">📋</span>
+          <span style="font-family:'Space Grotesk', sans-serif;font-weight:700;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Plano de Ação Priorizado</span>
+        </td>
+      </tr>
+    </table>
+    
     ${diagnostic.actionItemsPriorityList.map(item => `
-    <div class="action-item">
-      <span class="impact-tag" style="background:${impactColor(item.impact)}20;color:${impactColor(item.impact)};border:1px solid ${impactColor(item.impact)}40">
-        ${item.impact.split(' ')[0]}
-      </span>
-      <div class="action-text">${item.task}</div>
+    <div style="background:#fdfefe;border:1px solid rgba(0,0,0,0.04);border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.9);display:table;width:100%;box-sizing:border-box;">
+      <div style="display:table-cell;vertical-align:top;width:75px;padding-right:10px;">
+        <span style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:bold;padding:2px 6px;border-radius:4px;text-align:center;text-transform:uppercase;${impactStyles(item.impact)}">
+          ${item.impact.split(' ')[0]}
+        </span>
+      </div>
+      <div style="display:table-cell;vertical-align:top;font-size:12px;color:#4b5563;line-height:1.4;">
+        ${item.task}
+      </div>
     </div>
     `).join('')}
   </div>
 
-  <!-- CTA -->
-  <div class="cta">
-    <div class="cta-title">Pronto para dominar as recomendações das IAs?</div>
-    <div class="cta-sub">Este diagnóstico revela os gargalos. Nossa equipe de especialistas resolve cada um deles — metodologia de Princeton, resultados mensuráveis.</div>
-    <a href="https://geo.berocket.com.br#pricing" class="cta-btn">Falar com Guilherme →</a>
+  <!-- CTA de Agendamento -->
+  <div style="background:#ffffff;border:1px solid rgba(0, 0, 0, 0.06);border-radius:24px;box-shadow:0px 8px 24px rgba(13,20,33,0.06);padding:32px;text-align:center;margin-top:25px;border-top:3px solid #dc2626;">
+    <h3 style="font-family:'Space Grotesk', sans-serif;font-size:20px;font-weight:700;color:#09090b;margin:0 0 8px;text-transform:uppercase;letter-spacing:-0.2px;">Pronto para dominar as recomendações das IAs?</h3>
+    <p style="font-size:13px;color:#4b5563;line-height:1.5;max-width:480px;margin:0 auto 20px;font-weight:light;">
+      Este diagnóstico revela os gargalos. Nossa equipe de especialistas resolve cada um deles — metodologia científica, resultados mensuráveis.
+    </p>
+    <div style="margin-top:20px;">
+      <a href="https://geo.berocket.com.br#booking" class="cta-btn" style="display:inline-block;background:#dc2626;color:#ffffff;font-family:'JetBrains Mono',monospace;font-weight:bold;padding:14px 28px;border-radius:12px;text-decoration:none;font-size:12px;letter-spacing:1px;text-transform:uppercase;box-shadow:0px 4px 10px rgba(220,38,38,0.25);transition:background 0.2s;">
+        Agendar Reunião de Diagnóstico →
+      </a>
+    </div>
   </div>
 
-  <div class="footer">
-    b.rocket © ${new Date().getFullYear()} // GEO_CORE_V10 // RELATÓRIO GERADO EM ${new Date().toISOString()} // CONFIDENCIAL
+  <!-- Footer -->
+  <div style="text-align:center;padding:24px 0 10px;font-family:'JetBrains Mono',monospace;font-size:9px;color:#9ca3af;font-weight:bold;">
+    b.rocket © ${new Date().getFullYear()} // GEO_CORE_V10 // CONFIDENCIAL
   </div>
 
 </div>

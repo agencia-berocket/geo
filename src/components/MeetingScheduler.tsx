@@ -133,15 +133,31 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
     setSelectedSlot(null); // Reset selected slot when date changes
   }, [selectedDate]);
 
-  // Listener for custom open event
+  // Listener for custom open event and URL hash/params
   useEffect(() => {
     const handleOpen = () => {
       setIsOpen(true);
       // Reset flow to date-time when opening
       setStep('date-time');
     };
+
+    const checkUrl = () => {
+      const hash = window.location.hash;
+      const params = new URLSearchParams(window.location.search);
+      if (hash === '#booking' || hash === '#agendar' || params.has('booking') || params.get('open_booking') === 'true') {
+        handleOpen();
+      }
+    };
+
+    // Check on load
+    checkUrl();
+
     window.addEventListener('open-booking-modal', handleOpen);
-    return () => window.removeEventListener('open-booking-modal', handleOpen);
+    window.addEventListener('hashchange', checkUrl);
+    return () => {
+      window.removeEventListener('open-booking-modal', handleOpen);
+      window.removeEventListener('hashchange', checkUrl);
+    };
   }, []);
 
   // Load busy timeslots from Google Calendar via backend API

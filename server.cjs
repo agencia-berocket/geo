@@ -855,34 +855,7 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
       from: `"Guilherme Rossi - b.rocket" <${process.env.EMAIL_USER}>`,
       to: lead.email,
       subject: `Seu Raio-X de GEO está aqui, ${firstName}! Score: ${diagnostic?.overallGeoScore || 0}% 🔬`,
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#18181b">
-          <div style="background:#09090b;padding:24px;border-radius:12px 12px 0 0">
-            <p style="color:#3b82f6;font-family:monospace;font-size:11px;margin:0">b.rocket // GEO_CORE_V10 // DIAGNÓSTICO COMPLETO</p>
-          </div>
-          <div style="padding:24px;border:1px solid #e4e4e7;border-top:none;border-radius:0 0 12px 12px">
-            <h2 style="color:#09090b">Olá ${firstName},</h2>
-            <p>O diagnóstico completo de GEO do site <strong>${domain}</strong> foi concluído.</p>
-            <div style="background:#f4f4f5;border-radius:8px;padding:16px;margin:20px 0;text-align:center">
-              <p style="font-size:12px;color:#71717a;margin:0 0 4px">Seu GEO Score inicial</p>
-              <p style="font-size:48px;font-weight:800;color:${diagnostic?.overallGeoScore >= 70 ? '#16a34a' : diagnostic?.overallGeoScore >= 40 ? '#d97706' : '#dc2626'};margin:0">${diagnostic?.overallGeoScore || 0}%</p>
-            </div>
-            <p>O relatório completo com o diagnóstico de todos os 4 agentes e o plano de ação priorizado está <strong>anexado a este e-mail</strong>.</p>
-            <p>Se quiser discutir os resultados e entender como podemos melhorar sua visibilidade nas IAs, estamos disponíveis:</p>
-            <div style="text-align:center;margin:24px 0">
-              <a href="https://geo.berocket.com.br#pricing" style="background:#09090b;color:#fff;padding:12px 24px;border-radius:9999px;text-decoration:none;font-weight:600;font-size:14px">Falar com Guilherme →</a>
-            </div>
-            <p style="color:#71717a;font-size:13px">Até breve,<br><strong>Guilherme Rossi</strong><br>Especialista GEO & RAG | b.rocket</p>
-          </div>
-        </div>
-      `,
-      attachments: [
-        {
-          filename: `raio-x-geo-${domain}.html`,
-          content: htmlReport,
-          contentType: 'text/html',
-        }
-      ]
+      html: htmlReport
     });
 
     res.json({ success: true, message: `Relatório enviado para ${lead.email}` });
@@ -1514,9 +1487,9 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
   }
 
   try {
-    const geminiApiKey = process.env['GEO_-_Gemini_API_Key'] || process.env.GEMINI_API_KEY || '';
+    const geminiApiKey = process.env.GEMINI_API_KEY || '';
     if (!geminiApiKey) {
-      return res.status(500).json({ error: 'A chave GEO_-_Gemini_API_Key (Gemini API Key) não foi configurada no servidor.' });
+      return res.status(500).json({ error: 'A chave GEMINI_API_KEY não foi configurada no servidor.' });
     }
 
     const safeAgentName = path.basename(agentName);
@@ -1644,7 +1617,7 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
       }
     };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
