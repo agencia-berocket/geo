@@ -177,8 +177,8 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
 
           {/* Agent workspace */}
           <div className="flex-1 lg:pl-6 space-y-4 flex flex-col min-w-0">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
                 <span className="text-zinc-700">{currentAgent.icon}</span>
                 <div>
                   <h3 className="text-zinc-900 font-display font-bold text-base">{currentAgent.name}</h3>
@@ -187,16 +187,16 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
               </div>
 
               {/* View Switcher */}
-              <div className="flex bg-zinc-200/60 p-1 rounded-xl text-xs font-semibold">
+              <div className="flex overflow-x-auto max-w-full scrollbar-none bg-zinc-200/60 p-1 rounded-xl text-xs font-semibold w-full sm:w-auto whitespace-nowrap">
                 <button
                   onClick={() => setActiveTab('run')}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'run' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-550 hover:text-zinc-800'}`}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center justify-center gap-1.5 ${activeTab === 'run' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-550 hover:text-zinc-800'}`}
                 >
                   <IconPlay className="w-3.5 h-3.5" /> Executar Diagnóstico
                 </button>
                 <button
                   onClick={() => setActiveTab('chat')}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'chat' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-550 hover:text-zinc-800'}`}
+                  className={`flex-1 sm:flex-none px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center justify-center gap-1.5 ${activeTab === 'chat' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-550 hover:text-zinc-800'}`}
                 >
                   <IconChat className="w-3.5 h-3.5" /> Chat 360 (IA)
                 </button>
@@ -403,12 +403,12 @@ export default function ClientsList({ onNavigate }: ClientsListProps) {
               onClick={() => setSelectedClient(client)}
             >
               <div>
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-zinc-900 font-display font-bold text-base">{client.company || client.url}</h3>
-                    <p className="text-zinc-450 text-xs font-mono mt-0.5">{client.url}</p>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-4">
+                  <div className="min-w-0">
+                    <h3 className="text-zinc-900 font-display font-bold text-base break-all">{client.company || client.url}</h3>
+                    <p className="text-zinc-450 text-xs font-mono mt-0.5 break-all">{client.url}</p>
                   </div>
-                  <span className={`text-[10px] px-2.5 py-1 rounded-full border font-bold ${planConfig[client.plan]?.color || ''}`}>
+                  <span className={`text-[10px] px-2.5 py-1 rounded-full border font-bold self-start ${planConfig[client.plan]?.color || ''}`}>
                     {planConfig[client.plan]?.label || client.plan}
                   </span>
                 </div>
@@ -448,22 +448,24 @@ export default function ClientsList({ onNavigate }: ClientsListProps) {
                 )}
 
                 {/* Card footer actions */}
-                <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                  <button
-                    onClick={() => setEditingClient(client)}
-                    className="text-[10px] bg-zinc-100 hover:bg-zinc-200 border border-zinc-250 text-zinc-700 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1"
-                  >
-                    <IconEdit className="w-3 h-3" /> Editar
-                  </button>
-                  <button
-                    onClick={e => handleDeleteClient(e, client.id)}
-                    className="text-[10px] bg-red-50 hover:bg-red-105 border border-red-200 text-red-650 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1"
-                  >
-                    <IconTrash className="w-3 h-3" /> Excluir
-                  </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingClient(client)}
+                      className="flex-1 sm:flex-initial text-[10px] bg-zinc-100 hover:bg-zinc-200 border border-zinc-250 text-zinc-700 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <IconEdit className="w-3.5 h-3.5" /> Editar
+                    </button>
+                    <button
+                      onClick={e => handleDeleteClient(e, client.id)}
+                      className="flex-1 sm:flex-initial text-[10px] bg-red-50 hover:bg-red-105 border border-red-200 text-red-650 px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
+                    >
+                      <IconTrash className="w-3.5 h-3.5" /> Excluir
+                    </button>
+                  </div>
                   <button
                     onClick={() => setSelectedClient(client)}
-                    className="text-[10px] bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-bold transition-all shadow-xs cursor-pointer ml-auto"
+                    className="text-[10px] bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-bold transition-all shadow-xs cursor-pointer text-center sm:ml-auto w-full sm:w-auto"
                   >
                     Abrir Workspace →
                   </button>

@@ -96,14 +96,14 @@ function DiagnosticDashboard({ diagnostic }: { diagnostic: any }) {
         <h4 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">Recomendações e Correções</h4>
         <div className="space-y-3">
           {(d.actionItemsPriorityList || []).map((item: any, i: number) => (
-            <div key={i} className="flex gap-3 p-3 bg-zinc-50 border border-zinc-150 rounded-xl">
-              <span className={`text-[9px] font-mono font-bold px-2.5 py-0.5 rounded-full flex-shrink-0 self-start ${
+            <div key={i} className="flex flex-col sm:flex-row gap-2 sm:gap-3 p-3 bg-zinc-50 border border-zinc-150 rounded-xl">
+              <span className={`text-[9px] font-mono font-bold px-2.5 py-0.5 rounded-full self-start ${
                 item.impact.includes('Crítico') ? 'bg-red-50 text-red-650 border border-red-200' :
                 item.impact.includes('Alto') ? 'bg-amber-50 text-amber-650 border border-amber-200' :
                 'bg-blue-50 text-blue-650 border border-blue-200'
               }`}>{item.impact}</span>
-              <div className="text-xs text-zinc-700 font-medium leading-relaxed">
-                <span className="text-zinc-400 font-mono block text-[8px] uppercase tracking-wider mb-0.5">Agente: {item.agentOwner}</span>
+              <div className="text-xs text-zinc-700 font-medium leading-relaxed flex-1">
+                <span className="text-zinc-400 font-mono block text-[8px] uppercase tracking-wider mb-0.5 break-all">Agente: {item.agentOwner}</span>
                 {item.task}
               </div>
             </div>
@@ -318,9 +318,9 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
         ) : (
           <>
             {/* GEO Score + actions */}
-            <div className="flex items-center gap-8 bg-white/60 p-6 rounded-2xl border border-zinc-200/50 shadow-xs">
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white/60 p-6 rounded-2xl border border-zinc-200/50 shadow-xs">
               <GeoScoreGauge score={lead.geoScore ?? 0} size="lg" />
-              <div className="flex-1 space-y-3">
+              <div className="w-full sm:flex-1 space-y-3">
                 {lead.status === 'new' && (
                   <button
                     id={`run-diag-${lead.id}`}
@@ -367,11 +367,11 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
             {/* Capturing fields (all fields outbound info) */}
             <div className="tactile-sunken rounded-2xl p-5 space-y-3 text-xs">
               <h4 className="font-mono text-[9px] text-zinc-400 font-bold uppercase tracking-widest border-b border-zinc-200/50 pb-1 flex items-center gap-1.5"><IconClipboard className="w-3 h-3" /> Dados Capturados para Outbound</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Nome do Contato</span><span className="text-zinc-900 text-sm font-semibold">{lead.name || '—'}</span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Empresa</span><span className="text-zinc-900 text-sm font-semibold">{lead.company || '—'}</span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">WhatsApp / Celular</span><span className="text-zinc-900 text-sm font-mono font-semibold">{(lead as any).phone || '—'}</span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">E-mail</span><span className="text-zinc-900 text-sm font-mono font-semibold">{lead.email}</span></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Nome do Contato</span><span className="text-zinc-900 text-sm font-semibold break-words">{lead.name || '—'}</span></div>
+                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Empresa</span><span className="text-zinc-900 text-sm font-semibold break-all">{lead.company || '—'}</span></div>
+                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">WhatsApp / Celular</span><span className="text-zinc-900 text-sm font-mono font-semibold break-all">{(lead as any).phone || '—'}</span></div>
+                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">E-mail</span><span className="text-zinc-900 text-sm font-mono font-semibold break-all">{lead.email}</span></div>
                 <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Desafio RAG Declarado</span><span className="text-zinc-900 text-sm font-semibold">
                   {(lead as any).architecture === 'no_rag' ? 'Sem RAG' :
                    (lead as any).architecture === 'keyword' ? 'Palavras-Chave tradicional' :
@@ -391,22 +391,22 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
             {(lead.status === 'completed' || lead.status === 'converted' || lead.status === 'processing') && (
               <div className="space-y-4">
                 {/* View switcher */}
-                <div className="flex bg-zinc-200/60 p-1 rounded-xl text-xs font-semibold self-start w-fit">
+                <div className="flex overflow-x-auto max-w-full scrollbar-none bg-zinc-200/60 p-1 rounded-xl text-xs font-semibold self-start w-full sm:w-auto whitespace-nowrap">
                   <button
                     onClick={() => setActiveTab('dashboard')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'dashboard' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5 ${activeTab === 'dashboard' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
                   >
                     <IconClipboard className="w-3.5 h-3.5" /> Dashboard Visual
                   </button>
                   <button
                     onClick={() => setActiveTab('agents')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'agents' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5 ${activeTab === 'agents' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
                   >
                     <IconShield className="w-3.5 h-3.5" /> Detalhes dos Agentes
                   </button>
                   <button
                     onClick={() => setActiveTab('chat')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${activeTab === 'chat' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5 ${activeTab === 'chat' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
                   >
                     <IconChat className="w-3.5 h-3.5" /> Chat Orquestrador IA
                   </button>
@@ -595,76 +595,78 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
             <p className="text-zinc-400 text-xs">Os leads são capturados automaticamente pelo widget do site</p>
           </div>
         ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-50/70 border-b border-zinc-200/50">
-              <tr>
-                {['Contato / Empresa', 'E-mail / Fone', 'Captado em', 'GEO Score', 'Status', 'Ações'].map(col => (
-                  <th key={col} className="text-left px-5 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">{col}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200/40">
-              {filtered.map(lead => (
-                <tr
-                  key={lead.id}
-                  className="hover:bg-zinc-100/40 cursor-pointer transition-colors"
-                  onClick={() => setSelectedLead(lead)}
-                >
-                  <td className="px-5 py-4">
-                    <p className="text-zinc-900 font-semibold truncate max-w-[200px]">{lead.name || lead.url}</p>
-                    <p className="text-zinc-450 text-xs mt-0.5 truncate">{lead.company || lead.url}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <p className="text-zinc-700 font-mono truncate max-w-[160px]">{lead.email}</p>
-                    {(lead as any).phone && <p className="text-zinc-400 text-xs font-mono mt-0.5">{(lead as any).phone}</p>}
-                  </td>
-                  <td className="px-5 py-4 text-zinc-550 text-xs font-mono">
-                    {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
-                  </td>
-                  <td className="px-5 py-4">
-                    {lead.geoScore !== undefined && lead.status !== 'new' && lead.status !== 'processing' ? (
-                      <span className={`font-mono font-bold ${lead.geoScore >= 70 ? 'text-emerald-600' : lead.geoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-                        {lead.geoScore}%
-                      </span>
-                    ) : (
-                      <span className="text-zinc-400 font-medium">—</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-4"><StatusBadge status={lead.status} /></td>
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                      {lead.status === 'new' && (
-                        <button
-                          id={`quick-run-${lead.id}`}
-                          onClick={e => handleQuickRun(e, lead)}
-                          disabled={runningId === lead.id}
-                          className="text-xs bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-                        >
-                          {runningId === lead.id ? <IconHourglass className="w-3.5 h-3.5" /> : <><IconPlay className="w-3 h-3" /> Diagnóstico</>}
-                        </button>
-                      )}
-                      {(lead.status === 'completed' || lead.status === 'processing') && (
-                        <button
-                          id={`view-diag-${lead.id}`}
-                          onClick={e => { e.stopPropagation(); setSelectedLead(lead); }}
-                          className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-                        >
-                          <IconClipboard className="w-3.5 h-3.5" /> Dashboard
-                        </button>
-                      )}
-                      <button
-                        onClick={e => handleDeleteLead(e, lead.id)}
-                        className="text-xs bg-red-50 hover:bg-red-100 text-red-600 p-1.5 rounded-lg transition-all cursor-pointer"
-                        title="Excluir Lead"
-                      >
-                        <IconTrash className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[800px]">
+              <thead className="bg-zinc-50/70 border-b border-zinc-200/50">
+                <tr>
+                  {['Contato / Empresa', 'E-mail / Fone', 'Captado em', 'GEO Score', 'Status', 'Ações'].map(col => (
+                    <th key={col} className="text-left px-5 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">{col}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-200/40">
+                {filtered.map(lead => (
+                  <tr
+                    key={lead.id}
+                    className="hover:bg-zinc-100/40 cursor-pointer transition-colors"
+                    onClick={() => setSelectedLead(lead)}
+                  >
+                    <td className="px-5 py-4">
+                      <p className="text-zinc-900 font-semibold truncate max-w-[200px]">{lead.name || lead.url}</p>
+                      <p className="text-zinc-450 text-xs mt-0.5 truncate">{lead.company || lead.url}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="text-zinc-700 font-mono truncate max-w-[160px]">{lead.email}</p>
+                      {(lead as any).phone && <p className="text-zinc-400 text-xs font-mono mt-0.5">{(lead as any).phone}</p>}
+                    </td>
+                    <td className="px-5 py-4 text-zinc-550 text-xs font-mono">
+                      {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+                    </td>
+                    <td className="px-5 py-4">
+                      {lead.geoScore !== undefined && lead.status !== 'new' && lead.status !== 'processing' ? (
+                        <span className={`font-mono font-bold ${lead.geoScore >= 70 ? 'text-emerald-600' : lead.geoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                          {lead.geoScore}%
+                        </span>
+                      ) : (
+                        <span className="text-zinc-400 font-medium">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4"><StatusBadge status={lead.status} /></td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                        {lead.status === 'new' && (
+                          <button
+                            id={`quick-run-${lead.id}`}
+                            onClick={e => handleQuickRun(e, lead)}
+                            disabled={runningId === lead.id}
+                            className="text-xs bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                          >
+                            {runningId === lead.id ? <IconHourglass className="w-3.5 h-3.5" /> : <><IconPlay className="w-3 h-3" /> Diagnóstico</>}
+                          </button>
+                        )}
+                        {(lead.status === 'completed' || lead.status === 'processing') && (
+                          <button
+                            id={`view-diag-${lead.id}`}
+                            onClick={e => { e.stopPropagation(); setSelectedLead(lead); }}
+                            className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                          >
+                            <IconClipboard className="w-3.5 h-3.5" /> Dashboard
+                          </button>
+                        )}
+                        <button
+                          onClick={e => handleDeleteLead(e, lead.id)}
+                          className="text-xs bg-red-50 hover:bg-red-100 text-red-650 p-1.5 rounded-lg transition-all cursor-pointer"
+                          title="Excluir Lead"
+                        >
+                          <IconTrash className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

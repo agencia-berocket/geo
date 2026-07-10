@@ -49,17 +49,21 @@ export default function Modal({
           isFullscreen ? 'max-w-full min-h-[calc(100vh-4rem)]' : maxWidth
         }`}
       >
-        <div className="flex items-center justify-between pb-4 border-b border-zinc-200 gap-4">
-          <div className="flex items-center gap-4 min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-200 gap-4">
+          <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
             <TrafficLights onClose={onClose} onToggleSize={() => setIsFullscreen(f => !f)} />
             {(title || subtitle) && (
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 {title && <h2 className="text-zinc-900 font-display font-bold truncate text-base">{title}</h2>}
                 {subtitle && <p className="text-zinc-500 text-xs font-mono truncate">{subtitle}</p>}
               </div>
             )}
           </div>
-          {headerRight && <div className="flex items-center gap-2 shrink-0">{headerRight}</div>}
+          {headerRight && (
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0 w-full sm:w-auto justify-end">
+              {headerRight}
+            </div>
+          )}
         </div>
 
         {children}
