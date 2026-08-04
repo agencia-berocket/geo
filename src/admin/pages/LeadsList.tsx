@@ -204,9 +204,11 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
   lead: Lead; onClose: () => void; onNavigate: (page: string, id?: string) => void; onLeadUpdated: () => void;
 }) {
   const { diagnostic, loading: diagLoading, fetchDiagnostic } = useDiagnostic(lead.id);
-  const { runDiagnostic, sendReport, convertToClient, editLead, deleteLead } = useLeads();
+  const { runDiagnostic, sendReport, sendFollowup, downloadPdfReport, convertToClient, editLead, deleteLead } = useLeads();
   const [running, setRunning] = useState(false);
   const [sending, setSending] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [sendingFollowup, setSendingFollowup] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   
   // Tab switcher
@@ -240,11 +242,38 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     setMessage(null);
     try {
       await sendReport(lead.id);
-      setMessage('Relatório HTML enviado por e-mail!');
+      setMessage('Relatório HTML + Anexo PDF enviados por e-mail!');
     } catch (e: any) {
       setMessage(`Erro: ${e.message}`);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    setMessage(null);
+    try {
+      const domain = (lead.url || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
+      await downloadPdfReport(lead.id, `Relatorio_GEO_${domain}.pdf`);
+      setMessage('Download do PDF concluído!');
+    } catch (e: any) {
+      setMessage(`Erro ao baixar PDF: ${e.message}`);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
+  const handleSendFollowup = async () => {
+    setSendingFollowup(true);
+    setMessage(null);
+    try {
+      const res = await sendFollowup(lead.id);
+      setMessage(res.message || 'E-mail de follow-up enviado com sucesso!');
+    } catch (e: any) {
+      setMessage(`Erro no follow-up: ${e.message}`);
+    } finally {
+      setSendingFollowup(false);
     }
   };
 
@@ -336,27 +365,51 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                   </button>
                 )}
                 {(lead.status === 'completed' || lead.status === 'processing') && (
-                  <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
                       id={`send-report-${lead.id}`}
                       onClick={handleSendReport}
                       disabled={sending}
-                      className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
+                      className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
                     >
                       {sending ? (
-                        <span className="flex items-center gap-2"><IconHourglass className="w-4 h-4" /> Enviando...</span>
+                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
                       ) : (
-                        <span className="flex items-center gap-2"><IconSend className="w-4 h-4" /> Enviar Relatório HTML</span>
+                        <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar HTML + PDF</span>
+                      )}
+                    </button>
+                    <button
+                      id={`download-pdf-${lead.id}`}
+                      onClick={handleDownloadPdf}
+                      disabled={downloadingPdf}
+                      className="flex items-center justify-center gap-2 bg-zinc-850 hover:bg-zinc-950 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                    >
+                      {downloadingPdf ? (
+                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Gerando PDF...</span>
+                      ) : (
+                        <span className="flex items-center gap-1.5"><IconNote className="w-3.5 h-3.5" /> Baixar PDF Real</span>
+                      )}
+                    </button>
+                    <button
+                      id={`followup-${lead.id}`}
+                      onClick={handleSendFollowup}
+                      disabled={sendingFollowup}
+                      className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                    >
+                      {sendingFollowup ? (
+                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
+                      ) : (
+                        <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar Follow-up</span>
                       )}
                     </button>
                     <button
                       id={`convert-${lead.id}`}
                       onClick={handleConvert}
-                      className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
+                      className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
                     >
-                      <IconStar className="w-4 h-4" /> Converter em Cliente
+                      <IconStar className="w-3.5 h-3.5" /> Converter Cliente
                     </button>
-                  </>
+                  </div>
                 )}
                 {message && (
                   <p className="text-xs text-zinc-650 font-medium bg-white border border-zinc-200/80 rounded-xl px-3.5 py-2.5">{message}</p>

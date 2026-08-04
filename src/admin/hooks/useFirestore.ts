@@ -175,21 +175,31 @@ export function useLeads() {
     });
   }, []);
 
-  const sendReport = useCallback(async (leadId: string) => {
-    return apiFetch<{ success: boolean }>('/admin/diagnostic/send-report', {
+  const sendFollowup = useCallback(async (leadId: string) => {
+    return apiFetch<{ success: boolean; message: string }>('/admin/leads/send-followup', {
       method: 'POST',
       body: JSON.stringify({ leadId }),
     });
   }, []);
 
-  const convertToClient = useCallback(async (leadId: string, data: Partial<Client>) => {
-    return apiFetch<{ success: boolean; clientId: string }>('/admin/clients', {
-      method: 'POST',
-      body: JSON.stringify({ leadId, ...data }),
+  const downloadPdfReport = useCallback(async (leadId: string, filename?: string) => {
+    const token = await auth.currentUser?.getIdToken(false);
+    const res = await fetch(`${API_BASE}/admin/diagnostic/pdf/${leadId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
     });
+    if (!res.ok) throw new Error('Falha ao baixar PDF.');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || `Relatorio_GEO_${leadId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   }, []);
 
-  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, convertToClient };
+  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, downloadPdfReport, convertToClient };
 }
 
 export function useDiagnostic(leadId: string | null) {

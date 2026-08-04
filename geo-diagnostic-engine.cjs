@@ -838,6 +838,115 @@ function generateHtmlReport(lead, diagnostic) {
 </html>`;
 }
 
+// ─── PDF Report Generator ─────────────────────────────────────────────────────
+function generatePdfReport(lead, diagnostic) {
+  const PDFDocument = require('pdfkit');
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ margin: 40, size: 'A4' });
+      const buffers = [];
+      doc.on('data', b => buffers.push(b));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', err => reject(err));
+
+      const score = diagnostic.overallGeoScore || 0;
+      const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
+      const company = lead.company || lead.domain || lead.url || 'Cliente';
+
+      // Header Bar
+      doc.rect(40, 40, 515, 50).fill('#09090b');
+      doc.fillColor('#ffffff').fontSize(16).font('Helvetica-Bold').text('b.rocket', 55, 52);
+      doc.fontSize(8).font('Helvetica').text('GENERATIVE ENGINE OPTIMIZATION', 55, 72);
+
+      doc.fillColor('#ffffff').fontSize(12).font('Helvetica-Bold').text('RELATÓRIO DIAGNÓSTICO GEO', 320, 58, { align: 'right' });
+
+      doc.y = 105;
+
+      // Lead Summary Box
+      doc.rect(40, doc.y, 515, 45).fill('#f4f4f5');
+      const startY = doc.y + 10;
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text(`Empresa: ${company}`, 52, startY);
+      doc.fillColor('#71717a').fontSize(9).font('Helvetica').text(`URL: ${lead.url || ''} | Data: ${new Date().toLocaleDateString('pt-BR')}`, 52, startY + 16);
+
+      doc.y = 165;
+
+      // GEO Score Banner
+      doc.rect(40, doc.y, 515, 65).strokeColor('#e4e4e7').stroke();
+      doc.fillColor(scoreColor).fontSize(34).font('Helvetica-Bold').text(`${score}%`, 55, doc.y + 12);
+      doc.fillColor('#09090b').fontSize(11).font('Helvetica-Bold').text('b.rocket GEO Score™', 160, doc.y - 32);
+      doc.fillColor('#52525b').fontSize(9).font('Helvetica').text(
+        score >= 70 ? 'Excelente potencial de escala nas IAs' :
+        score >= 40 ? 'Risco comercial — marca parcialmente recomendada' :
+        'Alerta Crítico — marca invisível para ChatGPT, Claude e Gemini',
+        160, doc.y - 18
+      );
+
+      doc.y = 245;
+
+      // 4 Pillars Section Header
+      doc.fillColor('#09090b').fontSize(12).font('Helvetica-Bold').text('DETALHAMENTO DOS 4 PILARES TÉCNICOS');
+      doc.moveDown(0.4);
+
+      // Pillar 1: Gatekeeper
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('1. Technical Gatekeeper (Infraestrutura)');
+      doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
+         .text(`• robots.txt para robôs de IA: ${diagnostic.gatekeeperStatus?.robotsTxtAllowAiBots ? 'Permitido (OK)' : 'Bloqueado (CRÍTICO)'}`)
+         .text(`• SSR (Server-Side Rendering): ${diagnostic.gatekeeperStatus?.ssrActive ? 'Ativo (OK)' : 'Inativo (Depende de JS)'}`)
+         .text(`• Preços visíveis no HTML: ${diagnostic.gatekeeperStatus?.hasPriceGatekeeperIssue ? 'Ausente' : 'Visível'}`)
+         .text(`• Latência do Servidor: ${diagnostic.gatekeeperStatus?.serverLatencyMs || 0} ms`);
+      doc.moveDown(0.6);
+
+      // Pillar 2: Metadata
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('2. Metadata Entity (Schemas e Grafos)');
+      doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
+         .text(`• Schema Organization: ${diagnostic.metadataAnalysis?.organizationSchemaPresent ? 'Presente' : 'Ausente (CRÍTICO)'}`)
+         .text(`• Schema Person (Autor): ${diagnostic.metadataAnalysis?.personSchemaPresent ? 'Presente' : 'Ausente'}`)
+         .text(`• Arquivo /llms.txt: ${diagnostic.metadataAnalysis?.llmsTxtPublished ? 'Publicado' : 'Não encontrado'}`)
+         .text(`• Fontes sameAs (LinkedIn, Wikidata): ${diagnostic.metadataAnalysis?.organizationSameAsCount || 0} fontes`);
+      doc.moveDown(0.6);
+
+      // Pillar 3: Content
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('3. Content Absorption (Metodologia Princeton)');
+      doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
+         .text(`• Resposta AEO no 1º parágrafo: ${diagnostic.contentReview?.factorsDetected?.hasTldrAnswerFirstParagraph ? 'Presente' : 'Ausente'}`)
+         .text(`• Estatísticas (1 a cada 150 palavras): ${diagnostic.contentReview?.factorsDetected?.hasStatisticsPer150Words ? 'Adequada' : 'Insuficiente'}`)
+         .text(`• Citações de Especialistas: ${diagnostic.contentReview?.factorsDetected?.hasExpertQuotes ? 'Presente' : 'Ausente'}`)
+         .text(`• Tabelas Comparativas HTML: ${diagnostic.contentReview?.factorsDetected?.hasHtmlComparisonTables ? 'Presente' : 'Ausente'}`);
+      doc.moveDown(0.6);
+
+      // Pillar 4: Intent
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('4. Intent Prompt (Citation Share nas IAs)');
+      const sharePct = Math.round((diagnostic.visibilityBenchmarking?.citationSharePercentage || 0) * 100);
+      doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
+         .text(`• Citation Share real: ${sharePct}% (${diagnostic.visibilityBenchmarking?.totalPromptsTest || 20} testes em 4 LLMs)`)
+         .text(`• Sentimento da Marca: ${diagnostic.visibilityBenchmarking?.brandSentimentScore || 'Neutro'}`)
+         .text(`• Concorrentes mais citados: ${(diagnostic.visibilityBenchmarking?.topMentionedCompetitors || []).join(', ') || 'Nenhum'}`);
+      doc.moveDown(1);
+
+      // Action Items
+      doc.fillColor('#09090b').fontSize(12).font('Helvetica-Bold').text('PLANO DE AÇÃO PRIORIZADO');
+      doc.moveDown(0.4);
+
+      (diagnostic.actionItemsPriorityList || []).slice(0, 6).forEach((item, idx) => {
+        doc.fillColor('#18181b').fontSize(9).font('Helvetica-Bold').text(`${idx + 1}. [${(item.agentOwner || 'AGENTE').toUpperCase()}] ${item.task || ''}`);
+        doc.fillColor('#71717a').fontSize(8).font('Helvetica').text(`   Impacto esperado: ${item.impact || ''}`);
+        doc.moveDown(0.2);
+      });
+
+      // Footer
+      doc.rect(40, 780, 515, 30).fill('#f4f4f5');
+      doc.fillColor('#71717a').fontSize(8).font('Helvetica').text(
+        'b.rocket GEO Core // Mentoria e Implantação: https://geo.berocket.com.br // contato@berocket.com.br',
+        40, 791, { align: 'center' }
+      );
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 module.exports = {
   runGatekeeperAgent,
   runMetadataAgent,
@@ -846,5 +955,7 @@ module.exports = {
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
+  generatePdfReport,
   fetchUrl,
 };
+

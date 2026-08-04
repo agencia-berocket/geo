@@ -12,6 +12,7 @@ const {
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
+  generatePdfReport,
   fetchUrl,
 } = require('./geo-diagnostic-engine.cjs');
 
@@ -319,6 +320,155 @@ app.post('/api/calendar/book', async (req, res) => {
     } catch (fsErr) {
       console.error('Firestore save failed (non-blocking for user):', fsErr);
     }
+
+    // 4.b AUTO-LEAD & AUTO-DIAGNOSTIC PIPELINE (Fluxo Pós-Agendamento)
+    (async () => {
+      try {
+        const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+        const domain = normalizedUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+        
+        // Verificar se lead já existe no Firestore
+        const leadsListUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+        const leadsRes = await fetchFirestore(leadsListUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        
+        let existingLeadId = null;
+        let existingLeadDocPath = null;
+
+        for (const doc of (leadsRes.documents || [])) {
+          const f = doc.fields || {};
+          const lUrl = f.url?.stringValue || '';
+          const lEmail = f.email?.stringValue || '';
+          if (lEmail.toLowerCase() === email.toLowerCase() || lUrl.includes(domain)) {
+            existingLeadId = f.id?.stringValue || doc.name.split('/').pop();
+            existingLeadDocPath = doc.name;
+            break;
+          }
+        }
+
+        let leadIdToRun = existingLeadId;
+
+        if (!existingLeadId) {
+          // Criar novo lead automaticamente a partir do agendamento
+          leadIdToRun = `lead_booking_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+          const newLeadDoc = {
+            fields: {
+              id: { stringValue: leadIdToRun },
+              url: { stringValue: normalizedUrl },
+              email: { stringValue: email },
+              name: { stringValue: name || '' },
+              company: { stringValue: company || domain },
+              domain: { stringValue: domain },
+              phone: { stringValue: whatsapp || '' },
+              createdAt: { stringValue: new Date().toISOString() },
+              status: { stringValue: 'processing' },
+              geoScore: { integerValue: 0 },
+              bookingId: { stringValue: googleEventId || '' },
+              bookingDate: { stringValue: date },
+              bookingSlot: { stringValue: slot }
+            }
+          };
+
+          await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(newLeadDoc),
+          });
+          console.log(`✅ Lead criado automaticamente a partir de agendamento: ${leadIdToRun}`);
+        } else if (existingLeadDocPath) {
+          // Atualizar lead existente com dados do booking
+          await fetchFirestore(`https://firestore.googleapis.com/v1/${existingLeadDocPath}?updateMask.fieldPaths=bookingDate&updateMask.fieldPaths=bookingSlot`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fields: {
+                bookingDate: { stringValue: date },
+                bookingSlot: { stringValue: slot }
+              }
+            })
+          });
+        }
+
+        // Auto-iniciar diagnóstico para o lead do agendamento se leadIdToRun válido
+        if (leadIdToRun) {
+          console.log(`🚀 Iniciando diagnóstico automático para lead de agendamento (${domain})...`);
+          
+          const baseUrl = normalizedUrl;
+          const htmlContent = await fetchUrl(baseUrl);
+          
+          const [gk, md, ct] = await Promise.all([
+            runGatekeeperAgent(baseUrl, htmlContent),
+            runMetadataAgent(htmlContent, domain),
+            runContentAgent(htmlContent),
+          ]);
+          
+          const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+          const vis = await runIntentAgent(baseUrl, htmlContent, openrouterKey);
+          
+          const score = calculateGeoScore(gk, md, ct, vis);
+          const actions = buildActionList(gk, md, ct, vis);
+          
+          const diagnosticId = `diag_${leadIdToRun}_${Date.now()}`;
+          const leadObj = { id: leadIdToRun, url: baseUrl, email, name, company };
+          const diagObj = {
+            id: diagnosticId,
+            leadId: leadIdToRun,
+            clientUrl: baseUrl,
+            overallGeoScore: score,
+            gatekeeperStatus: gk,
+            metadataAnalysis: md,
+            contentReview: ct,
+            visibilityBenchmarking: vis,
+            actionItemsPriorityList: actions,
+            generatedAt: new Date().toISOString(),
+          };
+
+          const htmlReport = generateHtmlReport(leadObj, diagObj);
+          
+          function toFs(val) {
+            if (typeof val === 'string') return { stringValue: val };
+            if (typeof val === 'number') return Number.isInteger(val) ? { integerValue: val } : { doubleValue: val };
+            if (typeof val === 'boolean') return { booleanValue: val };
+            if (Array.isArray(val)) return { arrayValue: { values: val.map(toFs) } };
+            if (val === null || val === undefined) return { nullValue: null };
+            if (typeof val === 'object') {
+              const fields = {};
+              for (const [k, v] of Object.entries(val)) { fields[k] = toFs(v); }
+              return { mapValue: { fields } };
+            }
+            return { stringValue: String(val) };
+          }
+
+          const diagFields = {};
+          for (const [k, v] of Object.entries({ ...diagObj, htmlReportContent: htmlReport.slice(0, 500000) })) {
+            diagFields[k] = toFs(v);
+          }
+
+          await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: diagFields }),
+          });
+
+          // Atualizar status do lead para completed
+          if (existingLeadDocPath) {
+            await fetchFirestore(`https://firestore.googleapis.com/v1/${existingLeadDocPath}?updateMask.fieldPaths=status&updateMask.fieldPaths=geoScore&updateMask.fieldPaths=diagnosticId`, {
+              method: 'PATCH',
+              headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fields: {
+                  status: { stringValue: 'completed' },
+                  geoScore: { integerValue: score },
+                  diagnosticId: { stringValue: diagnosticId }
+                }
+              })
+            });
+          }
+          console.log(`✅ Diagnóstico automático concluído pós-agendamento — Score: ${score}%`);
+        }
+      } catch (autoErr) {
+        console.error('Erro no pipeline pós-agendamento:', autoErr);
+      }
+    })();
 
     // 5. Generate .ics file and Send Emails via Nodemailer
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
@@ -926,19 +1076,272 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
     const domain = lead.url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
     const firstName = lead.name ? lead.name.split(' ')[0] : 'Olá';
 
+    // Gerar anexo PDF real
+    let pdfAttachment = null;
+    try {
+      const pdfBuffer = await generatePdfReport(lead, diagnostic || {});
+      pdfAttachment = {
+        filename: `Relatorio_GEO_${domain}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf'
+      };
+    } catch (pdfErr) {
+      console.error('Erro ao gerar anexo PDF para e-mail:', pdfErr);
+    }
+
     await transporter.sendMail({
       from: `"Guilherme Rossi - b.rocket" <${process.env.EMAIL_USER}>`,
       to: lead.email,
       subject: `Seu Raio-X de GEO está aqui, ${firstName}! Score: ${diagnostic?.overallGeoScore || 0}% 🔬`,
-      html: htmlReport
+      html: htmlReport,
+      attachments: pdfAttachment ? [pdfAttachment] : []
     });
 
-    res.json({ success: true, message: `Relatório enviado para ${lead.email}` });
+    res.json({ success: true, message: `Relatório HTML + PDF enviado com sucesso para ${lead.email}` });
   } catch (err) {
     console.error('Send report error:', err);
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── DOWNLOAD PDF DIAGNOSTIC ────────────────────────────────────────────────
+app.get('/api/admin/diagnostic/pdf/:leadId', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const leadsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    function fromFs(val) {
+      if (!val) return null;
+      if ('stringValue' in val) return val.stringValue;
+      if ('integerValue' in val) return parseInt(val.integerValue);
+      if ('doubleValue' in val) return val.doubleValue;
+      if ('booleanValue' in val) return val.booleanValue;
+      if ('nullValue' in val) return null;
+      if ('arrayValue' in val) return (val.arrayValue?.values || []).map(fromFs);
+      if ('mapValue' in val) {
+        const res = {};
+        for (const [k, v] of Object.entries(val.mapValue?.fields || {})) { res[k] = fromFs(v); }
+        return res;
+      }
+      return null;
+    }
+
+    let lead = null;
+    for (const doc of (leadsData.documents || [])) {
+      const f = doc.fields || {};
+      if (f.id?.stringValue === leadId || doc.name.split('/').pop() === leadId) {
+        lead = { url: f.url?.stringValue, email: f.email?.stringValue, name: f.name?.stringValue, company: f.company?.stringValue };
+        break;
+      }
+    }
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    let diagnostic = null;
+    for (const doc of (diagData.documents || [])) {
+      const diag = {};
+      for (const [k, v] of Object.entries(doc.fields || {})) { diag[k] = fromFs(v); }
+      if (diag.leadId === leadId || diag.clientId === leadId) {
+        diagnostic = diag;
+        break;
+      }
+    }
+    if (!diagnostic) return res.status(404).json({ error: 'Diagnóstico não encontrado' });
+
+    const pdfBuffer = await generatePdfReport(lead, diagnostic);
+    const domain = (lead.url || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── FOLLOW-UP AUTOMATION (48h AUTOMÁTICO & MANUAL) ────────────────────────
+app.post('/api/admin/leads/send-followup', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.body;
+  if (!leadId) return res.status(400).json({ error: 'leadId é obrigatório' });
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    function fromFs(val) {
+      if (!val) return null;
+      if ('stringValue' in val) return val.stringValue;
+      if ('integerValue' in val) return parseInt(val.integerValue);
+      if ('booleanValue' in val) return val.booleanValue;
+      return null;
+    }
+
+    let leadDocPath = null;
+    let lead = null;
+    for (const doc of (leadsData.documents || [])) {
+      const f = doc.fields || {};
+      if (f.id?.stringValue === leadId || doc.name.split('/').pop() === leadId) {
+        leadDocPath = doc.name;
+        lead = {
+          id: f.id?.stringValue,
+          email: f.email?.stringValue,
+          name: f.name?.stringValue,
+          url: f.url?.stringValue,
+          company: f.company?.stringValue,
+          geoScore: f.geoScore?.integerValue || 0
+        };
+        break;
+      }
+    }
+
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const firstName = lead.name ? lead.name.split(' ')[0] : 'Olá';
+    const domain = (lead.url || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error('Credenciais de e-mail não configuradas no servidor.');
+    }
+
+    const followupSubject = `Olá ${firstName}, deu tempo de ver seu Relatório GEO da ${domain}? 🚀`;
+    const followupHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #18181b; line-height: 1.6;">
+        <h2 style="color: #09090b; margin-bottom: 16px;">Olá ${firstName}, tudo bem?</h2>
+        <p>Gerei recentemente o seu <strong>Relatório Diagnóstico de GEO (Generative Engine Optimization)</strong> para a <strong>${domain}</strong> (GEO Score: <strong>${lead.geoScore}%</strong>).</p>
+        <p>Identificamos alguns gargalos técnicos e de conteúdo que estão impedindo sua marca de ser citada de forma consistente no <strong>ChatGPT, Claude e Gemini</strong>.</p>
+        <p>Gostaria de agendar uma breve sessão estratégica de 15 minutos para passarmos pelos pontos de maior impacto e como podemos corrigi-los?</p>
+        
+        <div style="margin: 28px 0; text-align: center;">
+          <a href="https://geo.berocket.com.br/#agendar" style="background-color: #09090b; color: #ffffff; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+            📅 Agendar Mentoria Gratuita (15 min)
+          </a>
+        </div>
+        
+        <p style="color: #71717a; font-size: 13px; margin-top: 32px;">
+          Um abraço,<br/>
+          <strong>Guilherme Rossi</strong><br/>
+          Especialista em GEO | b.rocket<br/>
+          <a href="https://geo.berocket.com.br" style="color: #71717a;">geo.berocket.com.br</a>
+        </p>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: `"Guilherme Rossi - b.rocket" <${process.env.EMAIL_USER}>`,
+      to: lead.email,
+      subject: followupSubject,
+      html: followupHtml
+    });
+
+    // Marcar no Firestore que follow-up foi enviado
+    if (leadDocPath) {
+      await fetchFirestore(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=followupSent&updateMask.fieldPaths=followupSentAt`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            followupSent: { booleanValue: true },
+            followupSentAt: { stringValue: new Date().toISOString() }
+          }
+        })
+      });
+    }
+
+    res.json({ success: true, message: `E-mail de follow-up enviado para ${lead.email}` });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Job em Segundo Plano: Verificar e Enviar Follow-ups automáticos a cada 2 horas
+async function autoSend48hFollowups() {
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+    const leadsRes = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    function fromFs(val) {
+      if (!val) return null;
+      if ('stringValue' in val) return val.stringValue;
+      if ('integerValue' in val) return parseInt(val.integerValue);
+      if ('booleanValue' in val) return val.booleanValue;
+      return null;
+    }
+
+    const now = Date.now();
+    const FORTY_EIGHT_HOURS_MS = 48 * 60 * 60 * 1000;
+
+    for (const doc of (leadsRes.documents || [])) {
+      const f = doc.fields || {};
+      const status = f.status?.stringValue;
+      const followupSent = f.followupSent?.booleanValue;
+      const createdAtStr = f.createdAt?.stringValue;
+
+      if (status === 'completed' && !followupSent && createdAtStr) {
+        const createdAtTime = new Date(createdAtStr).getTime();
+        if (now - createdAtTime >= FORTY_EIGHT_HOURS_MS) {
+          const leadId = f.id?.stringValue || doc.name.split('/').pop();
+          const email = f.email?.stringValue;
+          const name = f.name?.stringValue;
+          const url = f.url?.stringValue;
+          const geoScore = f.geoScore?.integerValue || 0;
+
+          if (email && process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+            const firstName = name ? name.split(' ')[0] : 'Olá';
+            const domain = (url || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+
+            const subject = `Olá ${firstName}, deu tempo de ver seu Relatório GEO da ${domain}? 🚀`;
+            const html = `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #18181b; line-height: 1.6;">
+                <h2 style="color: #09090b; margin-bottom: 16px;">Olá ${firstName}, tudo bem?</h2>
+                <p>Há 2 dias enviamos o seu <strong>Relatório Diagnóstico de GEO</strong> para a <strong>${domain}</strong> (Score: <strong>${geoScore}%</strong>).</p>
+                <p>Caso tenha ficado com alguma dúvida ou queira entender como elevar seu score para mais de 70%, estou à disposição para uma conversa de 15 minutos.</p>
+                <div style="margin: 28px 0; text-align: center;">
+                  <a href="https://geo.berocket.com.br/#agendar" style="background-color: #09090b; color: #ffffff; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">
+                    📅 Agendar Mentoria Gratuita (15 min)
+                  </a>
+                </div>
+                <p style="color: #71717a; font-size: 13px;">Abraços,<br/><strong>Guilherme Rossi</strong><br/>b.rocket GEO Core</p>
+              </div>
+            `;
+
+            await transporter.sendMail({
+              from: `"Guilherme Rossi - b.rocket" <${process.env.EMAIL_USER}>`,
+              to: email,
+              subject,
+              html
+            });
+
+            await fetchFirestore(`https://firestore.googleapis.com/v1/${doc.name}?updateMask.fieldPaths=followupSent&updateMask.fieldPaths=followupSentAt`, {
+              method: 'PATCH',
+              headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                fields: {
+                  followupSent: { booleanValue: true },
+                  followupSentAt: { stringValue: new Date().toISOString() }
+                }
+              })
+            });
+
+            console.log(`✉️ Auto follow-up 48h enviado com sucesso para ${email}`);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Auto follow-up 48h error:', err);
+  }
+}
+
+// Iniciar cron interval de 2 horas (7.200.000 ms)
+setInterval(autoSend48hFollowups, 2 * 60 * 60 * 1000);
 
 // ─── LIST CLIENTS ──────────────────────────────────────────────────────────
 app.get('/api/admin/clients', verifyAdminToken, async (req, res) => {
