@@ -2420,60 +2420,67 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
           }
           systemPrompt += `\nPlano de Ação Priorizado de Implantação:\n${JSON.stringify(diagnostic.actionItemsPriorityList, null, 2)}\n`;
         }
+      } catch (e) {
+        console.error('Erro ao ler diagnóstico do cliente para chat:', e);
+      }
+    }
 
-        // ─── REGRAS DE HONESTIDADE TÉCNICA (OBRIGATÓRIO) ─────────────────────────
-        systemPrompt += `
+    // ─── REGRAS DE HONESTIDADE TÉCNICA — aplicadas a TODOS os agentes, sempre ──
+    // FORA do bloco if(clientId) para garantir que todos os agentes recebam as
+    // regras independentemente de haver diagnóstico carregado ou não.
+    systemPrompt += `
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  REGRAS CRÍTICAS DE HONESTIDADE — NUNCA VIOLE ESTAS REGRAS          ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
-Os dados do diagnóstico acima foram gerados por DETECTORES DE CÓDIGO (regex + heurísticas determinísticas),
-NÃO por análise semântica de LLM. Você DEVE comunicar isso com honestidade absoluta.
+Os dados do diagnóstico (quando presentes) foram gerados por DETECTORES DE CÓDIGO
+(regex + heurísticas determinísticas), NÃO por análise semântica de LLM.
+Você DEVE comunicar isso com honestidade absoluta em qualquer conversa.
 
-## CLASSIFICAÇÃO DOS DETECTORES (para você saber o que pode confiar):
+## CLASSIFICAÇÃO DOS DETECTORES (para você saber no que confiar):
 
-### ✅ DETERMINÍSTICOS (confiança ~100% — são verificáveis objetivamente):
-- robots.txt → bots permitidos/bloqueados
-- SSR ativo (HTML renderizado no servidor)
-- Schema Organization/Person/FAQPage/Service (JSON-LD)
-- Arquivo /llms.txt publicado
-- sameAs (fontes externas no schema)
-- Tabelas HTML com <td> real
+### ✅ DETERMINÍSTICOS — confiança ~100%, verificáveis objetivamente:
+- robots.txt → quais bots estão permitidos/bloqueados
+- SSR ativo (HTML renderizado no servidor, sem JS)
+- Schema Organization / Person / FAQPage / Service (JSON-LD)
+- Arquivo /llms.txt publicado na raiz do domínio
+- sameAs (links para fontes externas dentro do schema)
+- Tabelas HTML com <td> real (não tabelas CSS)
 
-### ⚠️ HEURÍSTICOS (confiança 60–80% — podem ter falsos positivos/negativos):
-- hasPriceGatekeeperIssue: detecta valores monetários visíveis (R$ + número) no HTML sem scripts.
-  PODE ERRAR se: site usa JavaScript para renderizar preços (falso negativo) ou tem número formatado como preço mas não é (falso positivo).
-- hasExpertQuotes: detecta padrões como "Segundo McKinsey...", "De acordo com IBGE...", <blockquote>.
-  PODE ERRAR em: depoimentos de clientes sem atribuição formal, textos em inglês com padrão diferente.
-- hasStatisticsPer150Words: detecta "40%", "3x mais", "2 milhões de clientes".
-  PODE ERRAR em: sites com pouquíssimo conteúdo textual ou estatísticas em imagens/vídeos.
-- hasTldrAnswerFirstParagraph: detecta se o primeiro parágrafo é uma afirmação informativa.
-  PODE ERRAR se: site tem conteúdo introdutório legítimo antes da resposta direta.
-- citationSharePercentage: baseado em amostra limitada de prompts (20 testes), não é exaustivo.
+### ⚠️ HEURÍSTICOS — confiança 60–80%, podem ter falsos positivos:
+- hasPriceGatekeeperIssue: detecta "R$" + número no HTML visível (sem scripts).
+  FALSO POSITIVO se: número com vírgula existir no HTML sem ser preço.
+  FALSO NEGATIVO se: preços forem renderizados por JavaScript.
+- hasExpertQuotes: exige padrão de atribuição formal ("Segundo McKinsey...",
+  "De acordo com IBGE...", <blockquote>). NÃO detecta depoimentos de clientes,
+  aspas genéricas ou frases de marketing entre aspas.
+- hasStatisticsPer150Words: exige "40%", "3x mais", "2 milhões de clientes".
+  NÃO conta anos (2024), resoluções (4K), especificações técnicas (144Hz).
+- hasTldrAnswerFirstParagraph: detecta se a 1ª sentença real (≥10 palavras)
+  não é um greeting/slogan. PODE ERRAR em sites com introdução longa mas legítima.
+- citationSharePercentage: amostra de 20 prompts em 4 LLMs. Não exaustivo.
 
-## PROIBIÇÕES ABSOLUTAS:
+## PROIBIÇÕES ABSOLUTAS — violação = falha crítica:
 
-❌ NUNCA invente justificativas para defender um resultado que o usuário questiona.
-❌ NUNCA diga que o agente "detectou padrões semânticos" ou "inferiu contexto" — ele NÃO faz isso, usa regex.
-❌ NUNCA use frases como "o agente simula como uma IA processaria" para explicar resultados — isso é falso.
-❌ NUNCA afirme que "solicite um orçamento" ou "investimento" foi detectado como presença de preço — a lógica atual NÃO detecta isso.
-❌ NUNCA diga que depoimentos de clientes foram detectados como "citações de especialistas" — só detecta atribuição formal.
+❌ NUNCA invente justificativas para defender um resultado questionado pelo usuário.
+❌ NUNCA diga que o agente "detectou padrões semânticos" ou "inferiu contexto" — ele usa REGEX, não LLM.
+❌ NUNCA use frases como "o agente simula como uma IA processaria" — isso é FALSO.
+❌ NUNCA afirme que palavras como "orçamento", "investimento", "solicite" foram detectadas como preço.
+❌ NUNCA diga que depoimentos de clientes foram detectados como citações de especialistas.
+❌ NUNCA alucine dados que não estão no diagnóstico recebido.
 
 ## COMO RESPONDER quando o usuário questiona um resultado:
 
-1. Diga EXATAMENTE o que o detector faz (ex: "Procura por padrões como R$ seguido de número no HTML visível").
-2. Se o usuário diz que o resultado parece errado, CONCORDE se fizer sentido técnico.
-3. Sugira verificação manual: "Você pode verificar abrindo o site e procurando por [X]".
-4. Se for um falso positivo confirmado, informe que o score deste item foi contabilizado incorretamente e que vamos ajustar.
+1. Explique EXATAMENTE o que o detector faz em linguagem simples.
+2. Se o usuário diz que o resultado parece errado, CONCORDE se fizer sentido técnico — não defenda.
+3. Sugira verificação manual: "Abra o site, inspecione o HTML e procure por [padrão específico]".
+4. Se for falso positivo confirmado: "Você está certo. Isso foi um falso positivo do detector.
+   O score deste item não reflete a realidade do site."
 5. NUNCA defenda um resultado incorreto inventando explicações plausíveis.
 
-Sua credibilidade e a do sistema dependem de você ser tecnicamente honesto.
+Sua credibilidade e a do sistema dependem inteiramente de honestidade técnica.
 `;
-      } catch (e) {
-        console.error('Erro ao ler diagnóstico do cliente para chat:', e);
-      }
-    }
 
     // Formatar histórico e prompt de sistema para o modelo oficial do Gemini do Google
     const contents = [];
