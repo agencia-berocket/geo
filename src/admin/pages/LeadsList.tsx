@@ -335,9 +335,9 @@ function DiagnosticEditor({ diagnostic, leadId, onSaved }: {
   );
 }
 
-// ─── Lead Detail Panel ──────────────────────────────────────────────────────
-function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
-  lead: Lead; onClose: () => void; onNavigate: (page: string, id?: string) => void; onLeadUpdated: () => void;
+// ─── FULL PAGE: LEAD WORKSPACE VIEW ──────────────────────────────────────────
+function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
+  lead: Lead; onBack: () => void; onNavigate: (page: string, id?: string) => void; onLeadUpdated: () => void;
 }) {
   const { diagnostic, loading: diagLoading, fetchDiagnostic } = useDiagnostic(lead.id);
   const { runDiagnostic, sendReport, sendFollowup, convertToClient, editLead, deleteLead } = useLeads();
@@ -352,10 +352,10 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (lead.status === 'completed' || lead.status === 'converted') {
+    if (lead.status === 'completed' || lead.status === 'converted' || lead.status === 'processing') {
       fetchDiagnostic();
     }
-  }, [lead.status]);
+  }, [lead.status, lead.id]);
 
   const handleRunDiagnostic = async () => {
     setRunning(true);
@@ -453,7 +453,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     try {
       const res = await deleteLead(lead.id);
       if (res.success) {
-        onClose();
+        onBack();
       }
     } catch (e: any) {
       setMessage(`Erro ao excluir: ${e.message}`);
@@ -463,244 +463,274 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
   const d = diagnostic;
 
   return (
-    <Modal
-      onClose={onClose}
-      title={lead.url}
-      subtitle={lead.email}
-      headerRight={
-        <>
-          <button onClick={() => setIsEditing(e => !e)} className="text-xs bg-zinc-200 hover:bg-zinc-300 font-bold px-3 py-1.5 rounded-lg border border-zinc-300 transition-all cursor-pointer flex items-center gap-1.5">
-            <IconEdit className="w-3.5 h-3.5" /> Editar
+    <div className="space-y-6 pb-12">
+      {/* Top Header & Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-zinc-200 shadow-xs">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="text-xs bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold px-3.5 py-2 rounded-xl border border-zinc-300 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+          >
+            ← Voltar para Leads
           </button>
-          <button onClick={handleDelete} className="text-xs bg-red-50 hover:bg-red-100 text-red-650 font-bold px-3 py-1.5 rounded-lg border border-red-200 transition-all cursor-pointer flex items-center gap-1.5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-display font-bold text-zinc-900 truncate">{lead.company || lead.url}</h1>
+              <StatusBadge status={lead.status} />
+            </div>
+            <p className="text-xs text-zinc-500 font-mono mt-0.5 truncate">{lead.url} • {lead.email} • Captado em {new Date(lead.createdAt).toLocaleDateString('pt-BR')}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsEditing(e => !e)}
+            className="text-xs bg-zinc-100 hover:bg-zinc-200 font-bold px-3.5 py-2 rounded-xl border border-zinc-300 transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <IconEdit className="w-3.5 h-3.5" /> {isEditing ? 'Fechar Edição' : 'Editar Lead'}
+          </button>
+          <button
+            onClick={handleDelete}
+            className="text-xs bg-red-50 hover:bg-red-100 text-red-650 font-bold px-3.5 py-2 rounded-xl border border-red-200 transition-all cursor-pointer flex items-center gap-1.5"
+          >
             <IconTrash className="w-3.5 h-3.5" /> Excluir
           </button>
-          <StatusBadge status={lead.status} />
-        </>
-      }
-    >
-        {/* Editing Screen */}
-        {isEditing ? (
-          <LeadEditPanel lead={lead} onSave={handleSaveEdit} onCancel={() => setIsEditing(false)} />
-        ) : (
-          <>
-            {/* GEO Score + actions */}
-            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white/60 p-6 rounded-2xl border border-zinc-200/50 shadow-xs">
-              <GeoScoreGauge score={lead.geoScore ?? 0} size="lg" />
-              <div className="w-full sm:flex-1 space-y-3">
-                {lead.status === 'new' && (
+        </div>
+      </div>
+
+      {/* Inline Lead Edit Form */}
+      {isEditing ? (
+        <LeadEditPanel lead={lead} onSave={handleSaveEdit} onCancel={() => setIsEditing(false)} />
+      ) : (
+        <>
+          {/* GEO Score & Quick Actions Banner */}
+          <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs">
+            <GeoScoreGauge score={lead.geoScore ?? 0} size="lg" />
+            <div className="w-full sm:flex-1 space-y-3">
+              {lead.status === 'new' && (
+                <button
+                  id={`run-diag-${lead.id}`}
+                  onClick={handleRunDiagnostic}
+                  disabled={running}
+                  className="w-full flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
+                >
+                  {running ? (
+                    <span className="flex items-center gap-2"><IconHourglass className="w-4 h-4" /> Executando...</span>
+                  ) : (
+                    <span className="flex items-center gap-2"><IconPlay className="w-4 h-4" /> Iniciar Diagnóstico</span>
+                  )}
+                </button>
+              )}
+              {(lead.status === 'completed' || lead.status === 'processing') && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                   <button
-                    id={`run-diag-${lead.id}`}
-                    onClick={handleRunDiagnostic}
-                    disabled={running}
-                    className="w-full flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
+                    id={`send-report-${lead.id}`}
+                    onClick={handleSendReport}
+                    disabled={sending}
+                    className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
                   >
-                    {running ? (
-                      <span className="flex items-center gap-2"><IconHourglass className="w-4 h-4" /> Executando...</span>
+                    {sending ? (
+                      <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
                     ) : (
-                      <span className="flex items-center gap-2"><IconPlay className="w-4 h-4" /> Iniciar Diagnóstico</span>
+                      <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar HTML</span>
                     )}
                   </button>
-                )}
-                {(lead.status === 'completed' || lead.status === 'processing') && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      id={`send-report-${lead.id}`}
-                      onClick={handleSendReport}
-                      disabled={sending}
-                      className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
-                    >
-                      {sending ? (
-                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
-                      ) : (
-                        <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar HTML</span>
-                      )}
-                    </button>
-                    <button
-                      id={`rerun-diag-${lead.id}`}
-                      onClick={handleRerunDiagnostic}
-                      disabled={running}
-                      className="flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
-                    >
-                      {running ? (
-                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Executando...</span>
-                      ) : (
-                        <span className="flex items-center gap-1.5"><IconRefresh className="w-3.5 h-3.5" /> Refazer Diagnóstico</span>
-                      )}
-                    </button>
-                    <button
-                      id={`followup-${lead.id}`}
-                      onClick={handleSendFollowup}
-                      disabled={sendingFollowup}
-                      className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
-                    >
-                      {sendingFollowup ? (
-                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
-                      ) : (
-                        <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar Follow-up</span>
-                      )}
-                    </button>
-                    <button
-                      id={`convert-${lead.id}`}
-                      onClick={handleConvert}
-                      className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
-                    >
-                      <IconStar className="w-3.5 h-3.5" /> Converter Cliente
-                    </button>
-                  </div>
-                )}
-                {message && (
-                  <p className="text-xs text-zinc-650 font-medium bg-white border border-zinc-200/80 rounded-xl px-3.5 py-2.5">{message}</p>
-                )}
-              </div>
+                  <button
+                    id={`rerun-diag-${lead.id}`}
+                    onClick={handleRerunDiagnostic}
+                    disabled={running}
+                    className="flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                  >
+                    {running ? (
+                      <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Executando...</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5"><IconRefresh className="w-3.5 h-3.5" /> Refazer Diagnóstico</span>
+                    )}
+                  </button>
+                  <button
+                    id={`followup-${lead.id}`}
+                    onClick={handleSendFollowup}
+                    disabled={sendingFollowup}
+                    className="flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                  >
+                    {sendingFollowup ? (
+                      <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar Follow-up</span>
+                    )}
+                  </button>
+                  <button
+                    id={`convert-${lead.id}`}
+                    onClick={handleConvert}
+                    className="flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                  >
+                    <IconStar className="w-3.5 h-3.5" /> Converter Cliente
+                  </button>
+                </div>
+              )}
+              {message && (
+                <p className="text-xs text-zinc-700 font-medium bg-zinc-50 border border-zinc-200 rounded-xl px-3.5 py-2.5">{message}</p>
+              )}
             </div>
+          </div>
 
-            {/* Capturing fields (all fields outbound info) */}
-            <div className="tactile-sunken rounded-2xl p-5 space-y-3 text-xs">
-              <h4 className="font-mono text-[9px] text-zinc-400 font-bold uppercase tracking-widest border-b border-zinc-200/50 pb-1 flex items-center gap-1.5"><IconClipboard className="w-3 h-3" /> Dados Capturados para Outbound</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Nome do Contato</span><span className="text-zinc-900 text-sm font-semibold break-words">{lead.name || '—'}</span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Empresa</span><span className="text-zinc-900 text-sm font-semibold break-all">{lead.company || '—'}</span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">WhatsApp / Celular</span><span className="text-zinc-900 text-sm font-mono font-semibold break-all">{(lead as any).phone || '—'}</span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">E-mail</span><span className="text-zinc-900 text-sm font-mono font-semibold break-all">{lead.email}</span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Desafio RAG Declarado</span><span className="text-zinc-900 text-sm font-semibold">
+          {/* Outbound Data Captured Card */}
+          <div className="bg-white rounded-2xl p-5 border border-zinc-200 shadow-xs space-y-3 text-xs">
+            <h4 className="font-mono text-[10px] text-zinc-400 font-bold uppercase tracking-widest border-b border-zinc-150 pb-2 flex items-center gap-1.5">
+              <IconClipboard className="w-3.5 h-3.5" /> Dados Capturados para Outbound
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-150">
+                <span className="text-zinc-400 block uppercase font-bold text-[9px] mb-0.5">Nome do Contato</span>
+                <span className="text-zinc-900 text-sm font-semibold break-words">{lead.name || '—'}</span>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-150">
+                <span className="text-zinc-400 block uppercase font-bold text-[9px] mb-0.5">Empresa</span>
+                <span className="text-zinc-900 text-sm font-semibold break-all">{lead.company || '—'}</span>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-150">
+                <span className="text-zinc-400 block uppercase font-bold text-[9px] mb-0.5">WhatsApp / Celular</span>
+                <span className="text-zinc-900 text-sm font-mono font-semibold break-all">{(lead as any).phone || '—'}</span>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-150">
+                <span className="text-zinc-400 block uppercase font-bold text-[9px] mb-0.5">E-mail</span>
+                <span className="text-zinc-900 text-sm font-mono font-semibold break-all">{lead.email}</span>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-150">
+                <span className="text-zinc-400 block uppercase font-bold text-[9px] mb-0.5">Desafio RAG Declarado</span>
+                <span className="text-zinc-900 text-sm font-semibold">
                   {(lead as any).architecture === 'no_rag' ? 'Sem RAG' :
                    (lead as any).architecture === 'keyword' ? 'Palavras-Chave tradicional' :
                    (lead as any).architecture === 'hybrid_hallucination' ? 'RAG Híbrido com Alucinação' :
                    (lead as any).architecture === 'llm_indexing' ? 'Indexar Marca em IAs' : '—'}
-                </span></div>
-                <div><span className="text-zinc-400 block uppercase font-bold text-[8px] mb-0.5">Escala da Base</span><span className="text-zinc-900 text-sm font-semibold">
+                </span>
+              </div>
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-150">
+                <span className="text-zinc-400 block uppercase font-bold text-[9px] mb-0.5">Escala da Base</span>
+                <span className="text-zinc-900 text-sm font-semibold">
                   {(lead as any).scale === 'small' ? 'Até 100 documentos' :
                    (lead as any).scale === 'medium' ? '100 a 1.000 documentos' :
                    (lead as any).scale === 'large' ? 'Mais de 1.000 documentos' :
                    (lead as any).scale === 'unmeasured' ? 'Não mensurado' : '—'}
-                </span></div>
+                </span>
               </div>
             </div>
+          </div>
 
-            {/* Diagnostic results tabs */}
-            {(lead.status === 'completed' || lead.status === 'converted' || lead.status === 'processing') && (
-              <div className="space-y-4">
-                {/* View switcher */}
-                <div className="flex overflow-x-auto max-w-full scrollbar-none bg-zinc-200/60 p-1 rounded-xl text-xs font-semibold self-start w-full sm:w-auto whitespace-nowrap">
-                  <button
-                    onClick={() => setActiveTab('dashboard')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5 ${activeTab === 'dashboard' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
-                  >
-                    <IconClipboard className="w-3.5 h-3.5" /> Dashboard Visual
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('agents')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5 ${activeTab === 'agents' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
-                  >
-                    <IconShield className="w-3.5 h-3.5" /> Detalhes dos Agentes
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('chat')}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex-shrink-0 flex items-center gap-1.5 ${activeTab === 'chat' ? 'bg-white text-zinc-950 shadow-xs' : 'text-zinc-550'}`}
-                  >
-                    <IconChat className="w-3.5 h-3.5" /> Chat Orquestrador IA
-                  </button>
+          {/* Diagnostic & Chat Tab Navigation */}
+          {(lead.status === 'completed' || lead.status === 'converted' || lead.status === 'processing') && (
+            <div className="space-y-4">
+              <div className="flex overflow-x-auto max-w-full scrollbar-none bg-white p-1.5 rounded-2xl border border-zinc-200 shadow-xs text-xs font-semibold gap-1">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'dashboard' ? 'bg-zinc-950 text-white shadow-sm font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
+                >
+                  <IconClipboard className="w-3.5 h-3.5" /> Dashboard Visual
+                </button>
+                <button
+                  onClick={() => setActiveTab('agents')}
+                  className={`px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'agents' ? 'bg-zinc-950 text-white shadow-sm font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
+                >
+                  <IconShield className="w-3.5 h-3.5" /> Detalhes dos Agentes
+                </button>
+                <button
+                  onClick={() => setActiveTab('chat')}
+                  className={`px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'chat' ? 'bg-zinc-950 text-white shadow-sm font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
+                >
+                  <IconChat className="w-3.5 h-3.5" /> Chat Orquestrador IA
+                </button>
+              </div>
+
+              {diagLoading && (
+                <div className="bg-white border border-zinc-200 rounded-2xl p-12 text-center text-zinc-400 text-sm font-mono">
+                  Carregando dados do diagnóstico...
                 </div>
+              )}
 
-                {diagLoading && (
-                  <div className="text-center py-8 text-zinc-400 text-sm font-mono">Carregando dados do diagnóstico...</div>
-                )}
+              {!diagLoading && d && (
+                <>
+                  {activeTab === 'dashboard' && (
+                    <DiagnosticDashboard diagnostic={d} />
+                  )}
 
-                {/* Content Tabs */}
-                {!diagLoading && d && (
-                  <>
-                    {activeTab === 'dashboard' && (
-                      <DiagnosticDashboard diagnostic={d} />
-                    )}
-
-                    {activeTab === 'agents' && (
-                      <div className="space-y-4">
-                        <AgentReport
-                          title="Technical Gatekeeper"
-                          icon={<IconShield className="w-4 h-4" />}
-                          status={d.gatekeeperStatus.robotsTxtAllowAiBots && d.gatekeeperStatus.ssrActive ? 'ok' : !d.gatekeeperStatus.robotsTxtAllowAiBots ? 'critical' : 'warning'}
-                        >
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="flex items-center gap-2 text-zinc-700 font-medium">
-                              {d.gatekeeperStatus.robotsTxtAllowAiBots ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
-                              <span>Bots de IA no robots.txt</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-zinc-700 font-medium">
-                              {d.gatekeeperStatus.ssrActive ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconWarning className="w-4 h-4 text-amber-600" />}
-                              <span>SSR/conteúdo acessível</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-zinc-700 font-medium">
-                              {!d.gatekeeperStatus.hasPriceGatekeeperIssue ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconWarning className="w-4 h-4 text-amber-600" />}
-                              <span>Preços visíveis</span>
-                            </div>
-                            <div className="text-zinc-700 font-medium">
-                              <span className="text-zinc-400">Latência:</span>{' '}
-                              <span className={`font-mono font-bold ${d.gatekeeperStatus.serverLatencyMs < 800 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                                {d.gatekeeperStatus.serverLatencyMs}ms
-                              </span>
-                            </div>
+                  {activeTab === 'agents' && (
+                    <div className="space-y-4">
+                      <AgentReport
+                        title="Technical Gatekeeper"
+                        icon={<IconShield className="w-4 h-4" />}
+                        status={d.gatekeeperStatus?.robotsTxtAllowAiBots && d.gatekeeperStatus?.ssrActive ? 'ok' : !d.gatekeeperStatus?.robotsTxtAllowAiBots ? 'critical' : 'warning'}
+                      >
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="flex items-center gap-2 text-zinc-700 font-medium">
+                            {d.gatekeeperStatus?.robotsTxtAllowAiBots ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
+                            <span>Bots de IA no robots.txt</span>
                           </div>
-                        </AgentReport>
-
-                        <AgentReport
-                          title="Metadata Entity"
-                          icon={<IconFolder className="w-4 h-4" />}
-                          status={d.metadataAnalysis.organizationSchemaPresent && d.metadataAnalysis.llmsTxtPublished ? 'ok' : d.metadataAnalysis.organizationSchemaPresent ? 'warning' : 'critical'}
-                        >
-                          <div className="space-y-2 text-zinc-700 font-medium">
-                            {[
-                              { label: 'Schema Organization', ok: d.metadataAnalysis.organizationSchemaPresent },
-                              { label: 'Schema Person (autor)', ok: d.metadataAnalysis.personSchemaPresent },
-                              { label: '/llms.txt publicado', ok: d.metadataAnalysis.llmsTxtPublished },
-                            ].map(item => (
-                              <div key={item.label} className="flex items-center gap-2">
-                                {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
-                                <span>{item.label}</span>
-                              </div>
-                            ))}
+                          <div className="flex items-center gap-2 text-zinc-700 font-medium">
+                            {d.gatekeeperStatus?.ssrActive ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconWarning className="w-4 h-4 text-amber-600" />}
+                            <span>SSR/conteúdo acessível</span>
                           </div>
-                        </AgentReport>
-
-                        <AgentReport
-                          title="Content Absorption"
-                          icon={<IconNote className="w-4 h-4" />}
-                          status={
-                            Object.values(d.contentReview.factorsDetected).filter(Boolean).length >= 3 ? 'ok' : 'critical'
-                          }
-                        >
-                          <div className="space-y-2 text-zinc-700 font-medium">
-                            {[
-                              { label: 'Resposta AEO nas primeiras 60 palavras', ok: d.contentReview.factorsDetected.hasTldrAnswerFirstParagraph },
-                              { label: 'Estatísticas a cada 150 palavras', ok: d.contentReview.factorsDetected.hasStatisticsPer150Words },
-                              { label: 'Aspas de especialistas', ok: d.contentReview.factorsDetected.hasExpertQuotes },
-                              { label: 'Tabelas comparativas HTML', ok: d.contentReview.factorsDetected.hasHtmlComparisonTables },
-                            ].map(item => (
-                              <div key={item.label} className="flex items-center gap-2">
-                                {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
-                                <span>{item.label}</span>
-                              </div>
-                            ))}
+                          <div className="flex items-center gap-2 text-zinc-700 font-medium">
+                            {!d.gatekeeperStatus?.hasPriceGatekeeperIssue ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconWarning className="w-4 h-4 text-amber-600" />}
+                            <span>Preços visíveis</span>
                           </div>
-                        </AgentReport>
-                      </div>
-                    )}
+                          <div className="text-zinc-700 font-medium">
+                            <span className="text-zinc-400">Latência:</span>{' '}
+                            <span className={`font-mono font-bold ${d.gatekeeperStatus?.serverLatencyMs < 800 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                              {d.gatekeeperStatus?.serverLatencyMs}ms
+                            </span>
+                          </div>
+                        </div>
+                      </AgentReport>
 
-                    {activeTab === 'chat' && (
-                      <LeadChat leadId={lead.id} agentName="orchestrator" leadUrl={lead.url} />
-                    )}
+                      <AgentReport
+                        title="Metadata Entity"
+                        icon={<IconFolder className="w-4 h-4" />}
+                        status={d.metadataAnalysis?.organizationSchemaPresent && d.metadataAnalysis?.llmsTxtPublished ? 'ok' : d.metadataAnalysis?.organizationSchemaPresent ? 'warning' : 'critical'}
+                      >
+                        <div className="space-y-2 text-zinc-700 font-medium">
+                          {[
+                            { label: 'Schema Organization', ok: d.metadataAnalysis?.organizationSchemaPresent },
+                            { label: 'Schema Person (autor)', ok: d.metadataAnalysis?.personSchemaPresent },
+                            { label: '/llms.txt publicado', ok: d.metadataAnalysis?.llmsTxtPublished },
+                          ].map(item => (
+                            <div key={item.label} className="flex items-center gap-2">
+                              {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
+                              <span>{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </AgentReport>
 
-                    {/* Editor de diagnóstico manual */}
-                    {activeTab === 'agents' && (
-                      <div className="mt-2">
+                      <AgentReport
+                        title="Content Absorption"
+                        icon={<IconNote className="w-4 h-4" />}
+                        status={
+                          Object.values(d.contentReview?.factorsDetected || {}).filter(Boolean).length >= 3 ? 'ok' : 'critical'
+                        }
+                      >
+                        <div className="space-y-2 text-zinc-700 font-medium">
+                          {[
+                            { label: 'Resposta AEO nas primeiras 60 palavras', ok: d.contentReview?.factorsDetected?.hasTldrAnswerFirstParagraph },
+                            { label: 'Estatísticas a cada 150 palavras', ok: d.contentReview?.factorsDetected?.hasStatisticsPer150Words },
+                            { label: 'Aspas de especialistas', ok: d.contentReview?.factorsDetected?.hasExpertQuotes },
+                            { label: 'Tabelas comparativas HTML', ok: d.contentReview?.factorsDetected?.hasHtmlComparisonTables },
+                          ].map(item => (
+                            <div key={item.label} className="flex items-center gap-2">
+                              {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
+                              <span>{item.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </AgentReport>
+
+                      <div className="mt-4">
                         <button
                           onClick={() => setShowDiagEditor(v => !v)}
-                          className="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-400 px-3 py-2 rounded-xl transition-all cursor-pointer bg-white"
+                          className="flex items-center gap-2 text-xs font-semibold text-zinc-700 hover:text-zinc-950 border border-zinc-300 hover:border-zinc-400 px-4 py-2.5 rounded-xl transition-all cursor-pointer bg-white shadow-xs"
                         >
                           <IconEdit className="w-3.5 h-3.5" />
-                          {showDiagEditor ? 'Fechar Editor' : 'Editar Dados do Diagnóstico Manualmente'}
+                          {showDiagEditor ? 'Fechar Editor Manual' : 'Editar Dados do Diagnóstico Manualmente'}
                         </button>
-                        {showDiagEditor && d && (
+                        {showDiagEditor && (
                           <div className="mt-3">
                             <DiagnosticEditor
                               diagnostic={d}
@@ -710,14 +740,21 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                           </div>
                         )}
                       </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </>
-        )}
-    </Modal>
+                    </div>
+                  )}
+
+                  {activeTab === 'chat' && (
+                    <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-xs min-h-[480px]">
+                      <LeadChat leadId={lead.id} agentName="orchestrator" leadUrl={lead.url} />
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
@@ -769,6 +806,18 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
       alert(`Erro ao excluir: ${err.message}`);
     }
   };
+
+  // If a lead is selected, render the dedicated Full-Page Workspace View!
+  if (selectedLead) {
+    return (
+      <LeadWorkspacePage
+        lead={selectedLead}
+        onBack={() => setSelectedLead(null)}
+        onNavigate={onNavigate}
+        onLeadUpdated={fetchLeads}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -882,16 +931,6 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
           </div>
         )}
       </div>
-
-      {/* Detail panel */}
-      {selectedLead && (
-        <LeadDetailPanel
-          lead={selectedLead}
-          onClose={() => setSelectedLead(null)}
-          onNavigate={onNavigate}
-          onLeadUpdated={fetchLeads}
-        />
-      )}
     </div>
   );
 }
