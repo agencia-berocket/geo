@@ -123,9 +123,15 @@ async function runGatekeeperAgent(baseUrl, htmlContent) {
   const hasHeavyJS = htmlLower.includes('react') || htmlLower.includes('__next') || htmlLower.includes('data-reactroot');
   const ssrActive = hasTextContent && (htmlLower.length > 5000);
 
-  // Price detection
-  const pricePatterns = /r\$|preço|price|plano|pacote|investimento|\d+[.,]\d{2}/i;
-  const hasPriceGatekeeperIssue = !pricePatterns.test(htmlContent || '');
+  // ─── Price detection (visible to user — NOT inside JSON-LD/schema) ────────────
+  // Strip all <script> and <style> blocks so we only inspect visible HTML text.
+  // Requires an actual monetary value with a numeric amount (R$ 299, 12x de 49,90, 199/mês).
+  // Intentionally EXCLUDES schema-only words: "priceRange", "offers", "aggregateOffer".
+  const htmlWithoutScripts = (htmlContent || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '');
+  const visiblePricePattern = /R\$\s*\d+[.,]?\d*|\b\d{2,}[,.]\d{2}\b|\b\d+\s*[x×]\s*(de\s+)?R?\$?\d|\b\d{2,}\s*\/\s*(mês|mes|ano)|€\s*\d+/i;
+  const hasPriceGatekeeperIssue = !visiblePricePattern.test(htmlWithoutScripts);
 
   // Stale timestamp
   const stalePattern = /(201[0-9]|202[0-2])/;
@@ -231,20 +237,35 @@ async function runContentAgent(htmlContent) {
   // Estimate mean chunk size in tokens (~0.75 tokens per word average)
   const meanChunkSizeTokens = Math.round(totalWords * 0.75 / Math.max(1, Math.floor(totalWords / 200)));
 
-  // Check AEO: answer in first 60 words
-  const firstWords = words.slice(0, 80).join(' ');
-  const hasTldrAnswerFirstParagraph = firstWords.length > 100 && !firstWords.includes('Olá') && !firstWords.includes('Bem-vindo');
+  // ─── AEO: Answer-First — first real sentence must be a concrete informative claim ─
+  // Find the first sentence of ≥40 chars that looks informative (not a greeting/slogan).
+  const firstSentenceMatch = mainContent.match(/([A-ZÁÉÍÓÚÃÕÂÊÔÇÀÜ][^.!?\n]{40,}[.!?])/);
+  const firstSentence = firstSentenceMatch ? firstSentenceMatch[1].trim() : '';
+  const firstSentenceWords = firstSentence.split(/\s+/).length;
+  const greetingPattern = /^(olá|bem[- ]vindo|seja bem|hello|bem vindo|conheça|descubra|explore|acesse|clique|entre em contato|fale com|o melhor|lider|líder|referência|especialista em)/i;
+  const hasTldrAnswerFirstParagraph = firstSentenceWords >= 10 && !greetingPattern.test(firstSentence);
 
-  // Check statistics density: numbers/percentages every 150 words
-  const statsMatches = mainContent.match(/\d+[\.,]?\d*\s*(%|milhão|bilhão|mil|k\b|m\b)/gi) || [];
-  const hasStatisticsPer150Words = statsMatches.length >= Math.floor(totalWords / 200);
+  // ─── Statistics density: real stat numbers — exclude technical/catalog numbers ──
+  // Captures: "40%", "3x mais", "vezes mais", "3 vezes", "2 milhões", "1.500 clientes"
+  // Excludes: years (2024), resolutions (4K, 1080p), technical specs (144Hz, 8kg).
+  const rawStatMatches = mainContent.match(
+    /\b\d+([.,]\d+)?\s*%|\b\d+([.,]\d+)?\s*[xX×]\s*(mais|menos|maior|melhor)|\b\d+([.,]\d+)?\s*vezes\s+(mais|menos|maior)|\b(mais de|menos de|cerca de|aproximadamente|até)\s+\d+([.,]\d+)?\s*(mil|milhões?|bilhões?|%)|\b\d+([.,]\d+)?\s*(mil|milhões?|bilhões?)\s+(de\s+)?(clientes?|usuários?|empresas?|projetos?|downloads?|acessos?)/gi
+  ) || [];
+  const yearOrTechPattern = /^(19|20)\d{2}$|^\d+(K|p|fps|hz|mm|cm|kg)$/i;
+  const filteredStats = rawStatMatches.filter(m => !yearOrTechPattern.test(m.trim()));
+  const expectedStats = Math.max(1, Math.floor(totalWords / 150));
+  const hasStatisticsPer150Words = filteredStats.length >= expectedStats;
 
-  // Check expert quotes
-  const quotePatterns = /<blockquote|"[^"]{30,}"|«[^»]{30,}»/i;
-  const hasExpertQuotes = quotePatterns.test(htmlContent);
+  // ─── Expert quotes — must use explicit attribution language OR <blockquote> ──
+  // Valid: <blockquote>, "Segundo X...", "De acordo com X...", "Conforme X...",
+  //        "afirma X", "disse X", quoted text followed by – Source.
+  const hasBlockquote = /<blockquote/i.test(htmlContent);
+  const attributionPattern = /\b(segundo\s+[A-ZÁÉÍÓÚÃÕ]|de acordo com\s+[A-ZÁÉÍÓÚÃÕ]|conforme\s+[A-ZÁÉÍÓÚÃÕ]|afirma\s+[A-ZÁÉÍÓÚÃÕ]|disse\s+[A-ZÁÉÍÓÚÃÕ]|aponta\s+[A-ZÁÉÍÓÚÃÕ]|revela\s+[A-ZÁÉÍÓÚÃÕ]|segundo (estudos?|pesquisa|relatório|Gartner|McKinsey|IBGE|Sebrae|Forbes|Harvard|Princeton))/i;
+  const dashQuotePattern = /["«“][^"»”]{30,}["»”]\s*[–—\-]\s*[A-ZÁÉÍÓÚÃÕ]/;
+  const hasExpertQuotes = hasBlockquote || attributionPattern.test(mainContent) || dashQuotePattern.test(mainContent);
 
-  // Check comparison tables
-  const hasHtmlComparisonTables = /<table/i.test(htmlContent);
+  // ─── Comparison tables — only count real data tables (must have <td> cells) ───
+  const hasHtmlComparisonTables = /<table[^>]*>[\s\S]*?<td/i.test(htmlContent);
 
   // Hedged language score
   const hedgeWords = ['talvez', 'pode ser', 'possivelmente', 'quem sabe', 'eventualmente', 'talvez'];
