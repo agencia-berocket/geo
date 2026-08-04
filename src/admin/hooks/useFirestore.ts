@@ -175,6 +175,20 @@ export function useLeads() {
     });
   }, []);
 
+  const sendReport = useCallback(async (leadId: string) => {
+    return apiFetch<{ success: boolean }>('/admin/diagnostic/send-report', {
+      method: 'POST',
+      body: JSON.stringify({ leadId }),
+    });
+  }, []);
+
+  const convertToClient = useCallback(async (leadId: string, data: Partial<Client>) => {
+    return apiFetch<{ success: boolean; clientId: string }>('/admin/clients', {
+      method: 'POST',
+      body: JSON.stringify({ leadId, ...data }),
+    });
+  }, []);
+
   const sendFollowup = useCallback(async (leadId: string) => {
     return apiFetch<{ success: boolean; message: string }>('/admin/leads/send-followup', {
       method: 'POST',
