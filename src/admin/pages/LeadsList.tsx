@@ -352,10 +352,8 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
-    if (lead.status === 'completed' || lead.status === 'converted' || lead.status === 'processing') {
-      fetchDiagnostic();
-    }
-  }, [lead.status, lead.id]);
+    fetchDiagnostic();
+  }, [lead.id]);
 
   const handleRunDiagnostic = async () => {
     setRunning(true);
@@ -520,7 +518,7 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
                   )}
                 </button>
               )}
-              {(lead.status === 'completed' || lead.status === 'processing') && (
+              {lead.status !== 'new' && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                   <button
                     id={`send-report-${lead.id}`}
@@ -617,7 +615,7 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
           </div>
 
           {/* Diagnostic & Chat Tab Navigation */}
-          {(lead.status === 'completed' || lead.status === 'converted' || lead.status === 'processing') && (
+          {lead.status !== 'new' && (
             <div className="space-y-4">
               <div className="flex overflow-x-auto max-w-full scrollbar-none bg-white p-1.5 rounded-2xl border border-zinc-200 shadow-xs text-xs font-semibold gap-1">
                 <button
@@ -906,7 +904,7 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
                             {runningId === lead.id ? <IconHourglass className="w-3.5 h-3.5" /> : <><IconPlay className="w-3 h-3" /> Diagnóstico</>}
                           </button>
                         )}
-                        {(lead.status === 'completed' || lead.status === 'processing') && (
+                        {lead.status !== 'new' && (
                           <button
                             id={`view-diag-${lead.id}`}
                             onClick={e => { e.stopPropagation(); setSelectedLead(lead); }}
