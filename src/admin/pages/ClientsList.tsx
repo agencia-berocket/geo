@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { useClients, useLeads, type Client, type ClientHistory, type DiagnosticReport } from '../hooks/useFirestore';
+import React, { useEffect, useState } from 'react';
+import { useClients, useLeads, type Client, type ClientHistory } from '../hooks/useFirestore';
 import Modal from '../components/Modal';
 import { LeadChat } from '../components/LeadChat';
 import { auth } from '../../lib/firebase';
 import {
   IconEdit, IconTrash, IconPlay, IconChat, IconBot, IconShield, IconFolder,
-  IconNote, IconHourglass, IconRocket, IconCheck, IconWarning, IconSend, IconStar,
+  IconNote, IconHourglass, IconRocket, IconCheck,
 } from '../components/icons';
 
 async function getIdToken(): Promise<string> {
@@ -24,6 +24,14 @@ const stageLabels: Record<number, string> = {
   5: 'Monitoramento Contínuo',
 };
 
+const stageAgentMap: Record<number, AgentName> = {
+  1: 'gatekeeper',
+  2: 'intent',
+  3: 'metadata',
+  4: 'content',
+  5: 'orchestrator',
+};
+
 const planConfig = {
   premium: { label: 'Implantação Premium', color: 'text-zinc-700 bg-zinc-100 border-zinc-200/80 shadow-xs' },
   enterprise: { label: 'Enterprise', color: 'text-zinc-950 bg-zinc-200/80 border-zinc-300 shadow-xs' },
@@ -31,12 +39,12 @@ const planConfig = {
 
 type AgentName = 'orchestrator' | 'gatekeeper' | 'metadata' | 'content' | 'intent';
 
-const agents: Array<{ id: AgentName; icon: React.ReactNode; name: string; description: string }> = [
-  { id: 'orchestrator', icon: <IconBot className="w-4 h-4" />, name: 'Orquestrador', description: 'Gerencia o pipeline completo e gera o Roteiro GEO' },
-  { id: 'gatekeeper', icon: <IconShield className="w-4 h-4" />, name: 'Technical Gatekeeper', description: 'Gera robots.txt otimizado e audita SSR' },
-  { id: 'metadata', icon: <IconFolder className="w-4 h-4" />, name: 'Metadata Entity', description: 'Gera códigos JSON-LD Schema e arquivo /llms.txt' },
-  { id: 'content', icon: <IconNote className="w-4 h-4" />, name: 'Content Absorption', description: 'Gera bloco AEO (<60 palavras) e tabelas HTML' },
-  { id: 'intent', icon: <IconChat className="w-4 h-4" />, name: 'Intent Prompt', description: 'Mapeia prompts de teste e Citation Share' },
+const agents: Array<{ id: AgentName; icon: React.ReactNode; name: string; description: string; stage: number }> = [
+  { id: 'orchestrator', icon: <IconBot className="w-4 h-4" />, name: 'Orquestrador', description: 'Gerencia o pipeline completo e gera o Roteiro GEO', stage: 5 },
+  { id: 'gatekeeper', icon: <IconShield className="w-4 h-4" />, name: 'Technical Gatekeeper', description: 'Gera robots.txt otimizado e audita SSR', stage: 1 },
+  { id: 'metadata', icon: <IconFolder className="w-4 h-4" />, name: 'Metadata Entity', description: 'Gera códigos JSON-LD Schema e arquivo /llms.txt', stage: 3 },
+  { id: 'content', icon: <IconNote className="w-4 h-4" />, name: 'Content Absorption', description: 'Gera bloco AEO (<60 palavras) e tabelas HTML', stage: 4 },
+  { id: 'intent', icon: <IconChat className="w-4 h-4" />, name: 'Intent Prompt', description: 'Mapeia prompts de teste e Citation Share', stage: 2 },
 ];
 
 // ─── HELPER COMPONENTS: COPY & DOWNLOAD ──────────────────────────────────────
@@ -86,24 +94,51 @@ function DownloadButton({ content, filename, label = 'Baixar Arquivo', mimeType 
   );
 }
 
-function DeliverableCard({ title, description, content, filename }: {
-  title: string; description: string; content: string; filename: string;
+// ─── EDITABLE DELIVERABLE CARD ──────────────────────────────────────────────
+function DeliverableCard({ title, description, content: initialContent, filename, onSave }: {
+  title: string; description: string; content: string; filename: string; onSave?: (updated: string) => void;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editableContent, setEditableContent] = useState(initialContent);
+
+  useEffect(() => {
+    setEditableContent(initialContent);
+  }, [initialContent]);
+
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl p-4 shadow-sm space-y-3">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h4 className="font-display font-bold text-zinc-900 text-sm flex items-center gap-1.5">⚡ {title}</h4>
           <p className="text-zinc-500 text-xs mt-0.5">{description}</p>
         </div>
         <div className="flex items-center gap-2">
-          <CopyButton text={content} label="Copiar" />
-          <DownloadButton content={content} filename={filename} label="Baixar" />
+          <button
+            type="button"
+            onClick={() => setIsEditing(e => !e)}
+            className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-800 font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1"
+          >
+            {isEditing ? '✓ Concluir Edição' : '✏️ Editar'}
+          </button>
+          <CopyButton text={editableContent} label="Copiar" />
+          <DownloadButton content={editableContent} filename={filename} label="Baixar" />
         </div>
       </div>
-      <div className="bg-zinc-950 text-zinc-200 font-mono text-[11px] p-3.5 rounded-xl overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed border border-zinc-800">
-        {content}
-      </div>
+      {isEditing ? (
+        <textarea
+          value={editableContent}
+          onChange={e => {
+            setEditableContent(e.target.value);
+            if (onSave) onSave(e.target.value);
+          }}
+          rows={8}
+          className="w-full bg-zinc-950 text-emerald-400 font-mono text-[11px] p-3.5 rounded-xl border border-zinc-800 focus:outline-none focus:border-emerald-500"
+        />
+      ) : (
+        <div className="bg-zinc-950 text-zinc-200 font-mono text-[11px] p-3.5 rounded-xl overflow-x-auto max-h-56 whitespace-pre-wrap leading-relaxed border border-zinc-800">
+          {editableContent}
+        </div>
+      )}
     </div>
   );
 }
@@ -139,7 +174,7 @@ function ClientHistoryPanel({ client }: { client: Client }) {
         <IconRocket className="w-8 h-8 text-zinc-300 mx-auto" />
         <p className="text-zinc-800 font-bold text-sm">Nenhum histórico acumulado ainda</p>
         <p className="text-zinc-500 text-xs max-w-md mx-auto">
-          Execute os diagnósticos do Orquestrador no Workspace para registrar cada marco e acompanhar a evolução temporal do GEO Score.
+          Execute os diagnósticos dos Agentes no Workspace para registrar cada marco e acompanhar a evolução temporal do GEO Score.
         </p>
       </div>
     );
@@ -262,29 +297,82 @@ function ClientHistoryPanel({ client }: { client: Client }) {
 }
 
 // ─── MAIN AGENT WORKSPACE PANEL ─────────────────────────────────────────────
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
 function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () => void }) {
-  const { runAgentForClient } = useClients();
+  const { runAgentForClient, fetchClientHistory, editClient } = useClients();
   const [activeAgent, setActiveAgent] = useState<AgentName>('orchestrator');
   const [mainView, setMainView] = useState<'deliverables' | 'history' | 'chat' | 'stages'>('deliverables');
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<Record<string, any> | null>(null);
   const [url, setUrl] = useState(client.url);
   const [logs, setLogs] = useState<string[]>([]);
+  const [currentStage, setCurrentStage] = useState<number>(client.currentStage || 1);
 
-  // Default agent execution on mount or agent switch
-  const handleRunAgent = async () => {
+  // Persistent outputs per agent
+  const [agentOutputs, setAgentOutputs] = useState<Record<AgentName, any>>({
+    orchestrator: null,
+    gatekeeper: null,
+    metadata: null,
+    content: null,
+    intent: null,
+  });
+
+  // Pre-populate agent deliverables on mount from Firestore
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetchClientHistory(client.id);
+        if (res.success && res.clientHistory.diagnosticsCount > 0) {
+          const latest = res.clientHistory.diagnostics[res.clientHistory.diagnosticsCount - 1];
+          if (latest) {
+            setAgentOutputs(prev => ({
+              ...prev,
+              orchestrator: {
+                overallGeoScore: latest.overallGeoScore,
+                actionItemsPriorityList: latest.actionItemsPriorityList,
+                deliverables: (latest as any).deliverables || {
+                  robotsTxt: `# robots.txt recomendado\nUser-agent: GPTBot\nAllow: /`,
+                  jsonLdSchema: JSON.stringify({ "@context": "https://schema.org", "@type": "Organization", "name": client.company || client.url }, null, 2),
+                  llmsTxt: `# ${client.company}\n> llms.txt`,
+                },
+                actionPlanMarkdown: (latest as any).actionPlanMarkdown || `# Plano Estratégico GEO`,
+              },
+              gatekeeper: {
+                ...latest.gatekeeperStatus,
+                recommendedRobotsTxt: (latest as any).deliverables?.robotsTxt || `# robots.txt recomendado para ${client.url}\nUser-agent: GPTBot\nAllow: /`,
+              },
+              metadata: {
+                ...latest.metadataAnalysis,
+                generatedJsonLd: (latest as any).deliverables?.jsonLdSchema || JSON.stringify({ "@context": "https://schema.org", "@type": "Organization", "name": client.company }, null, 2),
+                llmsTxt: (latest as any).deliverables?.llmsTxt || `# ${client.company}\n> /llms.txt`,
+              },
+              content: {
+                ...latest.contentReview,
+                aeoTemplates: (latest as any).deliverables?.aeoTemplates || {
+                  tldrAnswerFirstBlock: `<div class="geo-aeo-tldr">Resumo AEO</div>`,
+                  htmlComparisonTable: `<table><tr><th>Critério</th><th>${client.url}</th></tr></table>`,
+                },
+              },
+              intent: {
+                ...latest.visibilityBenchmarking,
+              },
+            }));
+          }
+        }
+      } catch (e) {
+        console.error('Erro ao preencher entregáveis salvos:', e);
+      }
+    })();
+  }, [client.id]);
+
+  const handleRunAgent = async (targetAgent: AgentName = activeAgent) => {
     setRunning(true);
-    setResult(null);
-    setLogs([`[${new Date().toLocaleTimeString()}] Executando ${activeAgent}...`]);
+    setLogs([`[${new Date().toLocaleTimeString()}] Executando ${targetAgent}...`]);
     try {
-      const res = await runAgentForClient(client.id, activeAgent, { url });
-      setResult(res.result);
-      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Executado com sucesso! Entregáveis gerados.`]);
+      const res = await runAgentForClient(client.id, targetAgent, { url });
+      setAgentOutputs(prev => ({
+        ...prev,
+        [targetAgent]: res.result,
+      }));
+      setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Concluído! Entregáveis de ${targetAgent} salvos no Workspace.`]);
     } catch (e: any) {
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Erro: ${e.message}`]);
     } finally {
@@ -292,13 +380,27 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
     }
   };
 
+  const handleStageSelect = async (stageNumber: number) => {
+    setCurrentStage(stageNumber);
+    const mappedAgent = stageAgentMap[stageNumber];
+    if (mappedAgent) {
+      setActiveAgent(mappedAgent);
+    }
+    try {
+      await editClient(client.id, { currentStage: stageNumber as any });
+    } catch (e) {
+      console.error('Erro ao atualizar etapa no Firestore:', e);
+    }
+  };
+
   const currentAgent = agents.find(a => a.id === activeAgent)!;
+  const currentOutput = agentOutputs[activeAgent];
 
   return (
     <Modal
       onClose={onClose}
       title={client.company || client.url}
-      subtitle={`Workspace GEO do Cliente — Etapa ${client.currentStage}: ${stageLabels[client.currentStage]}`}
+      subtitle={`Workspace GEO do Cliente — Etapa ${currentStage}: ${stageLabels[currentStage]}`}
       headerRight={
         <span className={`text-xs px-3 py-1 rounded-xl border font-bold ${planConfig[client.plan]?.color || ''}`}>
           {planConfig[client.plan]?.label || client.plan}
@@ -315,6 +417,12 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
             ⚡ Agentes & Entregáveis Práticos
           </button>
           <button
+            onClick={() => setMainView('stages')}
+            className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${mainView === 'stages' ? 'bg-white text-zinc-950 shadow-xs font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
+          >
+            🗺️ Controle de 5 Etapas
+          </button>
+          <button
             onClick={() => setMainView('history')}
             className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${mainView === 'history' ? 'bg-white text-zinc-950 shadow-xs font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
           >
@@ -326,12 +434,6 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
           >
             💬 Chat 360° (IA)
           </button>
-          <button
-            onClick={() => setMainView('stages')}
-            className={`px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${mainView === 'stages' ? 'bg-white text-zinc-950 shadow-xs font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
-          >
-            🗺️ Roteiro de 5 Etapas
-          </button>
         </div>
 
         {/* VIEW 1: DELIVERABLES & AGENT EXECUTION */}
@@ -342,7 +444,7 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
               {agents.map(agent => (
                 <button
                   key={agent.id}
-                  onClick={() => { setActiveAgent(agent.id); setResult(null); setLogs([]); }}
+                  onClick={() => { setActiveAgent(agent.id); }}
                   className={`flex-shrink-0 w-48 lg:w-full flex items-start gap-3 p-3 rounded-xl text-left transition-all cursor-pointer ${
                     activeAgent === agent.id
                       ? 'bg-zinc-950 text-white shadow-md'
@@ -351,7 +453,10 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
                 >
                   <span className="flex-shrink-0 mt-0.5">{agent.icon}</span>
                   <div className="min-w-0">
-                    <p className="text-xs font-semibold font-display leading-tight truncate">{agent.name}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold font-display leading-tight truncate">{agent.name}</p>
+                      {agentOutputs[agent.id] && <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Possui entregável gravado" />}
+                    </div>
                     <p className={`hidden lg:block text-[10px] leading-tight mt-0.5 ${activeAgent === agent.id ? 'text-zinc-300' : 'text-zinc-400'}`}>{agent.description}</p>
                   </div>
                 </button>
@@ -369,11 +474,11 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
                   </div>
                 </div>
                 <button
-                  onClick={handleRunAgent}
+                  onClick={() => handleRunAgent(activeAgent)}
                   disabled={running}
                   className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-2 px-4 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
                 >
-                  {running ? <><IconHourglass className="w-3.5 h-3.5" /> Gerando entregáveis...</> : <><IconPlay className="w-3.5 h-3.5" /> Executar Agente</>}
+                  {running ? <><IconHourglass className="w-3.5 h-3.5" /> Gerando entregáveis...</> : <><IconPlay className="w-3.5 h-3.5" /> Executar {currentAgent.name}</>}
                 </button>
               </div>
 
@@ -383,34 +488,60 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
                 </div>
               )}
 
-              {/* DELIVERABLES CARDS PER AGENT */}
-              {result && (
+              {/* PERSISTED DELIVERABLES PER AGENT */}
+              {!currentOutput ? (
+                <div className="bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-3">
+                  <IconBot className="w-8 h-8 text-zinc-300 mx-auto" />
+                  <p className="text-zinc-800 font-bold text-sm">Nenhum entregável gerado para {currentAgent.name} ainda</p>
+                  <p className="text-zinc-500 text-xs max-w-sm mx-auto">
+                    Clique no botão acima para executar a análise e gerar códigos de implementação prontos para editar, copiar e baixar.
+                  </p>
+                </div>
+              ) : (
                 <div className="space-y-4 flex-1">
-                  {/* Orquestrador Deliverable */}
+                  {/* Orquestrador Deliverables */}
                   {activeAgent === 'orchestrator' && (
                     <>
-                      {result.actionPlanMarkdown && (
+                      {currentOutput.actionPlanMarkdown && (
                         <DeliverableCard
                           title="Roteiro Estratégico de Implantação GEO (5 Etapas)"
                           description="Plano de ação completo para apresentar e implantar junto com o cliente."
-                          content={result.actionPlanMarkdown}
+                          content={currentOutput.actionPlanMarkdown}
                           filename={`Plano_Acao_GEO_${client.company || 'Cliente'}.md`}
+                          onSave={updated => {
+                            setAgentOutputs(prev => ({
+                              ...prev,
+                              orchestrator: { ...prev.orchestrator, actionPlanMarkdown: updated }
+                            }));
+                          }}
                         />
                       )}
-                      {result.deliverables?.jsonLdSchema && (
+                      {currentOutput.deliverables?.jsonLdSchema && (
                         <DeliverableCard
                           title="Códigos JSON-LD Schema (Organization, Person, WebSite)"
                           description="Código pronto para copiar e colar na tag <head> do site do cliente."
-                          content={result.deliverables.jsonLdSchema}
+                          content={currentOutput.deliverables.jsonLdSchema}
                           filename="schema.jsonld"
+                          onSave={updated => {
+                            setAgentOutputs(prev => ({
+                              ...prev,
+                              orchestrator: { ...prev.orchestrator, deliverables: { ...prev.orchestrator.deliverables, jsonLdSchema: updated } }
+                            }));
+                          }}
                         />
                       )}
-                      {result.deliverables?.llmsTxt && (
+                      {currentOutput.deliverables?.llmsTxt && (
                         <DeliverableCard
                           title="Arquivo /llms.txt (Mapa Semântico em Markdown para IAs)"
                           description="Arquivo pronto para salvar e publicar na raiz do servidor web do cliente."
-                          content={result.deliverables.llmsTxt}
+                          content={currentOutput.deliverables.llmsTxt}
                           filename="llms.txt"
+                          onSave={updated => {
+                            setAgentOutputs(prev => ({
+                              ...prev,
+                              orchestrator: { ...prev.orchestrator, deliverables: { ...prev.orchestrator.deliverables, llmsTxt: updated } }
+                            }));
+                          }}
                         />
                       )}
                     </>
@@ -419,48 +550,78 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
                   {/* Technical Gatekeeper Deliverable */}
                   {activeAgent === 'gatekeeper' && (
                     <DeliverableCard
-                      title="Arquivo robots.txt Recomendado"
+                      title="Arquivo robots.txt Otimizado para Robôs de IA"
                       description="Configuração de permissões explícitas para GPTBot, ClaudeBot, PerplexityBot e Bytespider."
-                      content={result.recommendedRobotsTxt || `# robots.txt recomendado para ${client.url}\nUser-agent: GPTBot\nAllow: /\nUser-agent: ClaudeBot\nAllow: /`}
+                      content={currentOutput.recommendedRobotsTxt || `# robots.txt recomendado para ${client.url}\nUser-agent: GPTBot\nAllow: /\nUser-agent: ClaudeBot\nAllow: /`}
                       filename="robots.txt"
+                      onSave={updated => {
+                        setAgentOutputs(prev => ({
+                          ...prev,
+                          gatekeeper: { ...prev.gatekeeper, recommendedRobotsTxt: updated }
+                        }));
+                      }}
                     />
                   )}
 
-                  {/* Metadata Entity Deliverable */}
+                  {/* Metadata Entity Deliverables */}
                   {activeAgent === 'metadata' && (
                     <>
                       <DeliverableCard
                         title="Código JSON-LD Schema Completo"
                         description="Estrutura de dados com sameAs apontando para LinkedIn, Crunchbase e Wikipedia."
-                        content={result.generatedJsonLd || JSON.stringify(result, null, 2)}
+                        content={currentOutput.generatedJsonLd || JSON.stringify(currentOutput, null, 2)}
                         filename="schema.jsonld"
+                        onSave={updated => {
+                          setAgentOutputs(prev => ({
+                            ...prev,
+                            metadata: { ...prev.metadata, generatedJsonLd: updated }
+                          }));
+                        }}
                       />
                       <DeliverableCard
                         title="Arquivo /llms.txt para Publicação"
                         description="Mapa de autoridades e links canônicos para consumo nativo por LLMs."
-                        content={result.llmsTxt || `# /llms.txt para ${client.url}`}
+                        content={currentOutput.llmsTxt || `# /llms.txt para ${client.url}`}
                         filename="llms.txt"
+                        onSave={updated => {
+                          setAgentOutputs(prev => ({
+                            ...prev,
+                            metadata: { ...prev.metadata, llmsTxt: updated }
+                          }));
+                        }}
                       />
                     </>
                   )}
 
-                  {/* Content Absorption Deliverable */}
+                  {/* Content Absorption Deliverables */}
                   {activeAgent === 'content' && (
                     <>
-                      {result.aeoTemplates?.tldrAnswerFirstBlock && (
+                      {currentOutput.aeoTemplates?.tldrAnswerFirstBlock && (
                         <DeliverableCard
                           title="Bloco de Resposta Direta AEO (<60 palavras)"
                           description="Trecho otimizado para inserção no topo de páginas H2."
-                          content={result.aeoTemplates.tldrAnswerFirstBlock}
+                          content={currentOutput.aeoTemplates.tldrAnswerFirstBlock}
                           filename="aeo_tldr_block.html"
+                          onSave={updated => {
+                            setAgentOutputs(prev => ({
+                              ...prev,
+                              content: { ...prev.content, aeoTemplates: { ...prev.content.aeoTemplates, tldrAnswerFirstBlock: updated } }
+                            }));
+                          }}
                         />
                       )}
-                      {result.aeoTemplates?.htmlComparisonTable && (
+                      {currentOutput.aeoTemplates?.htmlComparisonTable && (
                         <DeliverableCard
-                          title="Tabela Comparativa em HTML Nativo (Princeto Factor)"
+                          title="Tabela Comparativa em HTML Nativo (Princeton Factor)"
                           description="Tabela HTML otimizada para aumentar em até 47% a citabilidade nas LLMs."
-                          content={result.aeoTemplates.htmlComparisonTable}
+                          content={currentOutput.aeoTemplates.htmlComparisonTable}
                           filename="tabela_comparativa.html"
+                          onSave={updated => {
+                            setAgentOutputs(prev => ({
+                              ...prev,
+                              content: { ...prev.content, aeoTemplates: { ...prev.content.aeoTemplates, htmlComparisonTable: updated } }
+                            }));
+                          }}
                         />
                       )}
                     </>
@@ -471,7 +632,7 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
                     <DeliverableCard
                       title="Relatório de Visibilidade e Prompts de Teste nas IAs"
                       description="Mapeamento de Citation Share e perguntas de intenção testadas."
-                      content={JSON.stringify(result, null, 2)}
+                      content={JSON.stringify(currentOutput, null, 2)}
                       filename="citation_share_report.json"
                     />
                   )}
@@ -481,12 +642,85 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
           </div>
         )}
 
-        {/* VIEW 2: HISTORY & EVOLUTION */}
+        {/* VIEW 2: STAGES ROADMAP CONTROL */}
+        {mainView === 'stages' && (
+          <div className="space-y-5">
+            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-150 pb-3">
+                <div>
+                  <h4 className="font-display font-bold text-zinc-900 text-sm">🗺️ Controle e Navegação das 5 Etapas GEO</h4>
+                  <p className="text-zinc-500 text-xs mt-0.5">Selecione uma etapa para avançar a esteira do cliente e executar seu agente correspondente.</p>
+                </div>
+                <span className="text-xs font-mono font-bold bg-zinc-100 text-zinc-800 px-3 py-1.5 rounded-xl border border-zinc-200 self-start">
+                  Etapa Atual: #{currentStage}
+                </span>
+              </div>
+
+              {/* Interactive Stage Selector Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                {[1, 2, 3, 4, 5].map(stage => {
+                  const isCurrent = currentStage === stage;
+                  const agentForStage = agents.find(a => a.stage === stage)!;
+                  return (
+                    <button
+                      key={stage}
+                      onClick={() => handleStageSelect(stage)}
+                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between h-24 ${
+                        isCurrent
+                          ? 'bg-zinc-950 text-white border-zinc-900 shadow-md scale-[1.02]'
+                          : stage < currentStage
+                          ? 'bg-emerald-50 text-emerald-900 border-emerald-200 hover:bg-emerald-100/60'
+                          : 'bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[9px] font-mono font-bold uppercase ${isCurrent ? 'text-zinc-300' : 'text-zinc-400'}`}>
+                          Etapa #{stage}
+                        </span>
+                        {stage < currentStage && <IconCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                      </div>
+                      <div>
+                        <p className="font-bold text-xs leading-tight line-clamp-2">{stageLabels[stage].split(' — ')[1] || stageLabels[stage]}</p>
+                        <p className={`text-[10px] font-mono mt-1 ${isCurrent ? 'text-zinc-400' : 'text-zinc-500'}`}>🤖 {agentForStage.name}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Stage Action Box */}
+              <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div>
+                  <h5 className="font-bold text-zinc-900 text-xs">Etapa Selecionada: #{currentStage} — {stageLabels[currentStage]}</h5>
+                  <p className="text-zinc-500 text-xs mt-0.5">
+                    Agente Responsável: <span className="font-bold text-zinc-800">{agents.find(a => a.stage === currentStage)?.name}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    const mappedAgent = stageAgentMap[currentStage];
+                    if (mappedAgent) {
+                      setActiveAgent(mappedAgent);
+                      setMainView('deliverables');
+                      handleRunAgent(mappedAgent);
+                    }
+                  }}
+                  disabled={running}
+                  className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-2.5 px-4 rounded-xl text-xs shadow-md transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap"
+                >
+                  {running ? <><IconHourglass className="w-3.5 h-3.5" /> Executando...</> : <><IconPlay className="w-3.5 h-3.5" /> ⚡ Executar Agente da Etapa #{currentStage}</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: HISTORY & EVOLUTION */}
         {mainView === 'history' && (
           <ClientHistoryPanel client={client} />
         )}
 
-        {/* VIEW 3: CHAT 360 */}
+        {/* VIEW 4: CHAT 360 */}
         {mainView === 'chat' && (
           <div className="flex-1 flex flex-col min-h-[420px]">
             <div className="flex items-center gap-2 mb-3 bg-white p-3 border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-700">
@@ -503,40 +737,13 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
           </div>
         )}
 
-        {/* VIEW 4: STAGES ROADMAP */}
-        {mainView === 'stages' && (
-          <div className="space-y-4">
-            <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-4">
-              <h4 className="font-display font-bold text-zinc-900 text-sm">🗺️ Roteiro de Implantação pelas 5 Etapas GEO</h4>
-              <div className="space-y-3">
-                {[1, 2, 3, 4, 5].map(stage => (
-                  <div
-                    key={stage}
-                    className={`p-4 rounded-xl border transition-all ${
-                      stage <= client.currentStage ? 'bg-emerald-50/50 border-emerald-200' : 'bg-zinc-50 border-zinc-200 opacity-60'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[10px] font-mono font-bold text-zinc-500 uppercase">Etapa {stage}</span>
-                      <span className={`text-xs font-bold ${stage <= client.currentStage ? 'text-emerald-700' : 'text-zinc-400'}`}>
-                        {stage <= client.currentStage ? '✓ Em Andamento / Concluída' : 'Pendente'}
-                      </span>
-                    </div>
-                    <h5 className="font-bold text-zinc-900 text-xs">{stageLabels[stage]}</h5>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* GEO Stage Progress Footer */}
         <div className="border-t border-zinc-200 pt-3 mt-auto">
           <div className="flex items-center gap-2">
             {[1, 2, 3, 4, 5].map(stage => (
               <div key={stage} className="flex-1 flex flex-col items-center gap-1.5">
-                <div className={`w-full h-2 rounded-full ${stage <= client.currentStage ? 'bg-zinc-950' : 'bg-zinc-200'}`} />
-                <span className={`text-[9px] font-mono font-bold ${stage <= client.currentStage ? 'text-zinc-800' : 'text-zinc-400'}`}>
+                <div className={`w-full h-2 rounded-full ${stage <= currentStage ? 'bg-zinc-950' : 'bg-zinc-200'}`} />
+                <span className={`text-[9px] font-mono font-bold ${stage <= currentStage ? 'text-zinc-800' : 'text-zinc-400'}`}>
                   ETAPA {stage}
                 </span>
               </div>
