@@ -6,7 +6,7 @@ import Modal from '../components/Modal';
 import {
   IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
   IconShield, IconFolder, IconClipboard, IconChat, IconBot, IconHourglass,
-  IconSend, IconChevron, IconNote,
+  IconSend, IconChevron, IconNote, IconRefresh,
 } from '../components/icons';
 
 interface LeadsListProps {
@@ -199,18 +199,154 @@ function LeadEditPanel({ lead, onSave, onCancel }: { lead: Lead, onSave: (update
   );
 }
 
+// ─── Diagnostic Field Editor ───────────────────────────────────────────────
+function DiagnosticEditor({ diagnostic, leadId, onSaved }: {
+  diagnostic: any; leadId: string; onSaved: () => void;
+}) {
+  const { updateDiagnostic } = useLeads();
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  // Local editable state mirrors the diagnostic
+  const [gk, setGk] = useState({
+    robotsTxtAllowAiBots: diagnostic.gatekeeperStatus.robotsTxtAllowAiBots,
+    ssrActive: diagnostic.gatekeeperStatus.ssrActive,
+    hasPriceGatekeeperIssue: diagnostic.gatekeeperStatus.hasPriceGatekeeperIssue,
+  });
+  const [meta, setMeta] = useState({
+    organizationSchemaPresent: diagnostic.metadataAnalysis.organizationSchemaPresent,
+    personSchemaPresent: diagnostic.metadataAnalysis.personSchemaPresent,
+    llmsTxtPublished: diagnostic.metadataAnalysis.llmsTxtPublished,
+  });
+  const [content, setContent] = useState({
+    hasTldrAnswerFirstParagraph: diagnostic.contentReview.factorsDetected.hasTldrAnswerFirstParagraph,
+    hasStatisticsPer150Words: diagnostic.contentReview.factorsDetected.hasStatisticsPer150Words,
+    hasExpertQuotes: diagnostic.contentReview.factorsDetected.hasExpertQuotes,
+    hasHtmlComparisonTables: diagnostic.contentReview.factorsDetected.hasHtmlComparisonTables,
+  });
+  const [geoScore, setGeoScore] = useState<number>(diagnostic.overallGeoScore ?? 0);
+
+  const Toggle = ({ label, value, onChange, hint }: { label: string; value: boolean; onChange: (v: boolean) => void; hint?: string }) => (
+    <div className="flex items-center justify-between gap-3 py-2 border-b border-zinc-100 last:border-0">
+      <div>
+        <span className="text-zinc-800 font-medium text-xs">{label}</span>
+        {hint && <span className="block text-[10px] text-zinc-400 font-mono mt-0.5">{hint}</span>}
+      </div>
+      <button
+        onClick={() => onChange(!value)}
+        className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer flex-shrink-0 ${
+          value ? 'bg-emerald-500' : 'bg-zinc-300'
+        }`}
+      >
+        <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+          value ? 'translate-x-5' : 'translate-x-0'
+        }`} />
+      </button>
+    </div>
+  );
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMsg(null);
+    try {
+      await updateDiagnostic(leadId, {
+        overallGeoScore: geoScore,
+        gatekeeperStatus: {
+          ...diagnostic.gatekeeperStatus,
+          ...gk,
+        },
+        metadataAnalysis: {
+          ...diagnostic.metadataAnalysis,
+          ...meta,
+        },
+        contentReview: {
+          ...diagnostic.contentReview,
+          factorsDetected: {
+            ...diagnostic.contentReview.factorsDetected,
+            ...content,
+          },
+        },
+      });
+      setMsg('✅ Diagnóstico atualizado com sucesso!');
+      onSaved();
+    } catch (e: any) {
+      setMsg(`❌ Erro: ${e.message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-sm space-y-5">
+      <h4 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2 flex items-center gap-2">
+        <IconEdit className="w-4 h-4 text-zinc-400" /> Editar Dados do Diagnóstico
+      </h4>
+
+      {/* GEO Score */}
+      <div>
+        <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase block mb-1">GEO Score Geral</label>
+        <input
+          type="number" min={0} max={100} value={geoScore}
+          onChange={e => setGeoScore(parseInt(e.target.value) || 0)}
+          className="w-24 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-1.5 text-sm font-mono font-bold"
+        />
+        <span className="text-zinc-400 text-xs ml-2">/ 100</span>
+      </div>
+
+      {/* Gatekeeper */}
+      <div>
+        <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase mb-2">⚙️ Technical Gatekeeper</p>
+        <Toggle label="Bots de IA liberados no robots.txt" value={gk.robotsTxtAllowAiBots} onChange={v => setGk(s => ({...s, robotsTxtAllowAiBots: v}))} hint="DETERMINÍSTICO" />
+        <Toggle label="SSR ativo (conteúdo sem JS)" value={gk.ssrActive} onChange={v => setGk(s => ({...s, ssrActive: v}))} hint="DETERMINÍSTICO" />
+        <Toggle label="Preços NÃO visíveis (issue)" value={gk.hasPriceGatekeeperIssue} onChange={v => setGk(s => ({...s, hasPriceGatekeeperIssue: v}))} hint="HEURÍSTICO — true = preço ausente" />
+      </div>
+
+      {/* Metadata */}
+      <div>
+        <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase mb-2">🗂 Metadata Entity</p>
+        <Toggle label="Schema Organization presente" value={meta.organizationSchemaPresent} onChange={v => setMeta(s => ({...s, organizationSchemaPresent: v}))} hint="DETERMINÍSTICO" />
+        <Toggle label="Schema Person presente" value={meta.personSchemaPresent} onChange={v => setMeta(s => ({...s, personSchemaPresent: v}))} hint="DETERMINÍSTICO" />
+        <Toggle label="/llms.txt publicado" value={meta.llmsTxtPublished} onChange={v => setMeta(s => ({...s, llmsTxtPublished: v}))} hint="DETERMINÍSTICO" />
+      </div>
+
+      {/* Content */}
+      <div>
+        <p className="text-[10px] font-mono font-bold text-zinc-400 uppercase mb-2">📝 Content Absorption</p>
+        <Toggle label="AEO: resposta nas primeiras 60 palavras" value={content.hasTldrAnswerFirstParagraph} onChange={v => setContent(s => ({...s, hasTldrAnswerFirstParagraph: v}))} hint="HEURÍSTICO" />
+        <Toggle label="Estatísticas a cada 150 palavras" value={content.hasStatisticsPer150Words} onChange={v => setContent(s => ({...s, hasStatisticsPer150Words: v}))} hint="HEURÍSTICO" />
+        <Toggle label="Citações de especialistas" value={content.hasExpertQuotes} onChange={v => setContent(s => ({...s, hasExpertQuotes: v}))} hint="HEURÍSTICO — 'Segundo McKinsey...', blockquote" />
+        <Toggle label="Tabelas comparativas HTML" value={content.hasHtmlComparisonTables} onChange={v => setContent(s => ({...s, hasHtmlComparisonTables: v}))} hint="DETERMINÍSTICO — exige <td>" />
+      </div>
+
+      {msg && (
+        <p className="text-xs font-medium bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">{msg}</p>
+      )}
+
+      <div className="flex justify-end gap-2 pt-2 border-t border-zinc-100">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-60 text-white font-semibold py-2 px-4 rounded-xl text-xs cursor-pointer transition-all"
+        >
+          {saving ? <><IconHourglass className="w-3.5 h-3.5" /> Salvando...</> : <><IconCheck className="w-3.5 h-3.5" /> Salvar Correções</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Lead Detail Panel ──────────────────────────────────────────────────────
 function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
   lead: Lead; onClose: () => void; onNavigate: (page: string, id?: string) => void; onLeadUpdated: () => void;
 }) {
   const { diagnostic, loading: diagLoading, fetchDiagnostic } = useDiagnostic(lead.id);
-  const { runDiagnostic, sendReport, sendFollowup, downloadPdfReport, convertToClient, editLead, deleteLead } = useLeads();
+  const { runDiagnostic, sendReport, sendFollowup, convertToClient, editLead, deleteLead } = useLeads();
   const [running, setRunning] = useState(false);
   const [sending, setSending] = useState(false);
-  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [sendingFollowup, setSendingFollowup] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  
+  const [showDiagEditor, setShowDiagEditor] = useState(false);
+
   // Tab switcher
   const [activeTab, setActiveTab] = useState<'dashboard' | 'agents' | 'chat'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
@@ -242,7 +378,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     setMessage(null);
     try {
       await sendReport(lead.id);
-      setMessage('Relatório HTML + Anexo PDF enviados por e-mail!');
+      setMessage('Relatório HTML enviado por e-mail com sucesso!');
     } catch (e: any) {
       setMessage(`Erro: ${e.message}`);
     } finally {
@@ -250,17 +386,19 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
     }
   };
 
-  const handleDownloadPdf = async () => {
-    setDownloadingPdf(true);
+  const handleRerunDiagnostic = async () => {
+    if (!window.confirm('Refazer o diagnóstico irá substituir os dados atuais. Continuar?')) return;
+    setRunning(true);
     setMessage(null);
     try {
-      const domain = (lead.url || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
-      await downloadPdfReport(lead.id, `Relatorio_GEO_${domain}.pdf`);
-      setMessage('Download do PDF concluído!');
+      await runDiagnostic(lead.id);
+      setMessage('Diagnóstico reiniciado! Aguarde o processamento...');
+      setShowDiagEditor(false);
+      setTimeout(() => onLeadUpdated(), 4000);
     } catch (e: any) {
-      setMessage(`Erro ao baixar PDF: ${e.message}`);
+      setMessage(`Erro: ${e.message}`);
     } finally {
-      setDownloadingPdf(false);
+      setRunning(false);
     }
   };
 
@@ -375,19 +513,19 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                       {sending ? (
                         <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
                       ) : (
-                        <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar HTML + PDF</span>
+                        <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar HTML</span>
                       )}
                     </button>
                     <button
-                      id={`download-pdf-${lead.id}`}
-                      onClick={handleDownloadPdf}
-                      disabled={downloadingPdf}
-                      className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                      id={`rerun-diag-${lead.id}`}
+                      onClick={handleRerunDiagnostic}
+                      disabled={running}
+                      className="flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
                     >
-                      {downloadingPdf ? (
-                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Gerando PDF...</span>
+                      {running ? (
+                        <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Executando...</span>
                       ) : (
-                        <span className="flex items-center gap-1.5"><IconNote className="w-3.5 h-3.5" /> Baixar PDF Real</span>
+                        <span className="flex items-center gap-1.5"><IconRefresh className="w-3.5 h-3.5" /> Refazer Diagnóstico</span>
                       )}
                     </button>
                     <button
@@ -550,6 +688,28 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
 
                     {activeTab === 'chat' && (
                       <LeadChat leadId={lead.id} agentName="orchestrator" leadUrl={lead.url} />
+                    )}
+
+                    {/* Editor de diagnóstico manual */}
+                    {activeTab === 'agents' && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => setShowDiagEditor(v => !v)}
+                          className="flex items-center gap-2 text-xs font-semibold text-zinc-500 hover:text-zinc-900 border border-zinc-200 hover:border-zinc-400 px-3 py-2 rounded-xl transition-all cursor-pointer bg-white"
+                        >
+                          <IconEdit className="w-3.5 h-3.5" />
+                          {showDiagEditor ? 'Fechar Editor' : 'Editar Dados do Diagnóstico Manualmente'}
+                        </button>
+                        {showDiagEditor && d && (
+                          <div className="mt-3">
+                            <DiagnosticEditor
+                              diagnostic={d}
+                              leadId={lead.id}
+                              onSaved={() => { fetchDiagnostic(); setShowDiagEditor(false); }}
+                            />
+                          </div>
+                        )}
+                      </div>
                     )}
                   </>
                 )}

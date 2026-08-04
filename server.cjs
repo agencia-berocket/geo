@@ -1165,6 +1165,85 @@ app.get('/api/admin/diagnostic/pdf/:leadId', verifyAdminToken, async (req, res) 
   }
 });
 
+// ─── PATCH DIAGNOSTIC (edição manual dos dados) ──────────────────────────────
+app.patch('/api/admin/diagnostic/:leadId', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.params;
+  const patch = req.body; // campo livre — apenas os campos alterados
+  if (!patch || typeof patch !== 'object') {
+    return res.status(400).json({ error: 'Body inválido' });
+  }
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const diagsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
+    const diagsData = await fetchFirestore(diagsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    let diagDocName = null;
+    for (const doc of (diagsData.documents || [])) {
+      const f = doc.fields || {};
+      const docLeadId = f.leadId?.stringValue || f.clientId?.stringValue;
+      if (docLeadId === leadId || doc.name.split('/').pop() === leadId) {
+        diagDocName = doc.name;
+        break;
+      }
+    }
+
+    if (!diagDocName) {
+      return res.status(404).json({ error: 'Diagnóstico não encontrado para este lead' });
+    }
+
+    // Converter patch JS para formato Firestore
+    function toFirestoreValue(val) {
+      if (val === null || val === undefined) return { nullValue: null };
+      if (typeof val === 'boolean') return { booleanValue: val };
+      if (typeof val === 'number' && Number.isInteger(val)) return { integerValue: String(val) };
+      if (typeof val === 'number') return { doubleValue: val };
+      if (typeof val === 'string') return { stringValue: val };
+      if (Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
+      if (typeof val === 'object') {
+        const fields = {};
+        for (const [k, v] of Object.entries(val)) { fields[k] = toFirestoreValue(v); }
+        return { mapValue: { fields } };
+      }
+      return { stringValue: String(val) };
+    }
+
+    // Flatten o patch para dot-notation paths do Firestore (suporta aninhamento)
+    function flattenPatch(obj, prefix = '') {
+      const result = {};
+      for (const [k, v] of Object.entries(obj)) {
+        const key = prefix ? `${prefix}.${k}` : k;
+        if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+          Object.assign(result, flattenPatch(v, key));
+        } else {
+          result[key] = toFirestoreValue(v);
+        }
+      }
+      return result;
+    }
+
+    const flatFields = flattenPatch(patch);
+    const updateFields = {};
+    for (const [k, v] of Object.entries(flatFields)) {
+      updateFields[k] = v;
+    }
+
+    const updateMask = Object.keys(flatFields).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+    const patchUrl = `https://firestore.googleapis.com/v1/${diagDocName}?${updateMask}`;
+
+    await fetchFirestore(patchUrl, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields: updateFields }),
+    });
+
+    res.json({ success: true, message: 'Diagnóstico atualizado manualmente.' });
+  } catch (err) {
+    console.error('Erro ao atualizar diagnóstico:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── FOLLOW-UP AUTOMATION (48h AUTOMÁTICO & MANUAL) ────────────────────────
 app.post('/api/admin/leads/send-followup', verifyAdminToken, async (req, res) => {
   const { leadId } = req.body;

@@ -213,7 +213,14 @@ export function useLeads() {
     window.URL.revokeObjectURL(url);
   }, []);
 
-  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, downloadPdfReport, convertToClient };
+  const updateDiagnostic = useCallback(async (leadId: string, patch: Record<string, unknown>) => {
+    return apiFetch<{ success: boolean }>(`/admin/diagnostic/${leadId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  }, []);
+
+  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic };
 }
 
 export function useDiagnostic(leadId: string | null) {
