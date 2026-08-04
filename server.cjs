@@ -1642,6 +1642,28 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
     const baseUrl = url.startsWith('http') ? url : `https://${url}`;
     const domain = baseUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
 
+    // Buscar informações do cliente para herança de contexto real
+    let clientInfo = { company: '', name: '', url: baseUrl };
+    try {
+      const accessToken = await getGoogleAccessToken();
+      const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
+      const clientsResponse = await fetch(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const clientsData = await clientsResponse.json();
+
+      for (const doc of (clientsData.documents || [])) {
+        const docId = doc.name.split('/').pop();
+        const f = doc.fields || {};
+        if (docId === clientId || f.id?.stringValue === clientId) {
+          clientInfo = {
+            company: f.company?.stringValue || '',
+            name: f.name?.stringValue || '',
+            url: f.url?.stringValue || baseUrl,
+          };
+          break;
+        }
+      }
+    } catch (e) {}
+
     let result = {};
     switch (agentName) {
       case 'gatekeeper':
@@ -1650,12 +1672,12 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
         break;
       case 'metadata':
         result = await runMetadataAgent(htmlContent, domain);
-        result.llmsTxt = result.suggestedLlmsTxt || generateLlmsTxtContent({ url }, { overallGeoScore: 75 });
-        result.generatedJsonLd = generateJsonLdSchema({ company: domain, url }, domain);
+        result.llmsTxt = generateLlmsTxtContent(clientInfo, { overallGeoScore: 75 }, htmlContent);
+        result.generatedJsonLd = generateJsonLdSchema(clientInfo, domain, htmlContent);
         break;
       case 'content':
         result = await runContentAgent(htmlContent);
-        result.aeoTemplates = generateAeoContentTemplate(domain);
+        result.aeoTemplates = generateAeoContentTemplate(domain, htmlContent);
         break;
       case 'intent': {
         const key = process.env.OPENROUTER_API_KEY || '';
@@ -1675,9 +1697,9 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
 
         const deliverables = {
           robotsTxt: generateRobotsTxt(domain, gk.robotsTxtAllowAiBots),
-          jsonLdSchema: generateJsonLdSchema({ company: domain, url }, domain),
-          llmsTxt: generateLlmsTxtContent({ company: domain, url }, { overallGeoScore: score }),
-          aeoTemplates: generateAeoContentTemplate(domain),
+          jsonLdSchema: generateJsonLdSchema(clientInfo, domain, htmlContent),
+          llmsTxt: generateLlmsTxtContent(clientInfo, { overallGeoScore: score }, htmlContent),
+          aeoTemplates: generateAeoContentTemplate(domain, htmlContent),
         };
 
         const actionPlanMarkdown = generateActionPlanByStages({ clientUrl: baseUrl, overallGeoScore: score, actionItemsPriorityList: actions });
