@@ -663,7 +663,7 @@ function generateHtmlReport(lead, diagnostic) {
       </tr>
     </table>
     
-    ${diagnostic.gatekeeperStatus.blockedCrawlers.length > 0 ? `
+    ${(diagnostic.gatekeeperStatus?.blockedCrawlers || []).length > 0 ? `
     <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:12px;margin-top:12px;font-size:12px;color:#b91c1c;line-height:1.4;${fontMono}">
       ⚠️ <strong>Bots Bloqueados:</strong> ${diagnostic.gatekeeperStatus.blockedCrawlers.join(', ')}
     </div>` : ''}
@@ -838,8 +838,58 @@ function generateHtmlReport(lead, diagnostic) {
 </html>`;
 }
 
+function getChromeExecutablePath() {
+  const fs = require('fs');
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  const paths = [
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+  ];
+  for (const p of paths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
 // ─── PDF Report Generator ─────────────────────────────────────────────────────
-function generatePdfReport(lead, diagnostic) {
+async function generatePdfReport(lead, diagnostic) {
+  const htmlContent = generateHtmlReport(lead, diagnostic);
+
+  // 1. Tentar renderizar o HTML completo via Puppeteer Core para PDF 100% idêntico
+  try {
+    const puppeteer = require('puppeteer-core');
+    const executablePath = getChromeExecutablePath();
+
+    if (executablePath) {
+      const browser = await puppeteer.launch({
+        executablePath,
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+      });
+
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '20px', bottom: '20px', left: '15px', right: '15px' }
+      });
+
+      await browser.close();
+      return pdfBuffer;
+    }
+  } catch (puppeteerErr) {
+    console.error('Puppeteer rendering fallback to PDFKit:', puppeteerErr);
+  }
+
+  // 2. Fallback seguro para PDFKit se Puppeteer não estiver disponível
   const PDFDocument = require('pdfkit');
   return new Promise((resolve, reject) => {
     try {

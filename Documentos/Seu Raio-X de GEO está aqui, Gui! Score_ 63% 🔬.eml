@@ -1,0 +1,817 @@
+Delivered-To: garter@garter.com.br
+Received: by 2002:a05:6400:a310:b0:2db:3b62:6f22 with SMTP id r16csp2821970ecb;
+        Tue, 4 Aug 2026 12:01:59 -0700 (PDT)
+X-Received: by 2002:a05:6808:6907:b0:479:ead7:2a5b with SMTP id 5614622812f47-4afae0e3e59mr446768b6e.16.1785870119565;
+        Tue, 04 Aug 2026 12:01:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1785870119; cv=none;
+        d=google.com; s=arc-20260327;
+        b=ordM7ZLGsdpR973gNb6RA62mcmx5mVaz00lYFDBKQOJF6QrVxwH/3n3it5gKwH5bsS
+         qhG/82zcThKwDV7yL+gKxyWliAry4vd/QOmIBUYHVLBpWDM8KrUpvdJPWqtPi4+O9Ns6
+         W3OkvaKJi9zEpIybaablE5I/MgxKdzoivCi0kfezw01Yaw++mpXnM1yV/YQRTS9v7kBX
+         kJkBkLkBkO1HE6yy6v9QY6dLQok1F6DrVe/5Hg8e2YHBZOf2MjBPd0lQ1cLz/z7gjQ37
+         WIYN/2mHZM0d+urSL3Evwyrvwxrtv8/IyF2vQGKWFjmtcmwZn1XCYnAfJHxuMqK7Preh
+         KVBQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;
+        h=mime-version:date:message-id:subject:to:from:dkim-signature;
+        bh=/2O+tYkEIOvIcqIeg3ySvIE5C0/sZSJGb25D1zGMo88=;
+        fh=dmHYAU16ZLw3LAqcvRt42nv0m68PzAjsjYfNzkr00T4=;
+        b=REARSddTnvGgzlBx9jIar5Zn0u0PdLPMZiIGPPqa9gZZnUJOjVthTbhczUwookMyc9
+         FDM+nKvrxtAq6cSP/ZyhWwbNhzQJD3jT1aOcDNqsPMcqh+vQZrEA7ceH20J67feLsM5N
+         CEBv9yAn5AhpB/TvAg2LpvuQAdX9QQoio9gu+mE9ETlBczbUcy1kcKauE7FrwqyGOuCq
+         icoO/FpIxtVT6jMa5auU6W2VTe8vupRzBOwd5M2i648T1rLDAg3KC9MpK6I1knUFveyv
+         CQrS43idLq0AjrAFrPJXEGT9/lKL6rwcBXgPLT2bkTXfbagUHxWMuOob2vv4Y6Qt9CYf
+         ZMbg==;
+        dara=google.com
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@berocket-com-br.20251104.gappssmtp.com header.s=20251104 header.b=KNmoHrk3;
+       spf=none (google.com: berocket@berocket.com.br does not designate permitted sender hosts) smtp.mailfrom=berocket@berocket.com.br;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=berocket.com.br;
+       dara=neutral header.i=@garter.com.br
+Return-Path: <berocket@berocket.com.br>
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 5614622812f47-4afae861031sor73844b6e.10.2026.08.04.12.01.58
+        for <garter@garter.com.br>
+        (Google Transport Security);
+        Tue, 04 Aug 2026 12:01:59 -0700 (PDT)
+Received-SPF: none (google.com: berocket@berocket.com.br does not designate permitted sender hosts) client-ip=209.85.220.41;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@berocket-com-br.20251104.gappssmtp.com header.s=20251104 header.b=KNmoHrk3;
+       spf=none (google.com: berocket@berocket.com.br does not designate permitted sender hosts) smtp.mailfrom=berocket@berocket.com.br;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=berocket.com.br;
+       dara=neutral header.i=@garter.com.br
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=berocket-com-br.20251104.gappssmtp.com; s=20251104; t=1785870118; x=1786474918; darn=garter.com.br;
+        h=content-type:mime-version:date:message-id:subject:to:from:from:to
+         :cc:subject:date:message-id:reply-to:content-type;
+        bh=/2O+tYkEIOvIcqIeg3ySvIE5C0/sZSJGb25D1zGMo88=;
+        b=KNmoHrk3ec/f6QZnEEc8kO+QuNyOrzV7anxAVhtza3KqenddYK7f3hoJPHkNecSrKb
+         0eRwHGLUNZRosllb1w5nyZNCMQ7yP1+7mSPU0R3T2DCfgpj1Cwxj2LJKJr7udIAhQ7qK
+         AVGJzeoflozuP7jQKHZtwWIu0A0R9oEE8GqVcc3R3mXat5gpM8+84sND5ApAzpyeVNlr
+         aRgweFVu9JH8gwX4VdSo8tcJmy+Ciy4FMhg00lFNZehdx3RreFjUD1u+7lWkOhHbGsU3
+         d+ikvFfDZOmdEQaR2jvtlFvrrHS4Nhi7JjCOeFAZZ3+4/poAJmY5modLBEMK9E6lYrPn
+         wZpQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20251104; t=1785870118; x=1786474918;
+        h=content-type:mime-version:date:message-id:subject:to:from:x-gm-gg
+         :x-gm-message-state:from:to:cc:subject:date:message-id:reply-to
+         :content-type;
+        bh=/2O+tYkEIOvIcqIeg3ySvIE5C0/sZSJGb25D1zGMo88=;
+        b=p7r34t28TmWtwXYoWivY3TG1H1OTTlvo5BJDIxJAbtp4/M32uD293wfLBeab6V7qHK
+         2vht7vCdmTWf8Y9oLPtYLvnavkmHeikXlT6jm66Ne+d2poHjUVjLtZtoFrweDBr6bQxs
+         wMsFcc5zJk53PcxqH8NuPCQEo5+bf632d+jnZhhA6+TI1q1q1ASwBy27zsb2TSEijrfk
+         x0TCoQElvRdx+Utc3/SgJazpJQpwowNIokC7MHa7vPC6D/u1/8gG7LaFd4VkbPiTa+DF
+         QXVKbjLs6BG6oYfcUSDJXOL3MIXfBv6DxeObK86KKvx03zMnwxmoNAkwwSMAn+yrbJTw
+         qUhg==
+X-Gm-Message-State: AOJu0YycRvU3dP+row/s71ZvFq/TOxmdgafLyUxECOrDDFF9h19xoNor
+	pfhnhnDfa2qRr6x93oUI/B7+e/F3EJ8psv7gdEGCW2BAydb60kc9kxQefJiSlg4BSXkTp33Fnkm
+	Z/SDH
+X-Gm-Gg: AR+sD13Saiou0TEpt5ofVARVI3c/g803BXEgvk4F3hqQKaHPC1Y1pUDFO1QA/r2/O7f
+	GKlEe+fqjgMXRYPDWcL8trROfBunLWQShatfe4dtc5qE5L7gkbuOYwlSzpzlORfNhnGrV8sXGtT
+	e4r/QFqA8pSigUY/OGTNE7traOONQddhCj2GUMLR7pE+YZo/Ef4EgWXTMO0YROYvMxUe5n4/L59
+	1zQndoEiiPiMu0jkyBsbE3JRqfCP82AVlQaWTRUe1nAv7xCw6MDbMkcRHFTjcuGlDyoGnnH9pns
+	b3qWxugA9fbo/XkE4COm6MB7gXL1nInOloN6F5wXkT336nl8UJqP2RewVMD2zzFmjRrOoeoTpiK
+	3GFK9HWWxfz4r+ePV2Q6YJIs6ieJBXCqq5dVlDrXYX6eXSTb14JBt+M2IoGgdEF50HHa7tDXPjG
+	Y2aQsGehwBjfyy5HB/FY3Nwlmh+vvVTCuxm22UeNl4TE1Gaq85oEvVTufm4qezbBsyOGnqywMou
+	jlnPvf9o985kA==
+X-Received: by 2002:a05:6808:1407:b0:496:11f1:f2b3 with SMTP id 5614622812f47-4afae15f97amr341023b6e.20.1785870117906;
+        Tue, 04 Aug 2026 12:01:57 -0700 (PDT)
+Return-Path: <berocket@berocket.com.br>
+Received: from [127.0.0.1] (srv1360143.hstgr.cloud. [187.77.36.147])
+        by smtp.gmail.com with ESMTPSA id 5614622812f47-4afae458389sm192093b6e.2.2026.08.04.12.01.54
+        for <garter@garter.com.br>
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Tue, 04 Aug 2026 12:01:56 -0700 (PDT)
+From: "Guilherme Rossi - b.rocket" <berocket@berocket.com.br>
+To: garter@garter.com.br
+Subject: =?UTF-8?Q?Seu_Raio-X_de_GEO_est=C3=A1_aqui=2C_Gui!?=
+ =?UTF-8?Q?_Score=3A_63=25_=F0=9F=94=AC?=
+Message-ID: <84057c62-08c4-b2b7-1712-049d3f352479@berocket.com.br>
+Date: Tue, 04 Aug 2026 19:01:53 +0000
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="--_NmP-314803b401b05793-Part_1"
+
+----_NmP-314803b401b05793-Part_1
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+<!DOCTYPE html>
+<html lang=3D"pt-BR">
+<head>
+<meta charset=3D"UTF-8"/>
+<meta name=3D"viewport" content=3D"width=3Ddevice-width,=
+initial-scale=3D1"/>
+<title>Raio-X de GEO =E2=80=94 https://www.casadevideo=
+.com.br/ | B.ROCKET</title>
+<link rel=3D"preconnect" href=3D"https://fonts.=
+googleapis.com">
+<link rel=3D"preconnect" href=3D"https://fonts.gstatic.=
+com" crossorigin>
+<link href=3D"https://fonts.googleapis.com/css2?=
+family=3DInter:wght@300;400;500;600;700;800&family=3DSpace+Grotesk:wght@500=
+;750;800&family=3DJetBrains+Mono:wght@500;700&display=3Dswap" =
+rel=3D"stylesheet">
+<style>
+  @media (max-width: 600px) {
+    .container { padding: 15px !important; }
+    .grid2 { =
+grid-template-columns: 1fr !important; gap: 10px !important; }
+    .score-card { padding: 24px !important; }
+    .hero-title { font-size: =
+28px !important; }
+  }
+</style>
+</head>
+<body style=3D"background-color:#f4=
+f5f8; background-image:radial-gradient(#e2e4e9 1px, transparent 1px), =
+radial-gradient(#e2e4e9 1px, transparent 1px); background-size:20px 20px; =
+background-position:0 0, 10px 10px; color:#0c0d0e;font-family:'Inter', =
+-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, =
+sans-serif; margin:0;padding:0;-webkit-font-smoothing:antialiased;min-heigh=
+t:100vh;">
+<div class=3D"container" style=3D"max-width:650px;margin:0 =
+auto;padding:30px 15px;">
+
+  <!-- Header -->
+  <table cellpadding=3D"0" =
+cellspacing=3D"0" border=3D"0" width=3D"100%" style=3D"margin-bottom:28px;b=
+order-bottom:1px solid #e4e4e7;padding-bottom:18px;">
+    <tr>
+      <td align=3D"left" style=3D"vertical-align:middle;">
+        <!-- Logo do Astronauta do site -->
+        <div =
+style=3D"display:inline-block;width:32px;height:32px;background-color:#0909=
+0b;border:1px solid #27272a;border-radius:10px;vertical-align:middle;positi=
+on:relative;margin-right:10px;text-align:center;">
+          <div =
+style=3D"display:inline-block;width:22px;height:22px;background-color:#ffff=
+ff;border:1px solid #f4f4f5;border-radius:50%;margin-top:4px;position:relat=
+ive;text-align:center;">
+            <div style=3D"display:inline-block;wid=
+th:14px;height:10px;background-color:#09090b;border-radius:3px;margin-top:4=
+.5px;position:relative;overflow:hidden;">
+              <div =
+style=3D"position:absolute;top:1px;left:1px;width:3px;height:3px;background=
+-color:rgba(255,255,255,0.4);border-radius:50%;"></div>
+              <div style=3D"position:absolute;bottom:1px;right:1px;width:3p=
+x;height:3px;background-color:#10b981;border-radius:50%;"></div>
+            </div>
+            <div style=3D"position:absolute;bottom:2px;l=
+eft:6px;width:10px;height:2px;background-color:#d4d4d8;border-radius:999px;=
+"></div>
+          </div>
+        </div>
+        <!-- Nome da marca -->
+        <div style=3D"font-family:'Space Grotesk', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; =
+font-weight:900;font-size:18px;color:#09090b;letter-spacing:1.=
+5px;display:inline-block;vertical-align:middle;text-transform:uppercase;mar=
+gin-right:2px;">
+          B.ROCKET
+        </div>
+        <div =
+style=3D"font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, =
+'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight:900;font-size=
+:18px;color:#dc2626;display:inline-block;vertical-align:middle;margin-right=
+:6px;">*</div>
+        <!-- Badge Neum=C3=B3rfico -->
+        <div style=3D"display:inline-block;background:#e4e4e7;border-top:1p=
+x solid #ffffff;border-left:1px solid #ffffff;border-right:1px solid =
+#cbd5e1;border-bottom:1px solid #cbd5e1;border-radius:8px;padding:3px =
+8px;vertical-align:middle;text-align:center;box-shadow:inset 1px 1px 2px =
+rgba(13,20,33,0.03);">
+          <span style=3D"font-family:'JetBrains =
+Mono', 'Courier New', monospace; font-size:9.5px;color:#52525b;font-weight:=
+bold;letter-spacing:1px;text-transform:uppercase;">GEO_CORE_V10</span>
+        </div>
+      </td>
+      <td align=3D"right" =
+style=3D"font-family:'JetBrains Mono', 'Courier New', monospace; =
+font-size:9px;color:#71717a;font-weight:bold;vertical-align:middle;">
+        DIAGN=C3=93STICO // 04/08/2026 // CONFIDENCIAL
+      </td>
+    </tr>
+  </table>
+
+  <!-- Hero & Score -->
+  <div =
+style=3D"text-align:center;margin-bottom:32px;">
+    <div =
+style=3D"font-family:'JetBrains Mono', 'Courier New', monospace; =
+font-size:9.5px;color:#dc2626;letter-spacing:2px;text-transform:uppercase;m=
+argin-bottom:8px;font-weight:bold;">DIAGN=C3=93STICO SEM=C3=82NTICO DE =
+GEO</div>
+    <h1 class=3D"hero-title" style=3D"font-family:'Space Grotesk'=
+, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, =
+sans-serif; font-size:36px;font-weight:800;color:#0c0d0e;margin:0 0 =
+6px;letter-spacing:-1px;text-transform:uppercase;">Raio-X de GEO</h1>
+    <div style=3D"font-family:'JetBrains Mono', 'Courier New', monospace; =
+font-size:13px;color:#71717a;word-break:break-all;margin-bottom:28px;">http=
+s://www.casadevideo.com.br/</div>
+
+    <!-- Score Card Neum=C3=B3rfico -->
+    <div class=3D"score-card" style=3D"background-color:#ffffff; border:1px=
+ solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,=
+0.04); padding:32px; display:inline-block; min-width:240px; =
+text-align:center;">
+      <div style=3D"font-size:64px;font-weight:800;col=
+or:#d97706;font-family:'JetBrains Mono', 'Courier New', monospace; =
+line-height:1;margin:0 auto 10px;">63%</div>
+      <div =
+style=3D"font-family:'JetBrains Mono', 'Courier New', monospace; =
+font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;text-trans=
+form:uppercase;">
+        GEO SCORE // <span style=3D"color:#d97706;font-we=
+ight:bold;">M=C3=89DIO</span>
+      </div>
+      <!-- Resumo did=C3=A1tico =
+comercial sob o score -->
+     =20
+      <div style=3D"background:#fff7ed; =
+border-left:4px solid #d97706; padding:16px; border-radius:8px; =
+margin-top:16px; text-align:left;">
+        <p style=3D"margin:0 0 8px; =
+font-weight:bold; color:#9a3412; font-family:'Space Grotesk', -apple-system=
+, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; =
+font-size:14px; text-transform:uppercase;">=E2=9A=A0=EF=B8=8F Risco =
+Comercial de Perda de Mercado</p>
+        <p style=3D"margin:0; =
+color:#7c2d12; font-size:12.5px; line-height:1.5;">
+          Voc=C3=AA j=C3=A1 possui parte da infraestrutura pronta, mas =
+ainda tem <strong>gargalos severos de citabilidade</strong> que impedem sua=
+ marca de ser recomendada consistentemente. A concorr=C3=AAncia est=C3=A1 =
+se movendo rapidamente. Ao agendar nossa mentoria de 40 minutos, vamos =
+desenhar o mapa de RAG ideal para seu nicho de mercado e garantir que sua =
+marca passe a ser citada com relev=C3=A2ncia nas consultas das principais =
+ferramentas generativas.
+        </p>
+      </div>
+   =20
+    </div>
+  </div>
+
+  <!-- Technical Gatekeeper -->
+  <div style=3D"background-color:=
+#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px =
+30px rgba(13,20,33,0.04); padding:28px; margin-bottom:24px;">
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" width=3D"100%" =
+style=3D"margin-bottom:16px;border-bottom:1px solid =
+#f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align=3D"left" =
+style=3D"vertical-align:middle;">
+          <svg viewBox=3D"0 0 24 24" =
+width=3D"18" height=3D"18" fill=3D"none" stroke=3D"#09090b" =
+stroke-width=3D"2" stroke-linecap=3D"round" stroke-linejoin=3D"round" =
+style=3D"vertical-align:middle;margin-right:8px;"><path d=3D"M12 22s8-4 =
+8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span =
+style=3D"font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, =
+'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight:800;color:#09=
+090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-s=
+pacing:-0.2px;">Technical Gatekeeper</span>
+        </td>
+        <td align=3D"right" style=3D"vertical-align:middle;">
+          <span style=3D"font-family:'JetBrains Mono', 'Courier New', =
+monospace; font-size:9px;font-weight:bold;padding:4px =
+8px;border-radius:6px;color:#15803d;background:#f0fdf4;border:1px solid =
+#bbf7d0;">
+            OK
+          </span>
+        </td>
+      </tr>
+    </table>
+   =20
+    <div style=3D"margin-bottom:10px;font-size:13px;col=
+or:#4b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#16a34a;background:#f0fdf4;=
+border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=93</span> Bots de IA autorizados no robots.=
+txt
+    </div>
+    <div style=3D"margin-bottom:10px;font-size:13px;color:#4=
+b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#16a34a;background:#f0fdf4;=
+border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=93</span> Conte=C3=BAdo acess=C3=ADvel sem =
+Javascript (SSR)
+    </div>
+    <div style=3D"margin-bottom:10px;font-size:=
+13px;color:#4b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#16a34a;background:#f0fdf4;=
+border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=93</span> Pre=C3=A7os expl=C3=ADcitos no =
+HTML para IA
+    </div>
+    <div style=3D"margin-bottom:10px;font-size:13px=
+;color:#4b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#dc2626;background:#fef2f2;=
+border:1px solid #fca5a5;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=97</span> Timestamps atualizados =
+recentemente
+    </div>
+   =20
+    <table cellpadding=3D"0" =
+cellspacing=3D"0" border=3D"0" width=3D"100%" style=3D"margin-top:14px;bord=
+er-top:1px solid #f1f2f5;padding-top:10px;font-size:12px;">
+      <tr>
+        <td style=3D"color:#71717a;font-family:'JetBrains Mono', 'Courier =
+New', monospace;">LAT=C3=8ANCIA DO SERVIDOR:</td>
+        <td =
+align=3D"right" style=3D"font-family:'JetBrains Mono', 'Courier New', =
+monospace; font-weight:bold;color:#16a34a">
+          86ms
+        </td>
+      </tr>
+    </table>
+   =20
+   =20
+  </div>
+
+  <!-- Metadata Entity -->
+  <div style=3D"background-color:#ffffff; border:1px solid #e8e8eb; =
+border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); =
+padding:28px; margin-bottom:24px;">
+    <table cellpadding=3D"0" =
+cellspacing=3D"0" border=3D"0" width=3D"100%" style=3D"margin-bottom:16px;b=
+order-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align=3D"left" style=3D"vertical-align:middle;">
+          <svg viewBox=3D"0 0 24 24" width=3D"18" height=3D"18" =
+fill=3D"none" stroke=3D"#09090b" stroke-width=3D"2" =
+stroke-linecap=3D"round" stroke-linejoin=3D"round" style=3D"vertical-align:=
+middle;margin-right:8px;"><path d=3D"M22 19a2 2 0 0 1-2 2H4a2 2 0 0 =
+1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          <span style=3D"font-family:'Space Grotesk', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; =
+font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-tra=
+nsform:uppercase;letter-spacing:-0.2px;">Metadata Entity</span>
+        </td>
+        <td align=3D"right" style=3D"vertical-align:middle;">
+          <span style=3D"font-family:'JetBrains Mono', 'Courier New', =
+monospace; font-size:9px;font-weight:bold;padding:4px =
+8px;border-radius:6px;color:#b91c1c;background:#fef2f2;border:1px solid =
+#fca5a5;">
+            CR=C3=8DTICO
+          </span>
+        </td>
+      </tr>
+    </table>
+   =20
+    <div style=3D"margin-bottom:10px;font-s=
+ize:13px;color:#4b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#dc2626;background:#fef2f2;=
+border:1px solid #fca5a5;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=97</span> Schema Organization ou =
+LocalBusiness
+    </div>
+    <div style=3D"margin-bottom:10px;font-size:13p=
+x;color:#4b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#dc2626;background:#fef2f2;=
+border:1px solid #fca5a5;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=97</span> Schema Person (Credenciais de =
+Autor)
+    </div>
+    <div style=3D"margin-bottom:10px;font-size:13px;color=
+:#4b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#16a34a;background:#f0fdf4;=
+border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=93</span> Arquivo /llms.txt publicado
+    </div>
+    <div style=3D"margin-bottom:10px;font-size:13px;color:#4b556=
+3;line-height:1.4;font-family:'Inter', -apple-system, BlinkMacSystemFont, =
+'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      <span style=3D"display:inline-block;color:#dc2626;background:#fef2f2;=
+border:1px solid #fca5a5;border-radius:6px;width:18px;height:18px;line-heig=
+ht:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;=
+vertical-align:middle;">=E2=9C=97</span> Mapeamento de redes sociais =
+(sameAs)
+    </div>
+   =20
+   =20
+    <div style=3D"background:#fff7ed;bord=
+er:1px solid #fed7aa;border-radius:10px;padding:12px;margin-top:12px;font-s=
+ize:12px;color:#b45309;line-height:1.4;font-family:'JetBrains Mono', =
+'Courier New', monospace;">
+      =E2=9A=A0=EF=B8=8F <strong>Schemas =
+Faltantes:</strong> Organization, Person, FAQPage, Service
+    </div>
+  </div>
+
+  <!-- Content Absorption -->
+  <div style=3D"background-color:#f=
+fffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px =
+30px rgba(13,20,33,0.04); padding:28px; margin-bottom:24px;">
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" width=3D"100%" =
+style=3D"margin-bottom:16px;border-bottom:1px solid =
+#f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align=3D"left" =
+style=3D"vertical-align:middle;">
+          <svg viewBox=3D"0 0 24 24" =
+width=3D"18" height=3D"18" fill=3D"none" stroke=3D"#09090b" =
+stroke-width=3D"2" stroke-linecap=3D"round" stroke-linejoin=3D"round" =
+style=3D"vertical-align:middle;margin-right:8px;"><path d=3D"M14 2H6a2 2 0 =
+0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points=3D"14 2 14 =
+8 20 8"/></svg>
+          <span style=3D"font-family:'Space Grotesk', =
+-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, =
+sans-serif; font-weight:800;color:#09090b;font-size:16px;vertical-align:mid=
+dle;text-transform:uppercase;letter-spacing:-0.2px;">Content =
+Absorption</span>
+        </td>
+        <td align=3D"right" =
+style=3D"vertical-align:middle;">
+          <span style=3D"font-family:'Jet=
+Brains Mono', 'Courier New', monospace; font-size:9px;font-weight:bold;padd=
+ing:4px 8px;border-radius:6px;color:#b45309;background:#fff7ed;border:1px =
+solid #fed7aa;">
+            AN=C3=81LISE
+          </span>
+        </td>
+      </tr>
+    </table>
+   =20
+    <div class=3D"grid2" =
+style=3D"display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:=
+14px;">
+      <div style=3D"font-size:13px;color:#4b5563;line-height:1.=
+4;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', =
+Roboto, Helvetica, Arial, sans-serif;">
+        <span =
+style=3D"display:inline-block;color:#16a34a;background:#f0fdf4;border:1px =
+solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-height:16px;tex=
+t-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-al=
+ign:middle;">=E2=9C=93</span> Resposta direta no in=C3=ADcio
+      </div>
+      <div style=3D"font-size:13px;color:#4b5563;line-height:1.=
+4;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', =
+Roboto, Helvetica, Arial, sans-serif;">
+        <span =
+style=3D"display:inline-block;color:#16a34a;background:#f0fdf4;border:1px =
+solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-height:16px;tex=
+t-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-al=
+ign:middle;">=E2=9C=93</span> Estat=C3=ADsticas frequentes
+      </div>
+      <div style=3D"font-size:13px;color:#4b5563;line-height:1.=
+4;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', =
+Roboto, Helvetica, Arial, sans-serif;">
+        <span =
+style=3D"display:inline-block;color:#16a34a;background:#f0fdf4;border:1px =
+solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-height:16px;tex=
+t-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-al=
+ign:middle;">=E2=9C=93</span> Cita=C3=A7=C3=B5es de especialistas
+      </div>
+      <div style=3D"font-size:13px;color:#4b5563;line-height:1=
+.4;font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', =
+Roboto, Helvetica, Arial, sans-serif;">
+        <span =
+style=3D"display:inline-block;color:#dc2626;background:#fef2f2;border:1px =
+solid #fca5a5;border-radius:6px;width:18px;height:18px;line-height:16px;tex=
+t-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-al=
+ign:middle;">=E2=9C=97</span> Tabelas comparativas HTML
+      </div>
+    </div>
+   =20
+    <div style=3D"border-top:1px solid =
+#f1f2f5;padding-top:12px;margin-top:12px;font-size:12px;font-family:'JetBra=
+ins Mono', 'Courier New', monospace;">
+      <table cellpadding=3D"0" =
+cellspacing=3D"0" border=3D"0" width=3D"100%">
+        <tr =
+style=3D"height:24px;">
+          <td style=3D"color:#71717a;font-family:'J=
+etBrains Mono', 'Courier New', monospace;">TAMANHO M=C3=89DIO DE =
+CHUNK:</td>
+          <td align=3D"right" style=3D"font-weight:bold;color:#=
+09090b;font-family:'JetBrains Mono', 'Courier New', monospace;">151 =
+tokens</td>
+        </tr>
+        <tr style=3D"height:24px;">
+          <td style=3D"color:#71717a;font-family:'JetBrains Mono', 'Courier=
+ New', monospace;">PRE=C3=87OS VIS=C3=8DVEIS:</td>
+          <td =
+align=3D"right" style=3D"font-weight:bold;color:#09090b;font-family:'JetBra=
+ins Mono', 'Courier New', monospace;">=E2=9C=93 Sim</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Citation Share nas IAs -->
+  <div style=3D"background-color:#ffffff; border:1px solid #e8e8eb; =
+border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); =
+padding:28px; margin-bottom:24px;">
+    <table cellpadding=3D"0" =
+cellspacing=3D"0" border=3D"0" width=3D"100%" style=3D"margin-bottom:16px;b=
+order-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align=3D"left" style=3D"vertical-align:middle;">
+          <svg viewBox=3D"0 0 24 24" width=3D"18" height=3D"18" =
+fill=3D"none" stroke=3D"#09090b" stroke-width=3D"2" =
+stroke-linecap=3D"round" stroke-linejoin=3D"round" style=3D"vertical-align:=
+middle;margin-right:8px;"><line x1=3D"18" y1=3D"20" x2=3D"18" =
+y2=3D"10"/><line x1=3D"12" y1=3D"20" x2=3D"12" y2=3D"4"/><line x1=3D"6" =
+y1=3D"20" x2=3D"6" y2=3D"14"/></svg>
+          <span =
+style=3D"font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, =
+'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight:800;color:#09=
+090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-s=
+pacing:-0.2px;">Citation Share nas IAs</span>
+        </td>
+        <td align=3D"right" style=3D"vertical-align:middle;">
+          <span style=3D"font-family:'JetBrains Mono', 'Courier New', =
+monospace; font-size:9px;font-weight:bold;padding:4px =
+8px;border-radius:6px;color:#b91c1c;background:#fef2f2;border:1px solid =
+#fca5a5;">
+            10% SHARE
+          </span>
+        </td>
+      </tr>
+    </table>
+   =20
+    <div style=3D"font-size:13px;color:#4b5=
+563;margin-bottom:6px;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, =
+sans-serif;">Porcentagem de Cita=C3=A7=C3=B5es:</div>
+    <div style=3D"height:10px;background:#e4e4e7;border-radius:9999px;overf=
+low:hidden;margin-bottom:12px;border:1px solid #d1d5db;">
+      <div style=3D"height:100%;background:#dc2626;border-radius:9999px;wid=
+th:10%;"></div>
+    </div>
+   =20
+    <div style=3D"font-size:12px;font-fam=
+ily:'JetBrains Mono', 'Courier New', monospace; color:#4b5563;line-height:1=
+.6;margin-top:14px;border-top:1px solid #f1f2f5;padding-top:10px;">
+      <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" =
+width=3D"100%">
+        <tr style=3D"height:24px;">
+          <td style=3D"color:#71717a;font-family:'JetBrains Mono', 'Courier=
+ New', monospace;">SENTIMENTO DE MARCA:</td>
+          <td align=3D"right" =
+style=3D"font-weight:bold;color:#0c0d0e;font-family:'JetBrains Mono', =
+'Courier New', monospace;">Positivo</td>
+        </tr>
+        <tr style=3D"height:24px;">
+          <td style=3D"color:#71717a;fo=
+nt-family:'JetBrains Mono', 'Courier New', monospace;">PROMPTS =
+TESTADOS:</td>
+          <td align=3D"right" style=3D"font-weight:bold;colo=
+r:#0c0d0e;font-family:'JetBrains Mono', 'Courier New', monospace;">20</td>
+        </tr>
+       =20
+        <tr style=3D"height:24px;">
+          <td style=3D"color:#71717a;font-family:'JetBrains Mono', 'Courier=
+ New', monospace; font-size:11px;">claude:</td>
+          <td =
+align=3D"right" style=3D"font-weight:bold;color:#0c0d0e;font-family:'JetBra=
+ins Mono', 'Courier New', monospace;">0 cita=C3=A7=C3=B5es</td>
+        </tr>
+       =20
+        <tr style=3D"height:24px;">
+          <td style=3D"color:#71717a;font-family:'JetBrains Mono', 'Courier=
+ New', monospace; font-size:11px;">sonar:</td>
+          <td =
+align=3D"right" style=3D"font-weight:bold;color:#0c0d0e;font-family:'JetBra=
+ins Mono', 'Courier New', monospace;">0 cita=C3=A7=C3=B5es</td>
+        </tr>
+       =20
+        <tr style=3D"height:24px;">
+          <td style=3D"color:#71717a;font-family:'JetBrains Mono', 'Courier=
+ New', monospace; font-size:11px;">gpt:</td>
+          <td align=3D"right" =
+style=3D"font-weight:bold;color:#0c0d0e;font-family:'JetBrains Mono', =
+'Courier New', monospace;">0 cita=C3=A7=C3=B5es</td>
+        </tr>
+       =20
+        <tr style=3D"height:24px;">
+          <td =
+style=3D"color:#71717a;font-family:'JetBrains Mono', 'Courier New', =
+monospace; font-size:11px;">gemini:</td>
+          <td align=3D"right" =
+style=3D"font-weight:bold;color:#0c0d0e;font-family:'JetBrains Mono', =
+'Courier New', monospace;">2 cita=C3=A7=C3=B5es</td>
+        </tr>
+       =20
+      </table>
+    </div>
+  </div>
+
+  <!-- Plano de =
+A=C3=A7=C3=A3o Priorizado -->
+  <div style=3D"background-color:#ffffff; =
+border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px =
+rgba(13,20,33,0.04); padding:28px; margin-bottom:24px;">
+    <table cellpadding=3D"0" cellspacing=3D"0" border=3D"0" width=3D"100%" =
+style=3D"margin-bottom:16px;border-bottom:1px solid =
+#f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align=3D"left" =
+style=3D"vertical-align:middle;">
+          <svg viewBox=3D"0 0 24 24" =
+width=3D"18" height=3D"18" fill=3D"none" stroke=3D"#09090b" =
+stroke-width=3D"2" stroke-linecap=3D"round" stroke-linejoin=3D"round" =
+style=3D"vertical-align:middle;margin-right:8px;"><line x1=3D"8" y1=3D"6" =
+x2=3D"21" y2=3D"6"/><line x1=3D"8" y1=3D"12" x2=3D"21" y2=3D"12"/><line =
+x1=3D"8" y1=3D"18" x2=3D"21" y2=3D"18"/><line x1=3D"3" y1=3D"6" x2=3D"3.01"=
+ y2=3D"6"/><line x1=3D"3" y1=3D"12" x2=3D"3.01" y2=3D"12"/><line x1=3D"3" =
+y1=3D"18" x2=3D"3.01" y2=3D"18"/></svg>
+          <span =
+style=3D"font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, =
+'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight:800;color:#09=
+090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-s=
+pacing:-0.2px;">Plano de A=C3=A7=C3=A3o Priorizado</span>
+        </td>
+      </tr>
+    </table>
+   =20
+   =20
+    <div style=3D"background:#fdfefe=
+;border:1px solid #e8e8eb;border-radius:12px;padding:12px;margin-bottom:10p=
+x;box-shadow:3px 3px 8px rgba(13,20,33,0.02);display:table;width:100%;box-s=
+izing:border-box;">
+      <div style=3D"display:table-cell;vertical-align:t=
+op;width:75px;padding-right:10px;">
+        <span style=3D"display:inline-b=
+lock;font-family:'JetBrains Mono', 'Courier New', monospace; =
+font-size:9px;font-weight:bold;padding:2.5px 6px;border-radius:4px;text-ali=
+gn:center;text-transform:uppercase;background:#fef2f2;color:#dc2626;border:=
+1px solid #fca5a5;">
+          Cr=C3=ADtico
+        </span>
+      </div>
+      <div style=3D"display:table-cell;vertical-align:top;font-size:12px;co=
+lor:#4b5563;line-height:1.4;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        Implementar Schema Organization com sameAs apontando para LinkedIn,=
+ Wikidata e Wikipedia
+      </div>
+    </div>
+   =20
+    <div style=3D"background:#fdfefe;border:1px solid =
+#e8e8eb;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:3px =
+3px 8px rgba(13,20,33,0.02);display:table;width:100%;box-sizing:border-box;=
+">
+      <div style=3D"display:table-cell;vertical-align:top;width:75px;pad=
+ding-right:10px;">
+        <span style=3D"display:inline-block;font-family:=
+'JetBrains Mono', 'Courier New', monospace; font-size:9px;font-weight:bold;=
+padding:2.5px 6px;border-radius:4px;text-align:center;text-transform:upperc=
+ase;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">
+          M=C3=A9dio
+        </span>
+      </div>
+      <div =
+style=3D"display:table-cell;vertical-align:top;font-size:12px;color:#4b5563=
+;line-height:1.4;font-family:'Inter', -apple-system, BlinkMacSystemFont, =
+'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        Criar tabelas comparativas HTML (recebem 47% mais =
+cita=C3=A7=C3=B5es que texto corrido)
+      </div>
+    </div>
+   =20
+    <div style=3D"background:#fdfefe;border:1px solid =
+#e8e8eb;border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:3px =
+3px 8px rgba(13,20,33,0.02);display:table;width:100%;box-sizing:border-box;=
+">
+      <div style=3D"display:table-cell;vertical-align:top;width:75px;pad=
+ding-right:10px;">
+        <span style=3D"display:inline-block;font-family:=
+'JetBrains Mono', 'Courier New', monospace; font-size:9px;font-weight:bold;=
+padding:2.5px 6px;border-radius:4px;text-align:center;text-transform:upperc=
+ase;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">
+          M=C3=A9dio
+        </span>
+      </div>
+      <div =
+style=3D"display:table-cell;vertical-align:top;font-size:12px;color:#4b5563=
+;line-height:1.4;font-family:'Inter', -apple-system, BlinkMacSystemFont, =
+'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+        Implementar schemas ausentes: Organization, Person, FAQPage, =
+Service
+      </div>
+    </div>
+   =20
+  </div>
+
+  <!-- CTA de Agendamento =
+-->
+  <div style=3D"background-color:#ffffff; border:1px solid #e8e8eb; =
+border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); =
+padding:32px; text-align:center; margin-top:25px; border-top:3px solid =
+#dc2626;">
+    <h3 style=3D"font-family:'Space Grotesk', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; =
+font-size:20px;font-weight:800;color:#09090b;margin:0 0 =
+8px;text-transform:uppercase;letter-spacing:-0.2px;">Pronto para dominar as=
+ recomenda=C3=A7=C3=B5es das IAs?</h3>
+    <p style=3D"font-size:13px;color=
+:#4b5563;line-height:1.5;max-width:480px;margin:0 auto =
+20px;font-weight:light;font-family:'Inter', -apple-system, =
+BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+      Este diagn=C3=B3stico revela os gargalos. Nossa equipe de =
+especialistas resolve cada um deles =E2=80=94 metodologia cient=C3=ADfica, =
+resultados mensur=C3=A1veis.
+    </p>
+    <div style=3D"margin-top:20px;">
+      <a href=3D"https://geo.berocket.com.br/#booking" =
+style=3D"display:inline-block;background-color:#09090b;color:#ffffff;border=
+:1px solid #27272a;font-family:'JetBrains Mono', 'Courier New', =
+monospace;font-weight:bold;padding:16px 36px;border-radius:14px;text-decora=
+tion:none;font-size:11.5px;letter-spacing:2px;text-transform:uppercase;box-=
+shadow:0px 6px 18px rgba(9,9,11,0.15);transition:all 0.2s;">
+        Agendar Reuni=C3=A3o de Diagn=C3=B3stico =E2=86=92
+      </a>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style=3D"text-align:center;pa=
+dding:24px 0 10px;font-family:'JetBrains Mono', 'Courier New', monospace; =
+font-size:9px;color:#9ca3af;font-weight:bold;">
+    b.rocket =C2=A9 2026 //=
+ GEO_CORE_V10 // CONFIDENCIAL
+  </div>
+
+</div>
+</body>
+</html>
+----_NmP-314803b401b05793-Part_1
+Content-Type: application/pdf;
+ name=Relatorio_GEO_www.casadevideo.com.br.pdf
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment;
+ filename=Relatorio_GEO_www.casadevideo.com.br.pdf
+
+JVBERi0xLjMKJf////8KNyAwIG9iago8PAovVHlwZSAvUGFnZQovUGFyZW50IDEgMCBSCi9NZWRp
+YUJveCBbMCAwIDU5NS4yOCA4NDEuODldCi9Db250ZW50cyA1IDAgUgovUmVzb3VyY2VzIDYgMCBS
+Ci9Vc2VyVW5pdCAxCj4+CmVuZG9iago2IDAgb2JqCjw8Ci9Qcm9jU2V0IFsvUERGIC9UZXh0IC9J
+bWFnZUIgL0ltYWdlQyAvSW1hZ2VJXQovRm9udCA8PAovRjIgOCAwIFIKL0YxIDkgMCBSCj4+Ci9D
+b2xvclNwYWNlIDw8Cj4+Cj4+CmVuZG9iago1IDAgb2JqCjw8Ci9MZW5ndGggMTk2NwovRmlsdGVy
+IC9GbGF0ZURlY29kZQo+PgpzdHJlYW0KeJzNWstuLLcR3c9X8AdMs4r1IAFBCzuOAS8CJFe7IAup
+H0AWDpAY8PcHVWT3dM+05ipzfe9EAqQRu2e6HqdOHRYFIYUUvoOQQiGIpYbh1xOlQCkwcOAU/jOd
+vv/T9Ps/h+lvP/8Qht9OKabMWAlAhTRxKRjeWaMMWZGpJqiStFD4bfjXab74QAj2bVf+fYIje354
+6esQmINqiZQwvPx6+v7PGEDCy3z6+5MgTorPAVN4kllyf/UmrPQc0j/Cyy+nn15Of/3gQ4QikLSH
+QCjtGaTENBEzEjwHsAcwUWUhxuSXlKrdgIlmTnaNRqr8urudZpp2Ft0fjiwlKmNQ5YhKa0yw2ctI
+TIM9vPqzny2vT2NmNCswkVkDz5Zm820aM2e3MPtV83beWUopQGKHBvERNCpLEVTiVEvKNYfjJQfD
+Cg48hEWKaQeozPbWozXor1cAfhRMGBRqVFjjlnqeWUZNisKaBfJrixsmKUpKmjTnV5xxVv/qVyfJ
+Ana/kPBzAA5PKlLtL5n96iwjToKKON/If4p0UTcS3lnbBhGq5P/B70SRsCz4rh0vhuzB/OWb/sqB
+vzlt/d3EZOM1Jh0MdQJKLa7tOTllwjmnXHDOmFPGLFe4k4Y7ucTdj59OKZY9LCw6B0t1DxQOn378
+y+nTVfxLhypCg66FWnZftpTwivI+zGFCnr0Fd5la/LPkjHwTG1/IvZ+3DiQFoRI5nykWPk+xC11g
+4mxJt+Kp9aYreYlvowYKx0t7+vhokN0Nplj0CuQoVd1GTA2ewoqSpQrIgKkqJhkFfA0waeqv/brd
+LZOSMDpBLJ8gk5CXAjw+fVzKUTcgIrYeYL2AgAYqBDRa21o6Q+8JM2e0ikycqFr/sD5ia88BkjeS
+wVrE1BoF59sef2USd4fFWLxc0ngGnBbqXk1v7GWJs6XwJEUmqZZqSz6pcxMbqIU1GTQwYaEqk4ii
+gPUEJUVlJTXgAD4Y5swllsqrVonc3K8NorOgzEqaW0/CSUmLFWwDdo8CLPfOpBmTOMBNHZxZmlN7
+ZTF5Dt8hhycZpSo56c8eppneLsLxQR+oxiT10Ac2VeJZ4Nyf3ZrNc3AbLEUj59Z6MDH2amy3ms9i
+2VOsZ1/IslzXj/hC43ONSPnYeGeJSWW2sFqD1DyNZ9vtb0wymQlUmGjcNuD2m6/fNdxjJtZIoIdm
+0mC4n15lakTnCGhkvo14y/S6sOngJYvRpv4fkAFgFCh0xQZ4ZgMyzu98bb9NvTurVyWtHWpngmDv
+B5YnC5U6DcjSBzU/nAASRK1M71SP5MUF25YoigoY5+mrO19llmlbGV3LmfZdWx0WyozDuO4O7qkT
+qhCr1I/YueUatRY7uQ1n2xyG+4q+tvseGwtGoHxsI4GigvIFc8wymDC4ZNgtcyrLIpyG3m1I5nvs
+U4wZ9B37pMXA4mX+O+XYs0ZhcgBjocHZ8K1bw0LW23AwsrHiYJUqb17orTTqVqdjkqtnPLziiTky
+lOv+nzcVnxeD7aelUhxYipqWIvDwNGaYLT0yyCza6NB5vDo9tuvTo6ueiKJULsfV5HtXTUZPneCg
+yfPWajK8ve4VwASi7dVZE5xzvcNy2xd/QY1likXqseXEzWIbR/ir2vaZlpxsfQlctjt1mx+ZDZXm
+iQwmvtEb1dkHo+ctS7gwsBq+FusftB7Z5Pk71mcXRDDpzK3+upJq2eB1G1G7l/mPjSxwRNBj27qY
+oD6KEhBTSkMLrtfHuJeEO4nU7rpSKJ+l3UcQQq4lElS8IgTaEELd0oHFft3Y2uyHWs9r2TwTBFuP
+su0geyW1oFTn1gfTQS4auQrehOWxI76PBdlkNUNO6G3fxjGYGtEvLcWadNsg0kADjVfOf9Bi1aia
+ji3mBU113XHPXkzg6q3vzg82J7M2Xzct+h7bRGMlejeas3cC6x64oN4jMwp0Rd8j7np5U+RkGtqn
+CKtcGNZPLJ0gzMt11Ymjnqvy8fOFTBxVN+W1jJsND0BTHyNwYwcrt0GHfB4xcGoDaPtps3EbOTye
+M9AyDqtT9XqGwG82LtmMUJaxyWbA3q7w3MYqVJm48rwZsvs6j05AxreDS96GIbBhw/XOo8n2hpYj
+8b7MsS7F3j24B42Yr6IgYFKi2eh763mdi4FvHl1SnsXkeepSjiSl76P217w5mj+38f21R+Meg2Qx
+qHhx+IPJvnvWQHJnpN7YN6KJtnKJ8jqFmMauZtq0YZ00rUp8mTfd7iTfohiwciSbmV8UA+6KIdtJ
+FlOH9ExAyDYQxH70ZVePoZ9dTDvcHVIbISIbIbKRIOlSglgM+wCW/f3ekizjWxq+owSwUFS48l2u
+lJ2rSG7NsZ/3lA6KpTW0wdjtfH4LSKNSVITL88w7IT1O1Uv18aSNgrGmK5jmb83Zejwtgq0qbiqg
+i8/bfL7yp6mavI5cHWJ5f8c9AGeMUC+DZrOD0gPjcwBYHw7dNTUic2v6i42hy5wQljlh/sw+4JvA
+njBioq+JekpBS/tniXz4zxJ/6In4Vw8aaMxYUqqB+OAfIGyI1Q52/bBgPQFcWtj2HJD6KaANyOzo
+l1Ydv53LdzGwFha0opp0ytvoX55Ei+5OmdGP8I4N2p9Bd2NkGQdZ0c2UPv4Ju+z/Fy7FiyUKZW5k
+c3RyZWFtCmVuZG9iagoxMSAwIG9iagooUERGS2l0KQplbmRvYmoKMTIgMCBvYmoKKFBERktpdCkK
+ZW5kb2JqCjEzIDAgb2JqCihEOjIwMjYwODA0MTkwMTUzWikKZW5kb2JqCjEwIDAgb2JqCjw8Ci9Q
+cm9kdWNlciAxMSAwIFIKL0NyZWF0b3IgMTIgMCBSCi9DcmVhdGlvbkRhdGUgMTMgMCBSCj4+CmVu
+ZG9iago5IDAgb2JqCjw8Ci9UeXBlIC9Gb250Ci9CYXNlRm9udCAvSGVsdmV0aWNhCi9TdWJ0eXBl
+IC9UeXBlMQovRW5jb2RpbmcgL1dpbkFuc2lFbmNvZGluZwo+PgplbmRvYmoKOCAwIG9iago8PAov
+VHlwZSAvRm9udAovQmFzZUZvbnQgL0hlbHZldGljYS1Cb2xkCi9TdWJ0eXBlIC9UeXBlMQovRW5j
+b2RpbmcgL1dpbkFuc2lFbmNvZGluZwo+PgplbmRvYmoKNCAwIG9iago8PAo+PgplbmRvYmoKMyAw
+IG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMSAwIFIKL05hbWVzIDIgMCBSCj4+CmVuZG9i
+agoxIDAgb2JqCjw8Ci9UeXBlIC9QYWdlcwovQ291bnQgMQovS2lkcyBbNyAwIFJdCj4+CmVuZG9i
+agoyIDAgb2JqCjw8Ci9EZXN0cyA8PAogIC9OYW1lcyBbCl0KPj4KPj4KZW5kb2JqCnhyZWYKMCAx
+NAowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDI3MzggMDAwMDAgbiAKMDAwMDAwMjc5NSAwMDAw
+MCBuIAowMDAwMDAyNjc2IDAwMDAwIG4gCjAwMDAwMDI2NTUgMDAwMDAgbiAKMDAwMDAwMDI1NCAw
+MDAwMCBuIAowMDAwMDAwMTM3IDAwMDAwIG4gCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMjU1
+MyAwMDAwMCBuIAowMDAwMDAyNDU2IDAwMDAwIG4gCjAwMDAwMDIzODAgMDAwMDAgbiAKMDAwMDAw
+MjI5NCAwMDAwMCBuIAowMDAwMDAyMzE5IDAwMDAwIG4gCjAwMDAwMDIzNDQgMDAwMDAgbiAKdHJh
+aWxlcgo8PAovU2l6ZSAxNAovUm9vdCAzIDAgUgovSW5mbyAxMCAwIFIKL0lEIFs8ODhmNTIyZmNk
+YzA3MzM0ZTZkMmZhYmI3YjcxMTYyNmI+IDw4OGY1MjJmY2RjMDczMzRlNmQyZmFiYjdiNzExNjI2
+Yj5dCj4+CnN0YXJ0eHJlZgoyODQyCiUlRU9GCg==
+----_NmP-314803b401b05793-Part_1--
