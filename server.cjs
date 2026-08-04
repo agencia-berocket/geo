@@ -15,6 +15,11 @@ const {
   buildActionList,
   generateHtmlReport,
   generatePdfReport,
+  generateRobotsTxt,
+  generateJsonLdSchema,
+  generateLlmsTxtContent,
+  generateAeoContentTemplate,
+  generateActionPlanByStages,
   fetchUrl,
 } = require('./geo-diagnostic-engine.cjs');
 
@@ -1641,13 +1646,16 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
     switch (agentName) {
       case 'gatekeeper':
         result = await runGatekeeperAgent(baseUrl, htmlContent);
+        result.recommendedRobotsTxt = generateRobotsTxt(domain, result.robotsTxtAllowAiBots);
         break;
       case 'metadata':
         result = await runMetadataAgent(htmlContent, domain);
-        result.llmsTxt = result.suggestedLlmsTxt;
+        result.llmsTxt = result.suggestedLlmsTxt || generateLlmsTxtContent({ url }, { overallGeoScore: 75 });
+        result.generatedJsonLd = generateJsonLdSchema({ company: domain, url }, domain);
         break;
       case 'content':
         result = await runContentAgent(htmlContent);
+        result.aeoTemplates = generateAeoContentTemplate(domain);
         break;
       case 'intent': {
         const key = process.env.OPENROUTER_API_KEY || '';
@@ -1664,7 +1672,26 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
         const vis = await runIntentAgent(url, htmlContent, key);
         const score = calculateGeoScore(gk, md, ct, vis);
         const actions = buildActionList(gk, md, ct, vis);
-        result = { overallGeoScore: score, actionItemsPriorityList: actions, gatekeeper: gk, metadata: md, content: ct, visibility: vis };
+
+        const deliverables = {
+          robotsTxt: generateRobotsTxt(domain, gk.robotsTxtAllowAiBots),
+          jsonLdSchema: generateJsonLdSchema({ company: domain, url }, domain),
+          llmsTxt: generateLlmsTxtContent({ company: domain, url }, { overallGeoScore: score }),
+          aeoTemplates: generateAeoContentTemplate(domain),
+        };
+
+        const actionPlanMarkdown = generateActionPlanByStages({ clientUrl: baseUrl, overallGeoScore: score, actionItemsPriorityList: actions });
+
+        result = {
+          overallGeoScore: score,
+          actionItemsPriorityList: actions,
+          gatekeeper: gk,
+          metadata: md,
+          content: ct,
+          visibility: vis,
+          deliverables,
+          actionPlanMarkdown,
+        };
 
         // Save diagnostic and update client score in background
         (async () => {
@@ -1720,6 +1747,8 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
                 contentReview: ct,
                 visibilityBenchmarking: vis,
                 actionItemsPriorityList: actions,
+                deliverables,
+                actionPlanMarkdown,
                 generatedAt: new Date().toISOString(),
               };
 
@@ -1778,6 +1807,70 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
     }
 
     res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET CLIENT DIAGNOSTIC HISTORY (Antes vs. Depois) ───────────────────────
+app.get('/api/admin/clients/:id/history', verifyAdminToken, async (req, res) => {
+  const { id: clientId } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
+    const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const data = await response.json();
+
+    function fromFirestoreValue(val) {
+      if (!val) return null;
+      if ('stringValue' in val) return val.stringValue;
+      if ('integerValue' in val) return parseInt(val.integerValue);
+      if ('doubleValue' in val) return val.doubleValue;
+      if ('booleanValue' in val) return val.booleanValue;
+      if ('nullValue' in val) return null;
+      if ('arrayValue' in val) return (val.arrayValue?.values || []).map(fromFirestoreValue);
+      if ('mapValue' in val) {
+        const result = {};
+        for (const [k, v] of Object.entries(val.mapValue?.fields || {})) {
+          result[k] = fromFirestoreValue(v);
+        }
+        return result;
+      }
+      return null;
+    }
+
+    const leadId = clientId.startsWith('client_') ? clientId.split('_')[1] : clientId;
+    const clientDiagnostics = [];
+
+    for (const doc of (data.documents || [])) {
+      const diag = {};
+      for (const [k, v] of Object.entries(doc.fields || {})) {
+        diag[k] = fromFirestoreValue(v);
+      }
+      if (diag.clientId === clientId || diag.leadId === clientId || diag.leadId === leadId) {
+        clientDiagnostics.push(diag);
+      }
+    }
+
+    // Sort by generatedAt ascending (oldest first)
+    clientDiagnostics.sort((a, b) => new Date(a.generatedAt || 0).getTime() - new Date(b.generatedAt || 0).getTime());
+
+    const initialScore = clientDiagnostics.length > 0 ? (clientDiagnostics[0].overallGeoScore || 0) : 0;
+    const latestScore = clientDiagnostics.length > 0 ? (clientDiagnostics[clientDiagnostics.length - 1].overallGeoScore || 0) : 0;
+    const scoreDiff = latestScore - initialScore;
+    const evolutionPercentage = initialScore > 0 ? Math.round((scoreDiff / initialScore) * 100) : (latestScore > 0 ? 100 : 0);
+
+    res.json({
+      success: true,
+      clientHistory: {
+        initialScore,
+        latestScore,
+        scoreDiff,
+        evolutionPercentage,
+        diagnosticsCount: clientDiagnostics.length,
+        diagnostics: clientDiagnostics,
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

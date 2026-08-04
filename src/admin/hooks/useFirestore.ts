@@ -220,7 +220,7 @@ export function useLeads() {
     });
   }, []);
 
-  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic };
+  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadPdfReport };
 }
 
 export function useDiagnostic(leadId: string | null) {
@@ -243,6 +243,15 @@ export function useDiagnostic(leadId: string | null) {
   }, [leadId]);
 
   return { diagnostic, loading, error, fetchDiagnostic };
+}
+
+export interface ClientHistory {
+  initialScore: number;
+  latestScore: number;
+  scoreDiff: number;
+  evolutionPercentage: number;
+  diagnosticsCount: number;
+  diagnostics: DiagnosticReport[];
 }
 
 export function useClients() {
@@ -291,5 +300,9 @@ export function useClients() {
     });
   }, []);
 
-  return { clients, loading, error, fetchClients, editClient, deleteClient, runAgentForClient };
+  const fetchClientHistory = useCallback(async (clientId: string) => {
+    return apiFetch<{ success: boolean; clientHistory: ClientHistory }>(`/admin/clients/${clientId}/history`);
+  }, []);
+
+  return { clients, loading, error, fetchClients, editClient, deleteClient, runAgentForClient, fetchClientHistory };
 }
