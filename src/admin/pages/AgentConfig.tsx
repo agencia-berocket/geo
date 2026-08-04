@@ -316,7 +316,7 @@ export default function AgentConfig() {
                   id="btn-save-agent-file"
                   onClick={handleSaveFile}
                   disabled={saving}
-                  className="bg-zinc-950 hover:bg-zinc-850 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer border-t border-zinc-800"
+                  className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-md cursor-pointer border-t border-zinc-800"
                 >
                   {saving ? (
                     <><IconHourglass className="w-3.5 h-3.5 inline mr-1.5" /> Salvando...</>
@@ -342,7 +342,7 @@ export default function AgentConfig() {
                   value={content}
                   onChange={e => setContent(e.target.value)}
                   rows={22}
-                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3.5 text-xs text-zinc-850 font-mono focus:outline-none focus:border-zinc-900 shadow-inner leading-relaxed"
+                  className="w-full bg-white border border-zinc-200 rounded-xl px-4 py-3.5 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900 shadow-inner leading-relaxed"
                 />
               </div>
             </div>

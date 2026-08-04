@@ -382,7 +382,7 @@ function LeadDetailPanel({ lead, onClose, onNavigate, onLeadUpdated }: {
                       id={`download-pdf-${lead.id}`}
                       onClick={handleDownloadPdf}
                       disabled={downloadingPdf}
-                      className="flex items-center justify-center gap-2 bg-zinc-850 hover:bg-zinc-950 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                      className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
                     >
                       {downloadingPdf ? (
                         <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Gerando PDF...</span>

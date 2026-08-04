@@ -156,7 +156,7 @@ export function LeadChat({ leadId, agentName = 'orchestrator', leadUrl }: { lead
           messages.map((m, idx) => (
             <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-xs border leading-relaxed relative group ${
-                m.role === 'user' ? 'bg-zinc-950 text-white border-zinc-900 shadow-sm' : 'bg-white text-zinc-850 border-zinc-250/50 shadow-sm'
+                m.role === 'user' ? 'bg-zinc-950 text-white border-zinc-900 shadow-sm' : 'bg-white text-zinc-900 border-zinc-200 shadow-sm'
               }`}>
                 <p className="font-bold text-[9px] uppercase tracking-wider mb-1 opacity-70">
                   {m.role === 'user' ? 'Você' : agentName}
