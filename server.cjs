@@ -1089,15 +1089,25 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
     if (!htmlReport) throw new Error('Diagnóstico não encontrado. Execute o diagnóstico primeiro.');
 
     const firstName = lead.name ? lead.name.split(' ')[0] : 'Olá';
+    const domainClean = (lead.url || 'diagnostico').replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/[^a-z0-9_-]/gi, '_');
+    const attachmentFilename = `Relatorio_GEO_${domainClean}.html`;
 
     await transporter.sendMail({
       from: `"Guilherme Rossi - b.rocket" <${process.env.EMAIL_USER}>`,
       to: lead.email,
+      cc: 'berocket@berocket.com.br',
       subject: `Seu Raio-X de GEO está aqui, ${firstName}! Score: ${diagnostic?.overallGeoScore || 0}% 🔬`,
       html: htmlReport,
+      attachments: [
+        {
+          filename: attachmentFilename,
+          content: htmlReport,
+          contentType: 'text/html',
+        },
+      ],
     });
 
-    res.json({ success: true, message: `Relatório HTML enviado com sucesso para ${lead.email}` });
+    res.json({ success: true, message: `Relatório HTML enviado com sucesso para ${lead.email} (com cópia para berocket@berocket.com.br)` });
   } catch (err) {
     console.error('Send report error:', err);
     res.status(500).json({ error: err.message });
