@@ -7,10 +7,12 @@
 
 ```
 ORQUESTRADOR (Master)
-├── GATEKEEPER    (Especialista Técnico)
-├── METADATA      (Especialista Semântico)
-├── CONTENT       (Especialista de Conteúdo)
-└── INTENT        (Especialista de Visibilidade)
+├── GATEKEEPER        (Especialista Técnico)
+├── METADATA          (Especialista Semântico In-Site)
+├── CONTENT           (Especialista de Conteúdo On-Page)
+├── INTENT            (Especialista de Medição Empírica)
+├── SEMANTIC_EXPLORER (Especialista de Ideação & Clustering)
+└── OFFPAGE_MONITOR   (Especialista de Autoridade Externa & RP)
 ```
 
 O Orquestrador é o **único agente que conversa diretamente com o cliente** no dashboard. Os demais agentes são invocados pelo Orquestrador e entregam seus resultados ao pipeline.
@@ -22,11 +24,11 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 ### Diagnóstico de Lead (primeira análise)
 ```
 1. Orquestrador recebe { url, leadId, htmlContent }
-2. Promise.all([Gatekeeper, Metadata, Content])
-3. Aguarda os 3 resultados
-4. Executa Intent (sequencial — usa htmlContent validado)
-5. Calcula GEO Score
-6. Gera relatório HTML
+2. Promise.all([Gatekeeper, Metadata, Content, SemanticExplorer, OffPageMonitor])
+3. Aguarda os 5 resultados paralelos
+4. Executa Intent (uso sequencial do OpenRouter com dados validados)
+5. Calcula GEO Score consolidado
+6. Gera relatórios HTML e PDF com ações priorizadas
 7. Salva em Firestore: diagnostics + atualiza leads
 ```
 
@@ -34,7 +36,7 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 ```
 1. Orquestrador recebe { clientId, clientUrl }
 2. Executa fetch do HTML atual do site
-3. Roda pipeline completo (igual ao diagnóstico)
+3. Roda pipeline completo (6 agentes)
 4. Compara score novo com histórico
 5. Gera relatório de evolução (delta)
 6. Atualiza Firestore: geoScoreHistory do cliente
@@ -54,7 +56,7 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 
 | Regra | Descrição |
 |---|---|
-| R1 — Um agente, uma responsabilidade | Cada agente entrega apenas seu escopo. Gatekeeper não comenta sobre conteúdo. |
+| R1 — Um agente, uma responsabilidade | Cada agente entrega apenas seu escopo. Gatekeeper não comenta sobre conteúdo; Semantic Explorer foca em lacunas. |
 | R2 — Nunca bloqueie o pipeline | Em caso de erro, retorne o objeto padrão com `error: true` e prossiga |
 | R3 — Resultado sempre JSON | Toda entrega de agente especialista é um objeto JSON estruturado |
 | R4 — Orquestrador é o único interlocutor | Agentes especialistas não respondem diretamente ao usuário final |
@@ -77,7 +79,13 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 | Inserir estatísticas a cada 150 palavras | Content |
 | Adicionar citações de especialistas | Content |
 | Criar tabela comparativa HTML | Content |
-| Monitorar Citation Share mensal | Intent |
+| Identificar lacunas de conteúdo (Content Gaps) | Semantic Explorer |
+| Mapear clusters semânticos de tópicos | Semantic Explorer |
+| Criar briefing de novos artigos e Pillar Pages | Semantic Explorer |
+| Monitorar menções externas à marca | Off-Page Entity Monitor |
+| Planejar pautas de PR Digital para LLMs | Off-Page Entity Monitor |
+| Otimizar co-ocorrência de palavras-chave | Off-Page Entity Monitor |
+| Monitorar Citation Share mensal nas LLMs | Intent |
 | Identificar novos concorrentes nas IAs | Intent |
 | Calcular GEO Score e gerar relatório | Orchestrator |
 | Re-scan mensal completo | Orchestrator |

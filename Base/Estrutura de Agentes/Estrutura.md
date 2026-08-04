@@ -7,11 +7,13 @@
 
 | ID | Nome | Peso no Score | Responsabilidade Principal |
 |---|---|---|---|
-| `orchestrator` | Orquestrador Principal | — | Pipeline, score, relatório |
-| `gatekeeper` | Technical Gatekeeper | 25 pts | Infraestrutura técnica |
-| `metadata` | Metadata Entity | 20 pts | JSON-LD, schemas, /llms.txt |
-| `content` | Content Absorption | 30 pts | Conteúdo semântico, AEO |
-| `intent` | Intent Prompt | 25 pts | Citation Share, OpenRouter |
+| `orchestrator` | Orquestrador Principal | — | Pipeline, score consolidado, relatórios HTML/PDF |
+| `gatekeeper` | Technical Gatekeeper | 20 pts | Infraestrutura técnica, robots.txt, SSR |
+| `metadata` | Metadata Entity | 15 pts | JSON-LD, schemas, sameAs, /llms.txt |
+| `content` | Content Absorption | 20 pts | Conteúdo semântico, AEO, estatísticas Princeton |
+| `semantic_explorer` | Semantic Explorer | 15 pts | Mapeamento de Content Gaps e Topic Clusters |
+| `offpage` | Off-Page Entity Monitor | 10 pts | Autoridade de Entidade Externa & RP Digital |
+| `intent` | Intent Prompt | 20 pts | Citation Share real nas LLMs via OpenRouter |
 
 ---
 
@@ -21,39 +23,45 @@
 
 ### Responsabilidades
 - Iniciar o pipeline completo de diagnóstico
-- Rodar Gatekeeper + Metadata + Content em paralelo
-- Rodar Intent sequencialmente após os três primeiros
-- Calcular o GEO Score composto
+- Rodar Gatekeeper + Metadata + Content + Semantic Explorer + Off-Page Entity Monitor em paralelo
+- Rodar Intent sequencialmente após os cinco primeiros
+- Calcular o GEO Score composto (6 pilares)
 - Gerar a lista de ações priorizadas
-- Gerar o relatório HTML completo para o cliente
+- Gerar o relatório HTML e PDF completo para o cliente
 - Salvar o diagnóstico no Firestore
 - No modo cliente: re-executar análises periódicas e atualizar histórico
 
-### Fórmula do GEO Score
+### Fórmula do GEO Score Composto (6 Pilares)
 
 ```javascript
 score = 0
 
-// Pilar 1 — Gatekeeper (25 pts)
-if (robotsTxtAllowAiBots)        score += 10
-if (ssrActive)                   score += 8
-if (hasPrices)                   score += 7
+// Pilar 1 — Gatekeeper (20 pts)
+if (robotsTxtAllowAiBots)        score += 8
+if (ssrActive)                   score += 6
+if (hasPrices)                   score += 6
 
-// Pilar 2 — Metadata (20 pts)
-if (organizationSchema)          score += 8
-if (personSchema)                score += 4
-if (llmsTxtPublished)            score += 5
-if (sameAsCount > 0)             score += 3
+// Pilar 2 — Metadata (15 pts)
+if (organizationSchema)          score += 6
+if (personSchema)                score += 3
+if (llmsTxtPublished)            score += 4
+if (sameAsCount > 0)             score += 2
 
-// Pilar 3 — Content (30 pts)
-if (aeoFirstParagraph)           score += 8
-if (statisticsEvery150Words)     score += 7
-if (expertQuotes)                score += 7
-if (comparisonTables)            score += 5
-if (pricesVisible)               score += 3
+// Pilar 3 — Content (20 pts)
+if (aeoFirstParagraph)           score += 5
+if (statisticsEvery150Words)     score += 5
+if (expertQuotes)                score += 5
+if (comparisonTables)            score += 3
+if (pricesVisible)               score += 2
 
-// Pilar 4 — Intent (25 pts)
-score += citationSharePct * 100 * 0.25
+// Pilar 4 — Semantic Explorer (15 pts)
+score += Math.round((topicCoverageScore / 100) * 15)
+
+// Pilar 5 — Off-Page Entity Monitor (10 pts)
+score += Math.round((externalEntityScore / 100) * 10)
+
+// Pilar 6 — Intent Prompt (20 pts)
+score += citationSharePct * 100 * 0.15
 if (sentiment === 'Positivo')    score += 5
 else if (sentiment === 'Neutro') score += 2
 
@@ -62,10 +70,12 @@ GEO Score = clamp(score, 0, 100)
 
 ### Handoff para outros agentes
 ```
-orchestrator → gatekeeper: { url, htmlContent }
-orchestrator → metadata:   { htmlContent, domain }
-orchestrator → content:    { htmlContent }
-orchestrator → intent:     { url, htmlContent, openrouterKey }
+orchestrator → gatekeeper:        { url, htmlContent }
+orchestrator → metadata:          { htmlContent, domain }
+orchestrator → content:           { htmlContent }
+orchestrator → semantic_explorer: { url, htmlContent, apiKey }
+orchestrator → offpage:           { url, htmlContent, apiKey }
+orchestrator → intent:            { url, htmlContent, openrouterKey }
 ```
 
 ---
@@ -78,46 +88,12 @@ orchestrator → intent:     { url, htmlContent, openrouterKey }
 
 | Check | Método | Impacto |
 |---|---|---|
-| robots.txt AI bots | Fetch + parse | Crítico — 10 pts |
-| SSR (conteúdo sem JS) | Tamanho + tags no HTML | Alto — 8 pts |
-| Preços visíveis | Regex no HTML | Alto — 7 pts |
+| robots.txt AI bots | Fetch + parse | Crítico — 8 pts |
+| SSR (conteúdo sem JS) | Tamanho + tags no HTML | Alto — 6 pts |
+| Preços visíveis | Regex no HTML | Alto — 6 pts |
 | Latência do servidor | Timer no fetch | Informativo |
 | HTTPS ativo | URL schema check | Crítico |
 | Sitemap presente | Fetch /sitemap.xml | Médio |
-| Canonical correto | Meta tag check | Médio |
-| X-Robots-Tag | Headers HTTP | Alto |
-| Timestamps atuais | Regex de datas | Informativo |
-
-### Bots de IA que DEVEM ser permitidos
-```
-OAI-SearchBot        ← ChatGPT (busca em tempo real)
-GPTBot               ← ChatGPT (treinamento)
-PerplexityBot        ← Perplexity
-Claude-SearchBot     ← Claude (busca em tempo real)
-ClaudeBot            ← Claude (treinamento)
-Googlebot            ← Gemini (indexação)
-GoogleOther          ← Google (outros rastreadores)
-BingBot              ← Bing AI / Copilot
-DuckDuckBot          ← DuckDuckGo AI
-AppleBot             ← Apple Intelligence
-```
-
-### Entregáveis ao Orquestrador
-```json
-{
-  "robotsTxtAllowAiBots": true,
-  "blockedCrawlers": ["GPTBot"],
-  "ssrActive": true,
-  "hasPriceGatekeeperIssue": false,
-  "staleTimestampDetected": false,
-  "serverLatencyMs": 342,
-  "httpsActive": true,
-  "sitemapPresent": true,
-  "canonicalPresent": true,
-  "xRobotsTagIssue": false,
-  "robotsTxtSnippet": "..."
-}
-```
 
 ---
 
@@ -134,28 +110,6 @@ AppleBot             ← Apple Intelligence
 | `Person` (autor) | Obrigatório | LinkedIn, ORCID, Google Scholar |
 | `FAQPage` | Alto | — |
 | `Service` / `Product` | Alto | — |
-| `Article` / `BlogPosting` | Médio | — |
-| `WebSite` | Médio | — |
-| `BreadcrumbList` | Baixo | — |
-
-### Geração de /llms.txt
-O agente gera automaticamente o conteúdo sugerido do `/llms.txt` baseado no título, meta description, H1s e estrutura de navegação do site.
-
-### Entregáveis ao Orquestrador
-```json
-{
-  "organizationSchemaPresent": true,
-  "organizationSameAsCount": 3,
-  "personSchemaPresent": false,
-  "llmsTxtPublished": false,
-  "schemasFound": ["Organization", "FAQPage"],
-  "missingSchemas": ["Person", "Service"],
-  "jsonLdBlocksCount": 2,
-  "suggestedLlmsTxt": "# Empresa...",
-  "openGraphComplete": true,
-  "twitterCardPresent": true
-}
-```
 
 ---
 
@@ -167,47 +121,84 @@ O agente gera automaticamente o conteúdo sugerido do `/llms.txt` baseado no tí
 
 | Fator | Threshold | Peso no Score |
 |---|---|---|
-| AEO — Resposta direta (60 palavras) | Primeiras 80 words não têm "Olá/Bem-vindo" | 8 pts |
-| Estatísticas a cada 150 palavras | ≥ totalWords/200 ocorrências | 7 pts |
-| Aspas de especialistas | blockquote ou aspas longas | 7 pts |
-| Tabelas HTML comparativas | `<table>` presente | 5 pts |
-| Preços visíveis | R$, preço, valor | 3 pts |
+| AEO — Resposta direta (60 palavras) | Primeiras 80 words sem "Olá/Bem-vindo" | 5 pts |
+| Estatísticas a cada 150 palavras | ≥ totalWords/200 ocorrências | 5 pts |
+| Aspas de especialistas | blockquote ou aspas longas | 5 pts |
+| Tabelas HTML comparativas | `<table>` presente | 3 pts |
+| Preços visíveis | R$, preço, valor | 2 pts |
 
-### Análises linguísticas adicionais
+---
 
-| Análise | Indicador |
+## 5. SEMANTIC EXPLORER — Ideação e Content Gaps
+
+**Arquivo base:** `Base/Agentes/semantic_explorer/`
+
+### Checks e Entregáveis
+
+| Análise | Descrição |
 |---|---|
-| Keyword stuffing | Frequência máxima > totalWords/50 |
-| Linguagem hedged | talvez, pode ser, possivelmente |
-| Hierarquia de headings | H1 → H2 → H3 corretos |
-| Densidade de texto | Palavra de fato vs. palavras de preenchimento |
-| Listas semânticas | `<ul>/<ol>` com mais de 3 itens |
-| FAQ section | "pergunta" + "resposta" patterns |
+| Mapeamento de Content Gaps | Identifica sub-tópicos essenciais ausentes no site do cliente |
+| Topic Clusters | Estrutura sugestões em Pillar Page + Artigos de Cluster |
+| Briefing de Conteúdo | Gera briefings prontos para criação de novos conteúdos |
 
-### Entregáveis ao Orquestrador
 ```json
 {
-  "meanChunkSizeTokens": 180,
-  "totalWords": 1842,
-  "factorsDetected": {
-    "hasTldrAnswerFirstParagraph": true,
-    "hasStatisticsPer150Words": false,
-    "hasExpertQuotes": true,
-    "hasHtmlComparisonTables": false
-  },
-  "linguisticDensity": {
-    "hedgedLanguageScore": 0.12,
-    "keywordStuffingDetected": false
-  },
-  "priceNotMentioned": false,
-  "headingHierarchyValid": true,
-  "faqSectionPresent": false
+  "topicCoverageScore": 60,
+  "contentGapsCount": 3,
+  "contentGaps": [
+    {
+      "topic": "Comparativo de Custos do Nicho",
+      "searchIntent": "Qual a diferença de preço entre soluções?",
+      "urgency": "Alta",
+      "recommendedFormat": "Pillar Page com Tabela HTML"
+    }
+  ],
+  "suggestedClusters": [
+    {
+      "clusterName": "Cluster Semântico: Autoridade de Nicho",
+      "pillarTopic": "Guia Definitivo do Nicho",
+      "subTopics": ["Comparativo de Custos", "Calculadora de ROI"]
+    }
+  ]
 }
 ```
 
 ---
 
-## 5. INTENT PROMPT — Citation Share Real
+## 6. OFF-PAGE ENTITY MONITOR — Autoridade Externa & RP
+
+**Arquivo base:** `Base/Agentes/offpage/`
+
+### Checks e Entregáveis
+
+| Análise | Descrição |
+|---|---|
+| External Footprint | Mede a presença da marca no Wikidata, LinkedIn, Crunchbase e Imprensa |
+| Co-Ocorrência Semântica | Avalia a associação do nome da marca com palavras-chave do nicho |
+| RP Digital para LLMs | Projeta pautas de relações públicas em portais de alta autoridade |
+
+```json
+{
+  "externalEntityScore": 55,
+  "externalFootprint": {
+    "hasLinkedInCompanyPage": true,
+    "hasCrunchbaseProfile": false,
+    "hasWikipediaOrWikidataMention": false,
+    "hasMajorNewsArticles": false
+  },
+  "digitalPrOpportunities": [
+    {
+      "portalType": "Portais de Notícias de Tecnologia",
+      "suggestedTopic": "Pesquisa de Mercado sobre Tendências do Nicho",
+      "expectedImpact": "Gera co-ocorrência vetorial nas LLMs"
+    }
+  ]
+}
+```
+
+---
+
+## 7. INTENT PROMPT — Citation Share Real
 
 **Arquivo base:** `Base/Agentes/intent/`
 
@@ -220,42 +211,17 @@ O agente gera automaticamente o conteúdo sugerido do `/llms.txt` baseado no tí
 | Gemini | `google/gemini-2.5-flash` |
 | Perplexity | `perplexity/sonar` |
 
-### 5 Categorias de Prompt por Nicho
-1. Recomendação direta: *"Qual é a melhor empresa de {nicho} no Brasil?"*
-2. Comparação: *"Compare as principais empresas de {nicho}"*
-3. Liderança: *"Quem são os líderes de mercado em {nicho}?"*
-4. Avaliação: *"Qual empresa de {nicho} tem melhor reputação?"*
-5. Busca específica: *"Me indique uma empresa especializada em {nicho}"*
-
-### Entregáveis ao Orquestrador
-```json
-{
-  "totalPromptsTest": 20,
-  "citationSharePercentage": 0.15,
-  "brandSentimentScore": "Neutro",
-  "topMentionedCompetitors": ["Empresa A", "Empresa B"],
-  "citationsByModel": {
-    "gpt-4o-mini": 2,
-    "claude-3.5-haiku": 1,
-    "gemini-2.5-flash": 0,
-    "sonar": 0
-  },
-  "hallucinations": [],
-  "nicheExtracted": "consultoria jurídica especializada"
-}
-```
-
 ---
 
 ## Protocolo de Handoff entre Agentes
 
 ```
 REGRA 1: O Orquestrador é o único que inicia e consolida.
-REGRA 2: Gatekeeper, Metadata e Content rodam em paralelo (Promise.all).
-REGRA 3: Intent roda após os três, pois usa o htmlContent já validado.
+REGRA 2: Gatekeeper, Metadata, Content, Semantic Explorer e Off-Page rodam em paralelo (Promise.all).
+REGRA 3: Intent roda após os cinco, pois usa o htmlContent já validado.
 REGRA 4: Cada agente retorna um objeto JSON definido neste documento.
 REGRA 5: Em caso de erro de um agente, o Orquestrador registra e continua.
-REGRA 6: O GEO Score NUNCA é calculado sem todos os 4 resultados presentes.
+REGRA 6: O GEO Score NUNCA é calculado sem os resultados dos agentes especialistas presentes.
 ```
 
 ---
@@ -280,18 +246,13 @@ Quando o Guilherme abre o chat com um agente no workspace de um cliente:
 │   │   ├── Introducao.md
 │   │   └── Estrutura.md
 │   └── Agentes/
-│       ├── orchestrator/
-│       │   ├── SOUL.md
-│       │   ├── IDENTITY.md
-│       │   ├── USER.md
-│       │   ├── AGENTS.md
-│       │   ├── MAPA.md
-│       │   ├── memory/MEMORY.md
-│       │   └── skills/SKILL.md
-│       ├── gatekeeper/     (mesma estrutura)
-│       ├── metadata/       (mesma estrutura)
-│       ├── content/        (mesma estrutura)
-│       └── intent/         (mesma estrutura)
+│       ├── orchestrator/       (SOUL.md, IDENTITY.md, USER.md, AGENTS.md, MAPA.md, memory, skills)
+│       ├── gatekeeper/         (mesma estrutura)
+│       ├── metadata/           (mesma estrutura)
+│       ├── content/            (mesma estrutura)
+│       ├── intent/             (mesma estrutura)
+│       ├── semantic_explorer/  (mesma estrutura)
+│       └── offpage/            (mesma estrutura)
 ├── geo-diagnostic-engine.cjs   ← Motor de análise (Node.js)
 └── server.cjs                  ← API Express
 ```

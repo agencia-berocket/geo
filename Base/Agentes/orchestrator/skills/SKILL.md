@@ -72,58 +72,60 @@ Se {ação}, o score tende a ir de {atual}% para ~{projeção}%
 
 ---
 
-## Skill 3: Plano de Implantação por Stage
+## Skill 3: Plano de Implantação por Stage (6 Pilares)
 
-### Stage 1 — Diagnóstico Técnico (Semana 1)
+### Stage 1 — Diagnóstico Técnico & Mapeamento (Semana 1)
 ```
 Ações:
-- Diagnóstico completo com os 4 agentes
-- Relatório HTML enviado ao cliente
-- Apresentação dos resultados em call
+- Diagnóstico completo com os 6 agentes especialistas
+- Relatório HTML e PDF enviado ao cliente
+- Apresentação dos resultados e mapa de RAG em call
 - Definição do roadmap de 90 dias
 ```
 
-### Stage 2 — Planejamento de Intenções (Semana 2)
+### Stage 2 — Planejamento Semântico e Intenções (Semana 2)
 ```
-Ações (Intent Agent):
+Ações (Intent Agent + Semantic Explorer):
 - Mapeamento das 10 principais intenções de busca do nicho
-- Lista de concorrentes que aparecem nas IAs
-- Definição das keywords estratégicas para AEO
-- Benchmark de Citation Share inicial
+- Identificação dos Content Gaps e arquitetura de Topic Clusters
+- Benchmark de Citation Share inicial em 4 LLMs via OpenRouter
+- Briefing de Pillar Pages e artigos satélites
 ```
 
-### Stage 3 — Infraestrutura GEO (Semanas 3-4)
+### Stage 3 — Infraestrutura GEO e Metadados (Semanas 3-4)
 ```
 Ações (Gatekeeper + Metadata):
-- Correção do robots.txt
+- Correção do robots.txt para liberar crawlers de IA
 - Ativação/validação de SSR
-- Implementação de Schema Organization
-- Implementação de Schema Person
+- Implementação de Schemas JSON-LD (Organization, Person, Service, FAQ)
 - Criação e publicação do /llms.txt
-- Adição de sameAs links (LinkedIn, Wikidata)
-- Validação com Google Rich Results Test
+- Adição de sameAs links (LinkedIn, Wikidata, Crunchbase)
 ```
 
-### Stage 4 — Otimização de Conteúdo (Semanas 5-8)
+### Stage 4 — Otimização de Conteúdo On-Page (Semanas 5-6)
 ```
 Ações (Content Agent):
-- Reescrita das 5 páginas principais com AEO
-- Inserção de estatísticas e dados a cada 150 palavras
+- Reescrita das páginas principais com Answer-First AEO (primeiras 60 palavras)
+- Inserção de estatísticas e dados a cada 150 palavras (Princeton)
 - Adição de citações de especialistas
 - Criação de tabelas comparativas HTML
-- Criação/otimização de seção FAQ
-- Revisão de toda linguagem hedged
-- Re-scan para validar melhorias no score
+- Eliminação total de linguagem hedged
 ```
 
-### Stage 5 — Monitoramento Contínuo (Mensal)
+### Stage 5 — Autoridade Externa & RP Digital (Semanas 7-8)
+```
+Ações (Off-Page Entity Monitor):
+- Execução de pauta de RP Digital em portais de tecnologia e negócios
+- Otimização de co-ocorrência da marca com palavras-chave do nicho
+- Auditoria de unlinked brand mentions
+```
+
+### Stage 6 — Monitoramento Contínuo e Re-scan (Mensal)
 ```
 Ações (Orchestrator):
-- Re-scan completo do site
-- Relatório de evolução de GEO Score
-- Atualização do plano de ação
-- Novos prompts de Citation Share (Intent)
-- Relatório para o cliente
+- Re-scan completo do site nos 6 pilares
+- Relatório de evolução de GEO Score e Citation Share
+- Ajustes contínuos no mapa de RAG
 ```
 
 ---
@@ -156,7 +158,12 @@ Quando pedido, o Orquestrador gera um briefing completo de cliente para uso em r
 
 ---
 
-## Skill 5: Classificação de GEO Score
+## Skill 5: Dupla Lógica de Classificação do GEO Score
+
+O ecossistema b.rocket utiliza **duas réguas complementares** de classificação de score, cada uma aplicada ao seu canal correspondente:
+
+### 1. Régua Técnica de Maturidade (5 Faixas — Painel Técnico & Diagnósticos)
+*Usada no dashboard admin, relatórios técnicos e análises internas do sistema:*
 
 | Score | Classificação | Cor | Mensagem para o Cliente |
 |---|---|---|---|
@@ -165,3 +172,12 @@ Quando pedido, o Orquestrador gera um briefing completo de cliente para uso em r
 | 46–65% | Moderado | 🟡 | "Base construída, mas ainda abaixo da visibilidade ideal." |
 | 66–80% | Bom | 🟢 | "Você está aparecendo. Hora de ampliar o share." |
 | 81–100% | Excelente | 🚀 | "Posição de liderança. Foco em manutenção e expansão." |
+
+### 2. Classificação Persuasiva de Vendas (3 Faixas — E-mail & Copys do Relatório)
+*Usada exclusivamente pelo Orquestrador no texto persuasivo do e-mail e cabeçalho comercial:*
+
+| Faixa | Classificação | Tom da Comunicação Comercial |
+|---|---|---|
+| `< 40%` | 🚨 Alerta Crítico | Foco em Urgência e Risco Comercial de ser invisível |
+| `40–69%` | ⚠️ Risco de Perda | Foco em Oportunidade e Gargalos de Citabilidade |
+| `≥ 70%` | ✨ Potencial de Escala | Foco em Parceria e Monopólio das Recomendações |

@@ -9,6 +9,8 @@ const {
   runMetadataAgent,
   runContentAgent,
   runIntentAgent,
+  runSemanticExplorerAgent,
+  runOffPageEntityAgent,
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
@@ -394,18 +396,20 @@ app.post('/api/calendar/book', async (req, res) => {
           
           const baseUrl = normalizedUrl;
           const htmlContent = await fetchUrl(baseUrl);
+          const openrouterKey = process.env.OPENROUTER_API_KEY || '';
           
-          const [gk, md, ct] = await Promise.all([
+          const [gk, md, ct, sem, off] = await Promise.all([
             runGatekeeperAgent(baseUrl, htmlContent),
             runMetadataAgent(htmlContent, domain),
             runContentAgent(htmlContent),
+            runSemanticExplorerAgent(baseUrl, htmlContent, openrouterKey),
+            runOffPageEntityAgent(baseUrl, htmlContent, openrouterKey),
           ]);
           
-          const openrouterKey = process.env.OPENROUTER_API_KEY || '';
           const vis = await runIntentAgent(baseUrl, htmlContent, openrouterKey);
           
-          const score = calculateGeoScore(gk, md, ct, vis);
-          const actions = buildActionList(gk, md, ct, vis);
+          const score = calculateGeoScore(gk, md, ct, vis, sem, off);
+          const actions = buildActionList(gk, md, ct, vis, sem, off);
           
           const diagnosticId = `diag_${leadIdToRun}_${Date.now()}`;
           const leadObj = { id: leadIdToRun, url: baseUrl, email, name, company };
@@ -417,6 +421,8 @@ app.post('/api/calendar/book', async (req, res) => {
             gatekeeperStatus: gk,
             metadataAnalysis: md,
             contentReview: ct,
+            semanticAnalysis: sem,
+            offpageAnalysis: off,
             visibilityBenchmarking: vis,
             actionItemsPriorityList: actions,
             generatedAt: new Date().toISOString(),
@@ -884,23 +890,25 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
 
       const baseUrl = lead.url.startsWith('http') ? lead.url : `https://${lead.url}`;
       const domain = baseUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+      const openrouterKey = process.env.OPENROUTER_API_KEY || '';
 
-      // Run 5 agents in parallel (except orchestrator which consolidates)
-      const [gatekeeper, metadata, content] = await Promise.all([
+      // Run 5 specialist agents in parallel
+      const [gatekeeper, metadata, content, semantic, offpage] = await Promise.all([
         runGatekeeperAgent(baseUrl, htmlContent),
         runMetadataAgent(htmlContent, domain),
         runContentAgent(htmlContent),
+        runSemanticExplorerAgent(baseUrl, htmlContent, openrouterKey),
+        runOffPageEntityAgent(baseUrl, htmlContent, openrouterKey),
       ]);
 
-      // Agente 5 — Intent (uses OpenRouter API)
-      const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+      // Agente Intent (uses OpenRouter API)
       const visibility = await runIntentAgent(lead.url, htmlContent, openrouterKey);
 
-      // Calculate GEO Score
-      const overallGeoScore = calculateGeoScore(gatekeeper, metadata, content, visibility);
+      // Calculate GEO Score across 6 pillars
+      const overallGeoScore = calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, offpage);
 
-      // Build action list
-      const actionItemsPriorityList = buildActionList(gatekeeper, metadata, content, visibility);
+      // Build action list across 6 pillars
+      const actionItemsPriorityList = buildActionList(gatekeeper, metadata, content, visibility, semantic, offpage);
 
       const diagnosticId = `diag_${leadId}_${Date.now()}`;
       const diagnostic = {
@@ -911,6 +919,8 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
         gatekeeperStatus: gatekeeper,
         metadataAnalysis: metadata,
         contentReview: content,
+        semanticAnalysis: semantic,
+        offpageAnalysis: offpage,
         visibilityBenchmarking: visibility,
         actionItemsPriorityList,
         generatedAt: new Date().toISOString(),
@@ -1073,31 +1083,16 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
 
     if (!htmlReport) throw new Error('Diagnóstico não encontrado. Execute o diagnóstico primeiro.');
 
-    const domain = lead.url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
     const firstName = lead.name ? lead.name.split(' ')[0] : 'Olá';
-
-    // Gerar anexo PDF real
-    let pdfAttachment = null;
-    try {
-      const pdfBuffer = await generatePdfReport(lead, diagnostic || {});
-      pdfAttachment = {
-        filename: `Relatorio_GEO_${domain}.pdf`,
-        content: pdfBuffer,
-        contentType: 'application/pdf'
-      };
-    } catch (pdfErr) {
-      console.error('Erro ao gerar anexo PDF para e-mail:', pdfErr);
-    }
 
     await transporter.sendMail({
       from: `"Guilherme Rossi - b.rocket" <${process.env.EMAIL_USER}>`,
       to: lead.email,
       subject: `Seu Raio-X de GEO está aqui, ${firstName}! Score: ${diagnostic?.overallGeoScore || 0}% 🔬`,
       html: htmlReport,
-      attachments: pdfAttachment ? [pdfAttachment] : []
     });
 
-    res.json({ success: true, message: `Relatório HTML + PDF enviado com sucesso para ${lead.email}` });
+    res.json({ success: true, message: `Relatório HTML enviado com sucesso para ${lead.email}` });
   } catch (err) {
     console.error('Send report error:', err);
     res.status(500).json({ error: err.message });
@@ -2493,6 +2488,12 @@ app.post('/api/admin/chat/send', verifyAdminToken, async (req, res) => {
           }
           if (safeAgentName === 'orchestrator' || safeAgentName === 'content') {
             systemPrompt += `\nRevisão de Conteúdo (Princeton):\n${JSON.stringify(diagnostic.contentReview, null, 2)}\n`;
+          }
+          if (safeAgentName === 'orchestrator' || safeAgentName === 'semantic_explorer') {
+            systemPrompt += `\nAnálise Semântica (Content Gaps & Clusters):\n${JSON.stringify(diagnostic.semanticAnalysis, null, 2)}\n`;
+          }
+          if (safeAgentName === 'orchestrator' || safeAgentName === 'offpage') {
+            systemPrompt += `\nAutoridade Externa e Entidade (Off-Page):\n${JSON.stringify(diagnostic.offpageAnalysis, null, 2)}\n`;
           }
           if (safeAgentName === 'orchestrator' || safeAgentName === 'intent') {
             systemPrompt += `\nVisibilidade e Citation Share nas IAs:\n${JSON.stringify(diagnostic.visibilityBenchmarking, null, 2)}\n`;

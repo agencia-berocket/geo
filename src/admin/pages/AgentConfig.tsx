@@ -30,6 +30,8 @@ const agentsList = [
   { id: 'metadata', name: 'Metadata Entity', desc: 'Valida Schemas JSON-LD (Organization, Person, FAQ) e cria mapas de RAG em /llms.txt.' },
   { id: 'content', name: 'Content Absorption', desc: 'Revisa modularidade, tamanho de chunks, Answer-First e fatores científicos de Princeton.' },
   { id: 'intent', name: 'Intent Prompt', desc: 'Testa menções e Citation Share nas LLMs (ChatGPT, Gemini, Perplexity) usando OpenRouter.' },
+  { id: 'semantic_explorer', name: 'Semantic Explorer', desc: 'Mapeia lacunas de conteúdo (Content Gaps) e projeta clusters semânticos para novas páginas.' },
+  { id: 'offpage', name: 'Off-Page Entity Monitor', desc: 'Monitora a presença da marca na web externa e planeja pautas de RP Digital para LLMs.' },
 ];
 
 const generalFiles = ['Soul.md', 'Introducao.md', 'Estrutura.md'];

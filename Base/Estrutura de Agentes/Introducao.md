@@ -5,9 +5,9 @@
 
 ## O Que É GEO
 
-**Generative Engine Optimization (GEO)** é a prática de otimizar conteúdo, infraestrutura técnica e dados estruturados de um site para que **motores de resposta generativos** — como ChatGPT (OpenAI), Claude (Anthropic), Gemini (Google) e Perplexity — citem a marca de forma orgânica, precisa e positiva em suas respostas.
+**Generative Engine Optimization (GEO)** é a prática de otimizar conteúdo, infraestrutura técnica, arquitetura semântica e presença externa de uma marca para que **motores de resposta generativos** — como ChatGPT (OpenAI), Claude (Anthropic), Gemini (Google) e Perplexity — citem a empresa de forma orgânica, precisa e positiva em suas respostas.
 
-Diferente do SEO tradicional (que foca em rankings de links), o GEO foca em **ser a fonte** que a IA escolhe para construir sua resposta ao usuário.
+Diferente do SEO tradicional (que foca em rankings de links azuis), o GEO foca em **ser a fonte factual** que a IA escolhe para construir sua resposta ao usuário.
 
 ---
 
@@ -43,37 +43,36 @@ As LLMs modernas operam em duas fases quando respondem ao usuário:
 A IA realiza uma busca semântica em sua memória de treinamento e/ou em índices de conteúdo em tempo real. Ela busca **fragmentos de texto** (chunks) que sejam semanticamente próximos à intenção do usuário, medida por **similaridade cosseno de embeddings**.
 
 O que determina se seu conteúdo será recuperado:
-- **Acessibilidade técnica:** O bot de IA consegue ler o conteúdo?
-- **Qualidade do chunking:** O conteúdo está fragmentado em unidades independentes de significado?
-- **Entidades reconhecidas:** A marca está ligada a entidades conhecidas (sameAs)?
-- **Autoridade da fonte:** JSON-LD valida a marca como entidade confiável?
+- **Acessibilidade técnica:** O bot de IA consegue ler o conteúdo bruto (SSR e robots.txt)?
+- **Qualidade do chunking & AEO:** O conteúdo está fragmentado em unidades independentes com respostas nas primeiras 60 palavras?
+- **Cobertura Semântica (Content Gaps):** O site possui conteúdos específicos que respondem à intenção pesquisada?
+- **Entidades reconhecidas (sameAs):** A marca está ligada a entidades conhecidas no Grafo de Conhecimento global (Wikidata, LinkedIn, Crunchbase)?
 
 ### Fase 2: Síntese (Geração)
 Após recuperar os chunks relevantes, a IA os usa para construir sua resposta. O que determina se seu conteúdo será **citado explicitamente**:
-- **Densidade factual:** O texto tem dados, números e referências verificáveis?
-- **Clareza da resposta AEO:** A informação central está nas primeiras 60 palavras?
+- **Densidade factual:** O texto tem dados, números e referências verificáveis a cada 150 palavras?
+- **Co-ocorrência em fontes externas:** O nome da marca é frequentemente citado ao lado da palavra-chave em portais de tecnologia e imprensa?
 - **Autoridade do autor:** Há Schema Person e E-E-A-T validando quem escreveu?
 - **Sentimento geral:** O corpus de menções à marca é positivo ou neutro?
 
 ---
 
-## Os 4 Pilares do GEO (Framework b.rocket)
+## Os 6 Pilares do GEO (Framework b.rocket)
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   GEO SCORE (0–100%)                 │
-├──────────────┬──────────────┬──────────┬────────────┤
-│  PILAR 1     │  PILAR 2     │ PILAR 3  │  PILAR 4   │
-│  GATEKEEPER  │  METADATA    │ CONTENT  │  INTENT    │
-│  (25 pts)    │  (20 pts)    │ (30 pts) │  (25 pts)  │
-│              │              │          │            │
-│ robots.txt   │ JSON-LD      │ AEO      │ Citation   │
-│ SSR          │ Organization │ Chunking │ Share      │
-│ Latência     │ Person       │ Stats    │ Sentiment  │
-│ HTTPS        │ FAQ/Service  │ Tables   │ Competitors│
-│ Sitemap      │ sameAs       │ E-E-A-T  │ Hallucin.  │
-│ Preços HTML  │ /llms.txt    │ Princeton│ OpenRouter │
-└──────────────┴──────────────┴──────────┴────────────┘
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   GEO SCORE (0–100%)                                    │
+├──────────────┬──────────────┬──────────────┬──────────────────┬──────────────┬──────────┤
+│  PILAR 1     │  PILAR 2     │  PILAR 3     │  PILAR 4         │  PILAR 5     │ PILAR 6  │
+│  GATEKEEPER  │  METADATA    │  CONTENT     │  SEMANTIC        │  OFF-PAGE    │ INTENT   │
+│  (20 pts)    │  (15 pts)    │  (20 pts)    │  EXPLORER(15pts) │  (10 pts)    │ (20 pts) │
+│              │              │              │                  │              │          │
+│ robots.txt   │ JSON-LD      │ AEO          │ Content Gaps     │ RP Digital   │ Citation │
+│ SSR          │ Organization │ Chunking     │ Topic Clusters   │ Co-ocorrência│ Share    │
+│ Latência     │ Person       │ Stats (150w) │ Briefings        │ Wikidata     │ Sentiment│
+│ Preços HTML  │ sameAs       │ Tables HTML  │ Pillar Pages     │ Crunchbase   │ LLMs Test│
+│ HTTPS        │ /llms.txt    │ Princeton    │ PAA Intenções    │ Portais Tech │ OpenRouter
+└──────────────┴──────────────┴──────────────┴──────────────────┴──────────────┴──────────┘
 ```
 
 ---
@@ -83,23 +82,23 @@ Após recuperar os chunks relevantes, a IA os usa para construir sua resposta. O
 ```
 LEAD CAPTURADO
       ↓
-ORQUESTRADOR inicia pipeline
+ORQUESTRADOR inicia pipeline de diagnóstico
       ↓
-┌─────────────────────────────────────────┐
-│  GATEKEEPER  │  METADATA  │  CONTENT   │  ← Paralelo
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│ GATEKEEPER │ METADATA │ CONTENT │ SEMANTIC_EXPLORER │ OFF-PAGE  │ ← 5 Agentes em Paralelo
+└─────────────────────────────────────────────────────────────────┘
       ↓
-INTENT (OpenRouter — 20 testes reais)
+INTENT PROMPT (OpenRouter — 20 testes reais em 4 LLMs)
       ↓
-ORQUESTRADOR consolida → GEO Score → Relatório HTML
+ORQUESTRADOR consolida → GEO Score (6 pilares) → Relatórios HTML & PDF
       ↓
-GUILHERME envia relatório ao lead
+GUILHERME envia diagnóstico ao lead / reunião estratégica
       ↓
 LEAD converte → vira CLIENTE
       ↓
 WORKSPACE DE AGENTES (por cliente)
-  Cada agente executa sua missão de implantação
-  GEO Score é re-medido mensalmente
+  Cada agente executa sua missão de implantação técnica e semântica
+  GEO Score é re-medido mensalmente com histórico de evolução
 ```
 
 ---
@@ -108,9 +107,9 @@ WORKSPACE DE AGENTES (por cliente)
 
 | Tipo | Duração | Foco Principal |
 |---|---|---|
-| Lead (gratuito) | Único | Diagnóstico e relatório de GEO Score |
-| Premium R$ 497/mês | 3+ meses | Implantação completa dos 4 pilares |
-| Enterprise (consulta) | Anual | Multi-idioma, API, SLA, squad dedicado |
+| Lead (gratuito) | Único | Diagnóstico de Raio-X e relatório de GEO Score nos 6 pilares |
+| Premium R$ 497/mês | 3+ meses | Implantação completa dos 6 pilares de GEO |
+| Enterprise (consulta) | Anual | Multi-idioma, API, SLA, squad dedicado e PR Digital continuada |
 
 ---
 
@@ -127,6 +126,6 @@ Quando um agente é acionado para um cliente, ele recebe:
   "plan": "premium | enterprise",
   "currentStage": 1,
   "geoScoreHistory": [{ "date": "...", "score": 34 }],
-  "lastDiagnostic": { ...resultado completo dos 4 agentes... }
+  "lastDiagnostic": { ...resultado completo dos 6 agentes... }
 }
 ```

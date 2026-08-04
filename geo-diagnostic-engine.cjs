@@ -407,30 +407,200 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   };
 }
 
+// ─── AGENTE 6: Semantic Explorer Agent (Ideação & Content Gaps) ─────────────
+async function runSemanticExplorerAgent(url, htmlContent, apiKey) {
+  const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+
+  // Extract H1/H2 tags to check topic coverage
+  const h2Matches = (htmlContent || '').match(/<h[12][^>]*>([\s\S]*?)<\/h[12]>/gi) || [];
+  const h2Titles = h2Matches.map(m => m.replace(/<[^>]+>/g, '').trim().toLowerCase());
+  
+  const hasComparisonTopic = h2Titles.some(t => t.includes('comparat') || t.includes('versus') || t.includes('vs') || t.includes('diferen'));
+  const hasRoiPricingTopic = h2Titles.some(t => t.includes('preço') || t.includes('custo') || t.includes('investimento') || t.includes('roi') || t.includes('valor'));
+  const hasFaqTopic = h2Titles.some(t => t.includes('faq') || t.includes('pergunta') || t.includes('dúvida') || t.includes('como funciona'));
+  const hasGuideTopic = h2Titles.some(t => t.includes('guia') || t.includes('passo a passo') || t.includes('como') || t.includes('tutorial'));
+
+  const contentGaps = [];
+  if (!hasComparisonTopic) {
+    contentGaps.push({
+      topic: 'Comparativo de Soluções e Diferenciais do Nicho',
+      searchIntent: `Qual a diferença entre as soluções de ${domain} e alternativas do mercado?`,
+      urgency: 'Alta',
+      recommendedFormat: 'Pillar Page com Tabela Comparativa HTML'
+    });
+  }
+  if (!hasRoiPricingTopic) {
+    contentGaps.push({
+      topic: 'Calculadora de ROI e Estrutura de Custos',
+      searchIntent: 'Quanto custa e qual o retorno sobre investimento das soluções oferecidas?',
+      urgency: 'Alta',
+      recommendedFormat: 'Artigo de Cluster com Simulação Numérica'
+    });
+  }
+  if (!hasFaqTopic) {
+    contentGaps.push({
+      topic: 'Cluster de Perguntas Frequentes (PAA - People Also Ask)',
+      searchIntent: 'Dúvidas técnicas e contratuais frequentes sobre o serviço',
+      urgency: 'Média',
+      recommendedFormat: 'Seção de FAQ com Schema FAQPage JSON-LD'
+    });
+  }
+  if (!hasGuideTopic) {
+    contentGaps.push({
+      topic: 'Guia Passo a Passo de Implementação',
+      searchIntent: 'Como funciona a contratação e implantação passo a passo?',
+      urgency: 'Média',
+      recommendedFormat: 'Guia Definitivo H2/H3 com Answer-First'
+    });
+  }
+
+  const topicCoverageScore = Math.min(100, Math.max(20, 100 - (contentGaps.length * 20)));
+
+  const suggestedClusters = [
+    {
+      clusterName: 'Cluster Semântico: Autoridade de Nicho & Soluções',
+      pillarTopic: `Guia Definitivo de Soluções de ${domain}`,
+      subTopics: [
+        `Como escolher a melhor solução no setor de ${domain}`,
+        `Comparativo completo de custos, vantagens e ROI`,
+        `Perguntas e respostas essenciais que as IAs consultam`
+      ],
+      estimatedAuthorityGain: '+35%'
+    }
+  ];
+
+  const missingPillarPages = contentGaps.map(g => '/' + g.topic.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+
+  return {
+    topicCoverageScore,
+    contentGapsCount: contentGaps.length,
+    contentGaps,
+    suggestedClusters,
+    missingPillarPages,
+    recommendations: contentGaps.slice(0, 2).map(g => ({
+      priority: g.urgency === 'Alta' ? 'Crítico' : 'Alto',
+      action: `Criar conteúdo para a lacuna semântica: '${g.topic}' (${g.recommendedFormat})`,
+      estimatedScoreGain: g.urgency === 'Alta' ? 10 : 6
+    }))
+  };
+}
+
+// ─── AGENTE 7: Off-Page Entity Monitor Agent (Autoridade Externa & RP) ──────
+async function runOffPageEntityAgent(url, htmlContent, apiKey) {
+  const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  const titleMatch = (htmlContent || '').match(/<title[^>]*>([^<|–-]+)/i);
+  const brandName = titleMatch ? titleMatch[1].trim().split(/[|–-]/)[0].trim() : domain;
+
+  // Check if sameAs includes major external entity nodes
+  const hasWikidata = /wikidata\.org/i.test(htmlContent || '');
+  const hasWikipedia = /wikipedia\.org/i.test(htmlContent || '');
+  const hasLinkedIn = /linkedin\.com/i.test(htmlContent || '');
+  const hasCrunchbase = /crunchbase\.com/i.test(htmlContent || '');
+
+  let externalEntityScore = 35; // base score
+  if (hasLinkedIn) externalEntityScore += 20;
+  if (hasCrunchbase) externalEntityScore += 15;
+  if (hasWikidata || hasWikipedia) externalEntityScore += 20;
+  if (/g1|exame|estadao|valor|forbes|terra|uol|techcrunch/i.test(htmlContent || '')) externalEntityScore += 10;
+
+  externalEntityScore = Math.min(100, externalEntityScore);
+
+  const digitalPrOpportunities = [
+    {
+      portalType: 'Portais de Notícias de Tecnologia e Negócios',
+      suggestedTopic: `Pesquisa de Mercado: Como a ${brandName} está transformando a experiência do cliente com IA`,
+      targetAudience: 'Decisores de Compras C-Level e Especialistas',
+      expectedImpact: 'Gera co-ocorrência vetorial nos corpora do GPT-4o, Claude e Gemini'
+    },
+    {
+      portalType: 'Blogs Setoriais e Portais de Imprensa',
+      suggestedTopic: `Entrevista Estratégica sobre o Futuro e Tendências de Mercado da ${brandName}`,
+      targetAudience: 'Compradores Qualificados e IAs de Busca',
+      expectedImpact: 'Aumenta autoridade de entidade externa no Grafo de Conhecimento'
+    }
+  ];
+
+  return {
+    externalEntityScore,
+    monitoredMentionsCount: externalEntityScore > 50 ? 5 : 2,
+    externalFootprint: {
+      hasCrunchbaseProfile: hasCrunchbase,
+      hasLinkedInCompanyPage: hasLinkedIn,
+      hasWikipediaOrWikidataMention: hasWikidata || hasWikipedia,
+      hasMajorNewsArticles: externalEntityScore >= 60
+    },
+    coOccurrenceKeywords: ['Líder em Serviços', 'Tecnologia de Ponta', 'Referência Nacional'],
+    digitalPrOpportunities,
+    unlinkedBrandMentions: externalEntityScore < 50 ? 4 : 1,
+    recommendations: [
+      {
+        priority: externalEntityScore < 50 ? 'Alto' : 'Médio',
+        action: `Publicar pauta de RP Digital em portais de tecnologia para aumentar a co-ocorrência da marca '${brandName}' nas LLMs`,
+        estimatedScoreGain: externalEntityScore < 50 ? 10 : 5
+      }
+    ]
+  };
+}
+
 // ─── ORQUESTRADOR: Calcular GEO Score ────────────────────────────────────────
-function calculateGeoScore(gatekeeper, metadata, content, visibility) {
+function calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, offpage) {
   let score = 0;
 
-  // Gatekeeper (25 pts — exclusionary)
-  if (gatekeeper.robotsTxtAllowAiBots) score += 10;
-  if (gatekeeper.ssrActive) score += 8;
-  if (!gatekeeper.hasPriceGatekeeperIssue) score += 7;
+  if (!semantic && !offpage) {
+    // Legacy 4-agent calculation
+    if (gatekeeper.robotsTxtAllowAiBots) score += 10;
+    if (gatekeeper.ssrActive) score += 8;
+    if (!gatekeeper.hasPriceGatekeeperIssue) score += 7;
 
-  // Metadata (20 pts)
-  if (metadata.organizationSchemaPresent) score += 8;
-  if (metadata.personSchemaPresent) score += 4;
-  if (metadata.llmsTxtPublished) score += 5;
-  if (metadata.organizationSameAsCount > 0) score += 3;
+    if (metadata.organizationSchemaPresent) score += 8;
+    if (metadata.personSchemaPresent) score += 4;
+    if (metadata.llmsTxtPublished) score += 5;
+    if (metadata.organizationSameAsCount > 0) score += 3;
 
-  // Content (30 pts)
-  if (content.factorsDetected.hasTldrAnswerFirstParagraph) score += 8;
-  if (content.factorsDetected.hasStatisticsPer150Words) score += 7;
-  if (content.factorsDetected.hasExpertQuotes) score += 7;
-  if (content.factorsDetected.hasHtmlComparisonTables) score += 5;
-  if (!content.priceNotMentioned) score += 3;
+    if (content.factorsDetected.hasTldrAnswerFirstParagraph) score += 8;
+    if (content.factorsDetected.hasStatisticsPer150Words) score += 7;
+    if (content.factorsDetected.hasExpertQuotes) score += 7;
+    if (content.factorsDetected.hasHtmlComparisonTables) score += 5;
+    if (!content.priceNotMentioned) score += 3;
 
-  // Visibility (25 pts)
-  score += Math.round(visibility.citationSharePercentage * 100 * 0.25);
+    score += Math.round(visibility.citationSharePercentage * 100 * 0.25);
+    if (visibility.brandSentimentScore === 'Positivo') score += 5;
+    else if (visibility.brandSentimentScore === 'Neutro') score += 2;
+
+    return Math.min(100, Math.max(0, score));
+  }
+
+  // 6-Pillar Full Calculation (100 pts total)
+  // 1. Technical Gatekeeper (20 pts)
+  if (gatekeeper.robotsTxtAllowAiBots) score += 8;
+  if (gatekeeper.ssrActive) score += 6;
+  if (!gatekeeper.hasPriceGatekeeperIssue) score += 6;
+
+  // 2. Metadata Entity (15 pts)
+  if (metadata.organizationSchemaPresent) score += 6;
+  if (metadata.personSchemaPresent) score += 3;
+  if (metadata.llmsTxtPublished) score += 4;
+  if (metadata.organizationSameAsCount > 0) score += 2;
+
+  // 3. Content Absorption (20 pts)
+  if (content.factorsDetected.hasTldrAnswerFirstParagraph) score += 5;
+  if (content.factorsDetected.hasStatisticsPer150Words) score += 5;
+  if (content.factorsDetected.hasExpertQuotes) score += 5;
+  if (content.factorsDetected.hasHtmlComparisonTables) score += 3;
+  if (!content.priceNotMentioned) score += 2;
+
+  // 4. Semantic Explorer (15 pts)
+  if (semantic) {
+    score += Math.round((semantic.topicCoverageScore / 100) * 15);
+  }
+
+  // 5. Off-Page Entity Monitor (10 pts)
+  if (offpage) {
+    score += Math.round((offpage.externalEntityScore / 100) * 10);
+  }
+
+  // 6. Intent Prompt (20 pts)
+  score += Math.round(visibility.citationSharePercentage * 100 * 0.15);
   if (visibility.brandSentimentScore === 'Positivo') score += 5;
   else if (visibility.brandSentimentScore === 'Neutro') score += 2;
 
@@ -438,7 +608,7 @@ function calculateGeoScore(gatekeeper, metadata, content, visibility) {
 }
 
 // ─── Build priority action list ───────────────────────────────────────────────
-function buildActionList(gatekeeper, metadata, content, visibility) {
+function buildActionList(gatekeeper, metadata, content, visibility, semantic, offpage) {
   const actions = [];
 
   if (!gatekeeper.robotsTxtAllowAiBots) {
@@ -468,6 +638,15 @@ function buildActionList(gatekeeper, metadata, content, visibility) {
     });
   }
 
+  if (semantic && semantic.contentGaps && semantic.contentGaps.length > 0) {
+    actions.push({
+      step: actions.length + 1,
+      agentOwner: 'SEMANTIC_EXPLORER_AGENT',
+      impact: 'Alto',
+      task: `Preencher lacuna semântica de conteúdo: Criar '${semantic.contentGaps[0].topic}' (${semantic.contentGaps[0].recommendedFormat})`,
+    });
+  }
+
   if (!content.factorsDetected.hasTldrAnswerFirstParagraph) {
     actions.push({
       step: actions.length + 1,
@@ -483,6 +662,15 @@ function buildActionList(gatekeeper, metadata, content, visibility) {
       agentOwner: 'CONTENT_ABSORPTION_AGENT',
       impact: 'Alto',
       task: 'Inserir dados numéricos precisos e fontes verificáveis a cada 150–200 palavras (+31% citabilidade)',
+    });
+  }
+
+  if (offpage && offpage.externalEntityScore < 60) {
+    actions.push({
+      step: actions.length + 1,
+      agentOwner: 'OFFPAGE_ENTITY_AGENT',
+      impact: 'Médio',
+      task: 'Iniciar campanha de PR Digital para aumentar co-ocorrência da marca em portais de tecnologia e negócios de alta autoridade',
     });
   }
 
@@ -770,6 +958,68 @@ function generateHtmlReport(lead, diagnostic) {
     </div>
   </div>
 
+  <!-- Semantic Explorer (Ideação & Content Gaps) -->
+  ${diagnostic.semanticAnalysis ? `
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align="left" style="vertical-align:middle;">
+          ${iconFolder}
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Semantic Explorer</span>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.semanticAnalysis.topicCoverageScore >= 70 ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b45309;background:#fff7ed;border:1px solid #fed7aa;'}">
+            COBERTURA: ${diagnostic.semanticAnalysis.topicCoverageScore}%
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div style="font-size:13px;color:#4b5563;margin-bottom:8px;${fontSans}">
+      <strong>Gaps de Conteúdo Detectados:</strong> ${diagnostic.semanticAnalysis.contentGapsCount} lacunas críticas
+    </div>
+
+    ${(diagnostic.semanticAnalysis.contentGaps || []).slice(0, 3).map(gap => `
+    <div style="background:#fdfefe;border:1px solid #e8e8eb;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:12px;${fontSans}">
+      <span style="display:inline-block;font-weight:bold;color:#b45309;margin-right:6px;">[${gap.urgency.toUpperCase()}]</span>
+      <strong style="color:#09090b;">${gap.topic}:</strong> ${gap.recommendedFormat}
+    </div>
+    `).join('')}
+  </div>
+  ` : ''}
+
+  <!-- Off-Page Entity Monitor -->
+  ${diagnostic.offpageAnalysis ? `
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align="left" style="vertical-align:middle;">
+          ${iconShield}
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Off-Page Entity Monitor</span>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.offpageAnalysis.externalEntityScore >= 60 ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b45309;background:#fff7ed;border:1px solid #fed7aa;'}">
+            SCORE ENTIDADE: ${diagnostic.offpageAnalysis.externalEntityScore}%
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(diagnostic.offpageAnalysis.externalFootprint?.hasLinkedInCompanyPage)} Perfil corporativo no LinkedIn
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(diagnostic.offpageAnalysis.externalFootprint?.hasCrunchbaseProfile)} Presença em diretórios corporativos (Crunchbase)
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(diagnostic.offpageAnalysis.externalFootprint?.hasWikipediaOrWikidataMention)} Citação em Wikidata / Wikipedia
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(diagnostic.offpageAnalysis.externalFootprint?.hasMajorNewsArticles)} Artigos e matérias na grande imprensa tech
+    </div>
+  </div>
+  ` : ''}
+
   <!-- Citation Share nas IAs -->
   <div style="${cardStyle}">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
@@ -954,8 +1204,8 @@ async function generatePdfReport(lead, diagnostic) {
 
       doc.y = 245;
 
-      // 4 Pillars Section Header
-      doc.fillColor('#09090b').fontSize(12).font('Helvetica-Bold').text('DETALHAMENTO DOS 4 PILARES TÉCNICOS');
+      // 6 Pillars Section Header
+      doc.fillColor('#09090b').fontSize(12).font('Helvetica-Bold').text('DETALHAMENTO DOS PILARES TÉCNICOS');
       doc.moveDown(0.4);
 
       // Pillar 1: Gatekeeper
@@ -963,36 +1213,44 @@ async function generatePdfReport(lead, diagnostic) {
       doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
          .text(`• robots.txt para robôs de IA: ${diagnostic.gatekeeperStatus?.robotsTxtAllowAiBots ? 'Permitido (OK)' : 'Bloqueado (CRÍTICO)'}`)
          .text(`• SSR (Server-Side Rendering): ${diagnostic.gatekeeperStatus?.ssrActive ? 'Ativo (OK)' : 'Inativo (Depende de JS)'}`)
-         .text(`• Preços visíveis no HTML: ${diagnostic.gatekeeperStatus?.hasPriceGatekeeperIssue ? 'Ausente' : 'Visível'}`)
-         .text(`• Latência do Servidor: ${diagnostic.gatekeeperStatus?.serverLatencyMs || 0} ms`);
-      doc.moveDown(0.6);
+         .text(`• Preços visíveis no HTML: ${diagnostic.gatekeeperStatus?.hasPriceGatekeeperIssue ? 'Ausente' : 'Visível'}`);
+      doc.moveDown(0.4);
 
       // Pillar 2: Metadata
       doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('2. Metadata Entity (Schemas e Grafos)');
       doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
          .text(`• Schema Organization: ${diagnostic.metadataAnalysis?.organizationSchemaPresent ? 'Presente' : 'Ausente (CRÍTICO)'}`)
-         .text(`• Schema Person (Autor): ${diagnostic.metadataAnalysis?.personSchemaPresent ? 'Presente' : 'Ausente'}`)
-         .text(`• Arquivo /llms.txt: ${diagnostic.metadataAnalysis?.llmsTxtPublished ? 'Publicado' : 'Não encontrado'}`)
-         .text(`• Fontes sameAs (LinkedIn, Wikidata): ${diagnostic.metadataAnalysis?.organizationSameAsCount || 0} fontes`);
-      doc.moveDown(0.6);
+         .text(`• Arquivo /llms.txt: ${diagnostic.metadataAnalysis?.llmsTxtPublished ? 'Publicado' : 'Não encontrado'}`);
+      doc.moveDown(0.4);
 
       // Pillar 3: Content
       doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('3. Content Absorption (Metodologia Princeton)');
       doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
          .text(`• Resposta AEO no 1º parágrafo: ${diagnostic.contentReview?.factorsDetected?.hasTldrAnswerFirstParagraph ? 'Presente' : 'Ausente'}`)
-         .text(`• Estatísticas (1 a cada 150 palavras): ${diagnostic.contentReview?.factorsDetected?.hasStatisticsPer150Words ? 'Adequada' : 'Insuficiente'}`)
-         .text(`• Citações de Especialistas: ${diagnostic.contentReview?.factorsDetected?.hasExpertQuotes ? 'Presente' : 'Ausente'}`)
-         .text(`• Tabelas Comparativas HTML: ${diagnostic.contentReview?.factorsDetected?.hasHtmlComparisonTables ? 'Presente' : 'Ausente'}`);
-      doc.moveDown(0.6);
+         .text(`• Estatísticas (1 a cada 150 palavras): ${diagnostic.contentReview?.factorsDetected?.hasStatisticsPer150Words ? 'Adequada' : 'Insuficiente'}`);
+      doc.moveDown(0.4);
 
-      // Pillar 4: Intent
-      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('4. Intent Prompt (Citation Share nas IAs)');
+      // Pillar 4: Semantic Explorer
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('4. Semantic Explorer (Content Gaps & Clusters)');
+      doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
+         .text(`• Cobertura de Tópicos: ${diagnostic.semanticAnalysis?.topicCoverageScore || 0}%`)
+         .text(`• Gaps semânticos mapeados: ${diagnostic.semanticAnalysis?.contentGapsCount || 0} lacunas`);
+      doc.moveDown(0.4);
+
+      // Pillar 5: Off-Page Entity Monitor
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('5. Off-Page Entity Monitor (Autoridade Externa & RP)');
+      doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
+         .text(`• Score de Entidade Externa: ${diagnostic.offpageAnalysis?.externalEntityScore || 0}%`)
+         .text(`• Presença no LinkedIn/Directories: ${diagnostic.offpageAnalysis?.externalFootprint?.hasLinkedInCompanyPage ? 'Sim' : 'Não'}`);
+      doc.moveDown(0.4);
+
+      // Pillar 6: Intent
+      doc.fillColor('#18181b').fontSize(10).font('Helvetica-Bold').text('6. Intent Prompt (Citation Share nas IAs)');
       const sharePct = Math.round((diagnostic.visibilityBenchmarking?.citationSharePercentage || 0) * 100);
       doc.fillColor('#52525b').fontSize(8.5).font('Helvetica')
          .text(`• Citation Share real: ${sharePct}% (${diagnostic.visibilityBenchmarking?.totalPromptsTest || 20} testes em 4 LLMs)`)
-         .text(`• Sentimento da Marca: ${diagnostic.visibilityBenchmarking?.brandSentimentScore || 'Neutro'}`)
-         .text(`• Concorrentes mais citados: ${(diagnostic.visibilityBenchmarking?.topMentionedCompetitors || []).join(', ') || 'Nenhum'}`);
-      doc.moveDown(1);
+         .text(`• Sentimento da Marca: ${diagnostic.visibilityBenchmarking?.brandSentimentScore || 'Neutro'}`);
+      doc.moveDown(0.8);
 
       // Action Items
       doc.fillColor('#09090b').fontSize(12).font('Helvetica-Bold').text('PLANO DE AÇÃO PRIORIZADO');
@@ -1023,6 +1281,8 @@ module.exports = {
   runMetadataAgent,
   runContentAgent,
   runIntentAgent,
+  runSemanticExplorerAgent,
+  runOffPageEntityAgent,
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
