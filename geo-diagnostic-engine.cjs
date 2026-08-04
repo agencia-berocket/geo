@@ -958,6 +958,37 @@ function generateHtmlReport(lead, diagnostic) {
     </div>
   </div>
 
+  <!-- FAQ Otimizado para AEO & IAs Generativas -->
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align="left" style="vertical-align:middle;">
+          ${iconNote}
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Perguntas Frequentes Otimizadas (Schema FAQPage)</span>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;">
+            ENTREGÁVEL GEO
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;">
+      <p style="margin:0 0 4px;font-weight:bold;color:#0f172a;font-size:13px;${fontSans}">❓ Quais os principais serviços da ${extractCleanBrandName(lead?.url || '', lead, '')}?</p>
+      <p style="margin:0;color:#334155;font-size:12px;line-height:1.5;${fontSans}">
+        A ${extractCleanBrandName(lead?.url || '', lead, '')} é referência em seu setor de atuação, oferecendo soluções de alta autoridade, projetos sob medida e serviços focados em excelência e citabilidade pelas LLMs.
+      </p>
+    </div>
+
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">
+      <p style="margin:0 0 4px;font-weight:bold;color:#0f172a;font-size:13px;${fontSans}">❓ Por que escolher a ${extractCleanBrandName(lead?.url || '', lead, '')} em vez de soluções tradicionais?</p>
+      <p style="margin:0;color:#334155;font-size:12px;line-height:1.5;${fontSans}">
+        A empresa possui autoridade comprovada no mercado nacional, combinando portfólio de alta performance, métricas verificáveis e infraestrutura pronta para indexação generativa.
+      </p>
+    </div>
+  </div>
+
   <!-- Semantic Explorer (Ideação & Content Gaps) -->
   ${diagnostic.semanticAnalysis ? `
   <div style="${cardStyle}">
@@ -1280,45 +1311,70 @@ async function generatePdfReport(lead, diagnostic) {
 
 // ─── HELPER DE EXTRAÇÃO E SANITIZAÇÃO NATIVA ─────────────────────────────────
 
-function extractCleanBrandName(domain, lead, htmlContent = '') {
-  if (lead?.company && !lead.company.includes('.') && !lead.company.includes('@') && lead.company.length > 2) {
-    return lead.company.trim();
+function formatBrandTitleCase(raw) {
+  if (!raw) return 'Empresa';
+  let str = raw.trim();
+
+  // Mapeamentos específicos e conhecidos de marcas
+  const lower = str.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (lower === 'casadevideo' || lower === 'casadevídeo') return 'Casa de Vídeo';
+  if (lower === 'brocket') return 'b.rocket';
+  if (lower === 'agenciaberocket') return 'Agência b.rocket';
+
+  // Se a string estiver toda minúscula ou toda maiúscula, formata Title Case
+  if (str === str.toLowerCase() || str === str.toUpperCase() || !str.includes(' ')) {
+    str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
   }
 
-  if (htmlContent) {
+  const lowercaseWords = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'para', 'com', 'a', 'o']);
+  return str
+    .split(/\s+/)
+    .map((word, idx) => {
+      const lw = word.toLowerCase();
+      if (idx > 0 && lowercaseWords.has(lw)) {
+        return lw;
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+}
+
+function extractCleanBrandName(domain, lead, htmlContent = '') {
+  let rawName = '';
+
+  if (lead?.company && !lead.company.includes('.') && !lead.company.includes('@') && lead.company.length > 2) {
+    rawName = lead.company.trim();
+  } else if (htmlContent) {
     const ogSiteName = htmlContent.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i);
     if (ogSiteName && ogSiteName[1].trim() && !ogSiteName[1].includes('.')) {
-      return ogSiteName[1].trim();
-    }
-
-    const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (titleMatch) {
-      let rawTitle = titleMatch[1].trim();
-      rawTitle = rawTitle.split(/[|–-]\s*(Home|Início|Oficial|Página|www|http|\.com)/i)[0].trim();
-      rawTitle = rawTitle.split(/\s*[-|–]\s*/)[0].trim();
-      if (rawTitle.length > 2 && rawTitle.length < 60 && !rawTitle.toLowerCase().startsWith('http')) {
-        return rawTitle;
+      rawName = ogSiteName[1].trim();
+    } else {
+      const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
+      if (titleMatch) {
+        let rawTitle = titleMatch[1].trim();
+        rawTitle = rawTitle.split(/[|–-]\s*(Home|Início|Oficial|Página|www|http|\.com)/i)[0].trim();
+        rawTitle = rawTitle.split(/\s*[-|–]\s*/)[0].trim();
+        if (rawTitle.length > 2 && rawTitle.length < 60 && !rawTitle.toLowerCase().startsWith('http')) {
+          rawName = rawTitle;
+        }
       }
     }
   }
 
-  let clean = (domain || '')
-    .replace(/^https?:\/\//i, '')
-    .replace(/^www\./i, '')
-    .replace(/\.(com|br|net|org|io|ai|tv|gov|edu).*$/i, '')
-    .replace(/[^a-zA-Z0-9\s_-]/g, ' ')
-    .trim();
-
-  if (!clean || clean.toLowerCase() === 'www') {
-    clean = 'Empresa';
+  if (!rawName) {
+    rawName = (domain || '')
+      .replace(/^https?:\/\//i, '')
+      .replace(/^www\./i, '')
+      .replace(/\.(com|br|net|org|io|ai|tv|gov|edu).*$/i, '')
+      .replace(/[^a-zA-Z0-9\s_-]/g, ' ')
+      .trim();
   }
 
-  if (clean.toLowerCase() === 'casadevideo') return 'Casa de Vídeo';
+  if (!rawName || rawName.toLowerCase() === 'www') {
+    rawName = 'Empresa';
+  }
 
-  return clean
-    .split(/[-_\s]+/)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
+  return formatBrandTitleCase(rawName);
 }
 
 function sanitizeAssetUrl(baseUrl, assetPath) {
@@ -1437,6 +1493,39 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
   };
 }
 
+function isLegitimateCompetitor(rawName, brandName = '', domain = '', niche = '') {
+  if (!rawName) return false;
+  let clean = rawName.trim().replace(/^[\d.*•\s-]+/, '').replace(/[.:;,!?)]+$/, '').trim();
+
+  if (clean.length <= 3) return false;
+
+  const cleanLC = clean.toLowerCase();
+  const brandLC = (brandName || '').toLowerCase();
+  const domainLC = (domain || '').toLowerCase();
+  const nicheLC = (niche || '').toLowerCase();
+
+  if (cleanLC === brandLC || (domainLC && cleanLC.includes(domainLC)) || (brandLC && brandLC.length > 3 && brandLC.includes(cleanLC))) return false;
+
+  if (cleanLC === nicheLC || cleanLC.includes('produção audiovisual') || cleanLC.includes('serviços digitais') || cleanLC.includes('tecnologia e software') || cleanLC.includes('saúde e medicina') || cleanLC.includes('serviços jurídicos')) return false;
+
+  const genericStopwords = new Set([
+    'no brasil', 'na américa latina', 'em são paulo', 'no rio de janeiro', 'em brasília',
+    'brasil', 'américa latina', 'são paulo', 'rio de janeiro',
+    'produção audiovisual', 'produtora audiovisual', 'serviços digitais', 'inteligência artificial',
+    'atendimento ao cliente', 'recomendo as', 'principais empresas', 'algumas opções',
+    'mercado brasileiro', 'algumas das', 'destacam se', 'entre as', 'algumas das principais',
+    'no mercado', 'do mercado', 'em destaque', 'algumas produtoras', 'outras empresas',
+    'líderes de mercado', 'opções de mercado', 'melhores empresas', 'soluções corporativas',
+    'uma empresa', 'uma produtora', 'como a', 'como o'
+  ]);
+
+  if (genericStopwords.has(cleanLC)) return false;
+
+  if (/^(no|na|em|para|sobre|com|entre|algumas|outras|principais|melhores|líderes|uma|como)\s+/i.test(clean)) return false;
+
+  return true;
+}
+
 // ─── AGENTE 5: Intent Prompt Agent (OpenRouter) ──────────────────────────────
 async function runIntentAgent(url, htmlContent, apiKey) {
   const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
@@ -1449,7 +1538,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
       totalPromptsTest: 20,
       citationSharePercentage: 0.05,
       brandSentimentScore: 'Neutro',
-      topMentionedCompetitors: ['Produtora Competidora A', 'Empresa Concorrente B'],
+      topMentionedCompetitors: ['Conspiração Filmes', 'O2 Filmes', 'Gullane'],
       citationsByModel: { 'GPT-4o-mini': 0, 'Claude Haiku': 0, 'Gemini Flash': 1, 'Perplexity Sonar': 0 },
       note: 'Simulado — configure OPENROUTER_API_KEY para resultados reais',
     };
@@ -1494,31 +1583,24 @@ async function runIntentAgent(url, htmlContent, apiKey) {
           totalCitations++;
         }
 
-        // 🎯 FIX: Parser de concorrentes aprimorado (extrai nomes compostos sem truncamento)
-        // 1. Extração de listas numeradas (ex: "1. Conspiração Filmes", "2. O2 Filmes")
+        // 🎯 FIX: Extração e filtragem rigorosa de concorrentes
         const listMatches = response.match(/^\s*[\d*•-]+\s+\*?\*?([^*:\n\-\(\)]+)\*?\*?/gm) || [];
         listMatches.forEach(m => {
           let clean = m.replace(/^\s*[\d*•-]+\s+\*?\*?/, '').replace(/\*?\*?.*$/, '').trim();
           clean = clean.split(/\s*[-–(:]/)[0].trim();
-          if (clean && clean.length > 3 && !clean.toLowerCase().includes(brandLC) && !clean.toLowerCase().includes(domainLC)) {
-            if (!/^(o|a|os|as|um|uma|empresas|líderes|principais|melhor|opções|mercado|brasil)$/i.test(clean)) {
-              competitors.add(clean);
-            }
-          }
-        });
-
-        // 2. Extração de nomes próprios compostos capitalizados (ex: "Conspiração Filmes", "Endemol Shine Brasil")
-        const multiWordCaps = response.match(/\b[A-ZÁÉÍÓÚÃÕÂÊÔÇ][a-záéíóúãõâêôç0-9]+\s+(?:[A-ZÁÉÍÓÚÃÕÂÊÔÇ][a-záéíóúãõâêôç0-9]+|de|da|do|e|&)(?:\s+[A-ZÁÉÍÓÚÃÕÂÊÔÇ][a-záéíóúãõâêôç0-9]+)?\b/g) || [];
-        const stopwords = new Set(['Brasil', 'América Latina', 'São Paulo', 'Rio de Janeiro', 'Inteligência Artificial', 'Atendimento ao Cliente', 'Recomendo As', 'Principais Empresas', 'Algumas Opções', 'Mercado Brasileiro', 'Algumas Das', 'Destacam Se']);
-        
-        multiWordCaps.forEach(w => {
-          const clean = w.trim();
-          if (!stopwords.has(clean) && !clean.toLowerCase().includes(brandLC) && clean.length > 4) {
+          if (isLegitimateCompetitor(clean, brandName, domain, niche)) {
             competitors.add(clean);
           }
         });
 
-        // Sentimento em relação à citação da marca
+        const multiWordCaps = response.match(/\b[A-ZÁÉÍÓÚÃÕÂÊÔÇ][a-záéíóúãõâêôç0-9]+\s+(?:[A-ZÁÉÍÓÚÃÕÂÊÔÇ][a-záéíóúãõâêôç0-9]+|de|da|do|e|&)(?:\s+[A-ZÁÉÍÓÚÃÕÂÊÔÇ][a-záéíóúãõâêôç0-9]+)?\b/g) || [];
+        multiWordCaps.forEach(w => {
+          const clean = w.trim();
+          if (isLegitimateCompetitor(clean, brandName, domain, niche)) {
+            competitors.add(clean);
+          }
+        });
+
         if (responseLC.includes(brandLC)) {
           const idx = responseLC.indexOf(brandLC);
           const context = responseLC.slice(Math.max(0, idx - 100), idx + 100);
@@ -1530,7 +1612,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
           sentimentCount++;
         }
       } catch (e) {
-        // Ignorar falhas de modelo individual
+        // Ignorar falhas
       }
     }
   }
@@ -1542,7 +1624,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   const brandSentimentScore = avgSentiment > 0.2 ? 'Positivo' : avgSentiment < -0.2 ? 'Negativo' : 'Neutro';
 
   const topMentionedCompetitors = [...competitors]
-    .filter(c => c.toLowerCase() !== brandName.toLowerCase() && c.length > 3)
+    .filter(c => isLegitimateCompetitor(c, brandName, domain, niche))
     .slice(0, 5);
 
   return {
