@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { IconFolder, IconBot, IconUpload, IconHourglass, IconClipboard } from '../components/icons';
+import { auth } from '../../lib/firebase';
+
+async function getIdToken(): Promise<string> {
+  return auth.currentUser?.getIdToken(false) ?? '';
+}
 
 interface AgentFile {
   filename: string;
@@ -65,7 +70,10 @@ export default function AgentConfig() {
         ? '/api/admin/agents/files' 
         : `/api/admin/agents/${selectedAgentId}/files`;
         
-      const res = await fetch(url);
+      const token = await getIdToken();
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const data = await res.json();
       if (data.success) {
         setFiles(data.files || []);
@@ -105,9 +113,13 @@ export default function AgentConfig() {
         ? '/api/admin/agents/files/save'
         : `/api/admin/agents/${selectedAgentId}/files/save`;
 
+      const token = await getIdToken();
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           filename: selectedFilename,
           content,
@@ -134,9 +146,13 @@ export default function AgentConfig() {
     setSyncing(true);
     setMessage(null);
     try {
+      const token = await getIdToken();
       const res = await fetch('/api/admin/agents/git/sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
       });
       const data = await res.json();
       if (data.success) {
@@ -191,7 +207,7 @@ export default function AgentConfig() {
             activeMode === 'agents' ? 'border-zinc-950 text-zinc-950' : 'border-transparent text-zinc-400 hover:text-zinc-600'
           }`}
         >
-          <IconBot className="w-4 h-4" /> Agentes Especialistas (Estrutura OpenClaw)
+          <IconBot className="w-4 h-4" /> Agentes Especialistas (Estrutura de Agentes)
         </button>
       </div>
 
@@ -249,7 +265,7 @@ export default function AgentConfig() {
               {/* Seletor de Arquivos do Agente */}
               <div className="tactile-raised p-4 bg-white/60 flex flex-row lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-3 lg:pb-4 scrollbar-none">
                 <h2 className="hidden lg:block font-display font-bold text-zinc-950 text-xs uppercase tracking-wider mb-2">
-                  Estrutura OpenClaw
+                  Estrutura de Arquivos do Agente
                 </h2>
                 {loading ? (
                   <p className="text-zinc-400 text-xs font-mono py-4 text-center">Carregando...</p>
