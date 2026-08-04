@@ -1,19 +1,30 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# b.rocket - Plataforma GEO (Generative Engine Optimization)
 
-# Run and deploy your AI Studio app
+A **b.rocket** é a agência pioneira em Generative Engine Optimization (GEO). Esta plataforma estrutura a visibilidade semântica e RAG (Retrieval-Augmented Generation) para que marcas dominem as recomendações dos principais assistentes de IA do mercado, como ChatGPT, Perplexity, Gemini e Copilot.
 
-This contains everything you need to run your app locally.
-https://ai.studio/apps/342b4da6-a134-41d4-b362-241fc2cf2b77
+Este repositório contém a plataforma de diagnóstico, orquestração de agentes de análise e painel administrativo para gerenciamento de clientes e relatórios de recomendabilidade.
 
-## Run Locally
+## Como Executar o Projeto Localmente
 
-**Prerequisites:**  Node.js
+### Pré-requisitos
+* Node.js (v18 ou superior)
+* NPM
 
+### Passo a Passo
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1. **Instalar dependências:**
+   ```bash
+   npm install
+   ```
+
+2. **Configurar variáveis de ambiente:**
+   Crie um arquivo `.env.local` na raiz do projeto e configure a sua chave de API do Gemini:
+   ```env
+   GEMINI_API_KEY="sua_chave_api_aqui"
+   ```
+
+3. **Iniciar o servidor de desenvolvimento:**
+   ```bash
+   npm run dev
+   ```
+   A aplicação estará disponível em `http://localhost:3000`.

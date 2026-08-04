@@ -1,12 +1,44 @@
 import { useState, useCallback } from 'react';
+import { auth } from '../../lib/firebase';
 
 const API_BASE = '/api';
 
+// Obtém o Firebase ID Token do usuário autenticado.
+// O ID Token é renovado automaticamente pelo Firebase SDK quando expira (a cada 1h).
+async function getAdminToken(): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) {
+    // Redirecionar para login se não autenticado
+    window.location.href = '/admin';
+    throw new Error('Usuário não autenticado.');
+  }
+  // forceRefresh=false usa o token em cache se ainda válido
+  return user.getIdToken(false);
+}
+
 async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  let token: string;
+  try {
+    token = await getAdminToken();
+  } catch {
+    throw new Error('Sessão expirada. Faça login novamente.');
+  }
+
   const res = await fetch(`${API_BASE}${endpoint}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      ...options?.headers,
+    },
     ...options,
   });
+
+  if (res.status === 401 || res.status === 403) {
+    // Token inválido — redirecionar para login
+    window.location.href = '/admin';
+    throw new Error('Sessão inválida. Redirecionando para o login...');
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(err.error || `HTTP ${res.status}`);

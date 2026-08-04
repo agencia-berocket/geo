@@ -2,10 +2,15 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useClients, type Client } from '../hooks/useFirestore';
 import Modal from '../components/Modal';
 import { LeadChat } from '../components/LeadChat';
+import { auth } from '../../lib/firebase';
 import {
   IconEdit, IconTrash, IconPlay, IconChat, IconBot, IconShield, IconFolder,
   IconNote, IconHourglass, IconRocket, IconCheck, IconWarning,
 } from '../components/icons';
+
+async function getIdToken(): Promise<string> {
+  return auth.currentUser?.getIdToken(false) ?? '';
+}
 
 interface ClientsListProps {
   onNavigate: (page: string, id?: string) => void;
@@ -112,7 +117,7 @@ function AgentWorkspacePanel({ client, onClose }: { client: Client; onClose: () 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+          'Authorization': `Bearer ${await getIdToken()}`
         },
         body: JSON.stringify({
           clientId: client.id,

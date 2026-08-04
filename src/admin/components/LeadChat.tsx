@@ -1,5 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { IconBot, IconChat, IconWarning, IconCopy, IconPaperclip } from '../components/icons';
+import { auth } from '../../lib/firebase';
+
+async function getIdToken(): Promise<string> {
+  return auth.currentUser?.getIdToken(false) ?? '';
+}
 
 interface ChatMessage {
   id?: string;
@@ -19,10 +24,9 @@ export function LeadChat({ leadId, agentName = 'orchestrator', leadUrl }: { lead
 
   const fetchChatHistory = async () => {
     try {
+      const token = await getIdToken();
       const res = await fetch(`/api/admin/chat/history/${leadId}/${agentName}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.history) {
@@ -45,11 +49,12 @@ export function LeadChat({ leadId, agentName = 'orchestrator', leadUrl }: { lead
     setLoading(true);
     setError(null);
     try {
+      const token = await getIdToken();
       const res = await fetch('/api/admin/chat/send', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           clientId: leadId,
@@ -75,11 +80,10 @@ export function LeadChat({ leadId, agentName = 'orchestrator', leadUrl }: { lead
     if (!window.confirm('Deseja realmente limpar esta conversa e iniciar um novo contexto?')) return;
     setLoading(true);
     try {
+      const token = await getIdToken();
       const res = await fetch(`/api/admin/chat/history/${leadId}/${agentName}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('adminToken') || ''}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
       if (data.success) {

@@ -427,12 +427,87 @@ app.post('/api/calendar/book', async (req, res) => {
 });
 
 // ─── ADMIN MIDDLEWARE ──────────────────────────────────────────────────────
-// Simple token verification: client sends Firebase ID token, we verify the email
-// For now we verify via Firestore REST API using the service account
+// Verificação de dois fatores:
+// 1. ADMIN_SECRET_KEY (env) — para chamadas server-to-server
+// 2. Firebase ID Token — verificado via Google Identity Toolkit REST API
+// Apenas o e-mail berocket@berocket.com.br é autorizado
+
+const ADMIN_EMAIL = 'berocket@berocket.com.br';
+const FIREBASE_WEB_API_KEY = (() => {
+  try {
+    return require('./firebase-applet-config.json').apiKey;
+  } catch {
+    return process.env.FIREBASE_WEB_API_KEY || '';
+  }
+})();
+
 async function verifyAdminToken(req, res, next) {
-  // Allow all in dev if no auth header (for testing)
-  // In production this is enforced by Firestore rules + frontend auth
-  next();
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({
+      error: 'Token de autenticação não fornecido.',
+      code: 'NO_TOKEN'
+    });
+  }
+
+  const token = authHeader.slice(7); // Remove 'Bearer '
+
+  // ── Camada 1: Chave secreta estática (para emergências / scripts internos) ──
+  const secretKey = process.env.ADMIN_SECRET_KEY;
+  if (secretKey && token === secretKey) {
+    req.adminEmail = ADMIN_EMAIL;
+    return next();
+  }
+
+  // ── Camada 2: Firebase ID Token via Identity Toolkit ──
+  if (!FIREBASE_WEB_API_KEY) {
+    console.error('FIREBASE_WEB_API_KEY não configurada — admin bloqueado por segurança');
+    return res.status(500).json({ error: 'Configuração de autenticação ausente no servidor.' });
+  }
+
+  try {
+    const verifyRes = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+      }
+    );
+
+    if (!verifyRes.ok) {
+      const errData = await verifyRes.json().catch(() => ({}));
+      const errMsg = errData?.error?.message || 'Token inválido ou expirado';
+      return res.status(401).json({ error: `Autenticação falhou: ${errMsg}`, code: 'INVALID_TOKEN' });
+    }
+
+    const data = await verifyRes.json();
+    const userInfo = data.users?.[0];
+
+    if (!userInfo) {
+      return res.status(401).json({ error: 'Usuário não encontrado.', code: 'USER_NOT_FOUND' });
+    }
+
+    if (!userInfo.emailVerified) {
+      return res.status(403).json({ error: 'E-mail não verificado.', code: 'EMAIL_NOT_VERIFIED' });
+    }
+
+    if (userInfo.email !== ADMIN_EMAIL) {
+      console.warn(`⛔ Tentativa de acesso admin negada: ${userInfo.email}`);
+      return res.status(403).json({
+        error: 'Acesso negado. Apenas administradores autorizados.',
+        code: 'UNAUTHORIZED_EMAIL'
+      });
+    }
+
+    req.adminEmail = userInfo.email;
+    return next();
+
+  } catch (err) {
+    console.error('Admin auth error:', err.message);
+    return res.status(401).json({ error: 'Falha na verificação do token.', code: 'AUTH_ERROR' });
+  }
 }
 
 // ─── LEAD CAPTURE ──────────────────────────────────────────────────────────
@@ -1408,7 +1483,8 @@ app.post('/api/admin/newsletter/send-single', verifyAdminToken, async (req, res)
     const subId = email.replace(/[^a-zA-Z0-9]/g, '_');
     
     // Injetar pixel e link track
-    const trackOpenUrl = `http://localhost/api/newsletter/track-open/${broadcastId}/${subId}`;
+    const PRODUCTION_URL = process.env.SITE_URL || 'https://geo.berocket.com.br';
+    const trackOpenUrl = `${PRODUCTION_URL}/api/newsletter/track-open/${broadcastId}/${subId}`;
     const trackingPixel = `<img src="${trackOpenUrl}" width="1" height="1" style="display:none;" />`;
     const finalHtml = htmlContent + trackingPixel;
 
