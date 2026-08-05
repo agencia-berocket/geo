@@ -37,14 +37,18 @@ const planConfig = {
   enterprise: { label: 'Enterprise', color: 'text-zinc-950 bg-zinc-200/80 border-zinc-300 shadow-xs' },
 };
 
-type AgentName = 'orchestrator' | 'gatekeeper' | 'metadata' | 'content' | 'intent';
+type AgentName = 'orchestrator' | 'gatekeeper' | 'metadata' | 'content' | 'seo_optimizer' | 'semantic_explorer' | 'offpage' | 'intent' | 'checklist_architect';
 
 const agents: Array<{ id: AgentName; icon: React.ReactNode; name: string; description: string; stage: number }> = [
-  { id: 'orchestrator', icon: <IconBot className="w-4 h-4" />, name: 'Orquestrador', description: 'Gerencia o pipeline completo e gera o Roteiro GEO', stage: 5 },
-  { id: 'gatekeeper', icon: <IconShield className="w-4 h-4" />, name: 'Technical Gatekeeper', description: 'Gera robots.txt otimizado e audita SSR', stage: 1 },
+  { id: 'orchestrator', icon: <IconBot className="w-4 h-4" />, name: 'Orquestrador Master', description: 'Gerencia o pipeline completo e consolida o relatório final', stage: 5 },
+  { id: 'gatekeeper', icon: <IconShield className="w-4 h-4" />, name: 'Technical Gatekeeper', description: 'Gera robots.txt otimizado e audita SSR/robots.txt', stage: 1 },
   { id: 'metadata', icon: <IconFolder className="w-4 h-4" />, name: 'Metadata Entity', description: 'Gera códigos JSON-LD Schema e arquivo /llms.txt', stage: 3 },
   { id: 'content', icon: <IconNote className="w-4 h-4" />, name: 'Content Absorption', description: 'Gera bloco AEO (<60 palavras) e tabelas HTML', stage: 4 },
-  { id: 'intent', icon: <IconChat className="w-4 h-4" />, name: 'Intent Prompt', description: 'Mapeia prompts de teste e Citation Share', stage: 2 },
+  { id: 'seo_optimizer', icon: <IconEdit className="w-4 h-4" />, name: 'SEO Optimizer', description: 'Otimiza Title/Meta tags, Alt tags e links internos', stage: 1 },
+  { id: 'semantic_explorer', icon: <IconFolder className="w-4 h-4" />, name: 'Semantic Explorer', description: 'Mapeia Content Gaps e Topic Clusters semânticos', stage: 2 },
+  { id: 'offpage', icon: <IconShield className="w-4 h-4" />, name: 'Off-Page Entity Monitor', description: 'Audita menções externas, Wikidata e pautas de RP', stage: 4 },
+  { id: 'intent', icon: <IconChat className="w-4 h-4" />, name: 'Intent Prompt', description: 'Mapeia Citation Share e 20 prompts em 4 LLMs', stage: 2 },
+  { id: 'checklist_architect', icon: <IconCheck className="w-4 h-4" />, name: 'Checklist Architect', description: 'QA técnico, código compilado e tutoriais CMS para devs', stage: 5 },
 ];
 
 // ─── HELPER COMPONENTS: COPY & DOWNLOAD ──────────────────────────────────────
@@ -314,7 +318,11 @@ function ClientWorkspacePage({ client, onBack, onEdit, onDelete }: {
     gatekeeper: null,
     metadata: null,
     content: null,
+    seo_optimizer: null,
+    semantic_explorer: null,
+    offpage: null,
     intent: null,
+    checklist_architect: null,
   });
 
   // Pre-populate deliverables on mount from Firestore

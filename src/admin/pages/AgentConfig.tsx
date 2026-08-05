@@ -29,9 +29,11 @@ const agentsList = [
   { id: 'gatekeeper', name: 'Technical Gatekeeper', desc: 'Audita robots.txt, ativação de SSR, latência do servidor e indexabilidade para robôs de IA.' },
   { id: 'metadata', name: 'Metadata Entity', desc: 'Valida Schemas JSON-LD (Organization, Person, FAQ) e cria mapas de RAG em /llms.txt.' },
   { id: 'content', name: 'Content Absorption', desc: 'Revisa modularidade, tamanho de chunks, Answer-First e fatores científicos de Princeton.' },
-  { id: 'intent', name: 'Intent Prompt', desc: 'Testa menções e Citation Share nas LLMs (ChatGPT, Gemini, Perplexity) usando OpenRouter.' },
+  { id: 'seo_optimizer', name: 'SEO Optimizer', desc: 'Otimiza snippets clássicos (Title/Meta), profundidade de links internos, Alt tags e tráfego de transição.' },
   { id: 'semantic_explorer', name: 'Semantic Explorer', desc: 'Mapeia lacunas de conteúdo (Content Gaps) e projeta clusters semânticos para novas páginas.' },
   { id: 'offpage', name: 'Off-Page Entity Monitor', desc: 'Monitora a presença da marca na web externa e planeja pautas de RP Digital para LLMs.' },
+  { id: 'intent', name: 'Intent Prompt', desc: 'Testa menções e Citation Share nas LLMs (ChatGPT, Gemini, Perplexity) usando OpenRouter.' },
+  { id: 'checklist_architect', name: 'Checklist Architect', desc: 'Garantia de Qualidade (QA), traduz falhas em código pronto (JSON-LD/robots.txt) e tutoriais CMS.' },
 ];
 
 const generalFiles = ['Soul.md', 'Introducao.md', 'Estrutura.md'];

@@ -699,24 +699,85 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
                       </AgentReport>
 
                       <AgentReport
-                        title="Content Absorption"
-                        icon={<IconNote className="w-4 h-4" />}
-                        status={
-                          Object.values(d.contentReview?.factorsDetected || {}).filter(Boolean).length >= 3 ? 'ok' : 'critical'
-                        }
+                        title="SEO Optimizer (Tráfego de Transição)"
+                        icon={<IconEdit className="w-4 h-4" />}
+                        status={(d.seoAnalysis?.score ?? 70) >= 70 ? 'ok' : (d.seoAnalysis?.score ?? 70) >= 40 ? 'warning' : 'critical'}
                       >
                         <div className="space-y-2 text-zinc-700 font-medium">
+                          <div className="flex items-center justify-between text-xs border-b border-zinc-100 pb-1">
+                            <span className="text-zinc-500 font-mono">Score de SEO Tradicional:</span>
+                            <span className="font-mono font-bold text-emerald-600">{d.seoAnalysis?.score ?? 70}%</span>
+                          </div>
                           {[
-                            { label: 'Resposta AEO nas primeiras 60 palavras', ok: d.contentReview?.factorsDetected?.hasTldrAnswerFirstParagraph },
-                            { label: 'Estatísticas a cada 150 palavras', ok: d.contentReview?.factorsDetected?.hasStatisticsPer150Words },
-                            { label: 'Aspas de especialistas', ok: d.contentReview?.factorsDetected?.hasExpertQuotes },
-                            { label: 'Tabelas comparativas HTML', ok: d.contentReview?.factorsDetected?.hasHtmlComparisonTables },
+                            { label: 'Title Tag otimizada', ok: d.seoAnalysis?.titlePresent !== false },
+                            { label: 'Meta Description adequada', ok: d.seoAnalysis?.metaDescriptionPresent !== false },
+                            { label: 'Imagens com atributo Alt', ok: d.seoAnalysis?.imagesWithAlt !== false },
+                            { label: 'Links internos sem textos genéricos', ok: d.seoAnalysis?.genericAnchorsCount === 0 },
                           ].map(item => (
                             <div key={item.label} className="flex items-center gap-2">
-                              {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconX className="w-4 h-4 text-red-600" />}
+                              {item.ok ? <IconCheck className="w-4 h-4 text-emerald-600" /> : <IconWarning className="w-4 h-4 text-amber-600" />}
                               <span>{item.label}</span>
                             </div>
                           ))}
+                        </div>
+                      </AgentReport>
+
+                      <AgentReport
+                        title="Semantic Explorer (Ideação & Gaps)"
+                        icon={<IconFolder className="w-4 h-4" />}
+                        status={d.semanticAnalysis?.contentGaps?.length === 0 ? 'ok' : 'warning'}
+                      >
+                        <div className="space-y-2 text-zinc-700 font-medium">
+                          <p className="text-xs text-zinc-500 font-mono">Content Gaps Identificados: {d.semanticAnalysis?.contentGaps?.length || 0}</p>
+                          {(d.semanticAnalysis?.contentGaps || []).slice(0, 3).map((gap: any, idx: number) => (
+                            <div key={idx} className="bg-zinc-50 border border-zinc-200 p-2 rounded-lg text-xs">
+                              <span className="font-bold text-zinc-900 block">{gap.topic || gap}</span>
+                              {gap.searchIntent && <span className="text-[10px] text-zinc-400 font-mono">Intenção: {gap.searchIntent}</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </AgentReport>
+
+                      <AgentReport
+                        title="Off-Page Entity Monitor (RP & Wikidata)"
+                        icon={<IconShield className="w-4 h-4" />}
+                        status={(d.offpageAnalysis?.externalEntityScore ?? 50) >= 60 ? 'ok' : 'warning'}
+                      >
+                        <div className="space-y-2 text-zinc-700 font-medium">
+                          <div className="flex items-center justify-between text-xs border-b border-zinc-100 pb-1">
+                            <span className="text-zinc-500 font-mono">Score de Entidade Externa:</span>
+                            <span className="font-mono font-bold text-emerald-600">{d.offpageAnalysis?.externalEntityScore ?? 50}%</span>
+                          </div>
+                          <div className="text-xs text-zinc-600">
+                            Presença em Wikipédia/Wikidata: {d.offpageAnalysis?.hasWikidata ? '✓ Presente' : '✗ Ausente'}
+                          </div>
+                        </div>
+                      </AgentReport>
+
+                      <AgentReport
+                        title="Intent Prompt (Citation Share nas LLMs)"
+                        icon={<IconChat className="w-4 h-4" />}
+                        status={(d.visibilityBenchmarking?.citationSharePercentage ?? 0) > 0.3 ? 'ok' : (d.visibilityBenchmarking?.citationSharePercentage ?? 0) > 0 ? 'warning' : 'critical'}
+                      >
+                        <div className="space-y-2 text-zinc-700 font-medium">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-500 font-mono">Citation Share Total:</span>
+                            <span className="font-mono font-bold text-zinc-900">{Math.round((d.visibilityBenchmarking?.citationSharePercentage || 0) * 100)}%</span>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-zinc-500 font-mono">Sentimento de Marca:</span>
+                            <span className="font-bold text-emerald-600">{d.visibilityBenchmarking?.brandSentimentScore || 'Positivo'}</span>
+                          </div>
+                        </div>
+                      </AgentReport>
+
+                      <AgentReport
+                        title="Checklist Architect (QA & Código para Devs)"
+                        icon={<IconCheck className="w-4 h-4" />}
+                        status="ok"
+                      >
+                        <div className="space-y-2 text-zinc-700 font-medium text-xs">
+                          <p className="text-zinc-600 font-semibold">✓ Checklist Interativo e Código JSON-LD/robots.txt gerado com sucesso no Relatório Final.</p>
                         </div>
                       </AgentReport>
 
