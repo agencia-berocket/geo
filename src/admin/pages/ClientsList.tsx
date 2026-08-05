@@ -345,25 +345,27 @@ function ClientWorkspacePage({ client, onBack, onEdit, onDelete }: {
                 },
                 actionPlanMarkdown: (latest as any).actionPlanMarkdown || `# Plano Estratégico GEO`,
               },
-              gatekeeper: {
+              gatekeeper: latest.gatekeeperStatus ? {
                 ...latest.gatekeeperStatus,
                 recommendedRobotsTxt: (latest as any).deliverables?.robotsTxt || `# robots.txt recomendado para ${client.url}\nUser-agent: GPTBot\nAllow: /`,
-              },
-              metadata: {
+              } : prev.gatekeeper,
+              metadata: latest.metadataAnalysis ? {
                 ...latest.metadataAnalysis,
                 generatedJsonLd: (latest as any).deliverables?.jsonLdSchema || JSON.stringify({ "@context": "https://schema.org", "@type": "Organization", "name": client.company }, null, 2),
                 llmsTxt: (latest as any).deliverables?.llmsTxt || `# ${client.company}\n> /llms.txt`,
-              },
-              content: {
+              } : prev.metadata,
+              content: latest.contentReview ? {
                 ...latest.contentReview,
                 aeoTemplates: (latest as any).deliverables?.aeoTemplates || {
                   tldrAnswerFirstBlock: `<div class="geo-aeo-tldr">Resumo AEO</div>`,
                   htmlComparisonTable: `<table><tr><th>Critério</th><th>${client.url}</th></tr></table>`,
                 },
-              },
-              intent: {
-                ...latest.visibilityBenchmarking,
-              },
+              } : prev.content,
+              seo_optimizer: (latest as any).seoAnalysis || prev.seo_optimizer,
+              semantic_explorer: (latest as any).semanticAnalysis || prev.semantic_explorer,
+              offpage: (latest as any).offpageAnalysis || prev.offpage,
+              intent: latest.visibilityBenchmarking || prev.intent,
+              checklist_architect: (latest as any).checklist || prev.checklist_architect,
             }));
           }
         }

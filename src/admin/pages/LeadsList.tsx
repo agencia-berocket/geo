@@ -351,22 +351,30 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'agents' | 'chat'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
 
+  // Polling para atualizar o lead e buscar o diagnóstico enquanto estiver processando ou recém-disparado
   useEffect(() => {
     fetchDiagnostic();
-  }, [lead.id]);
+
+    // Se o lead está em 'processing' ou rodando, cria um polling a cada 3 segundos
+    if (lead.status === 'processing' || running) {
+      const interval = setInterval(() => {
+        onLeadUpdated();
+        fetchDiagnostic();
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [lead.id, lead.status, running, fetchDiagnostic, onLeadUpdated]);
 
   const handleRunDiagnostic = async () => {
     setRunning(true);
-    setMessage(null);
+    setMessage('Iniciando diagnóstico...');
     try {
       await runDiagnostic(lead.id);
-      setMessage('Diagnóstico iniciado! O processamento ocorre em segundo plano.');
-      setTimeout(() => {
-        onLeadUpdated();
-      }, 3000);
+      setMessage('Diagnóstico em execução pelos 7 agentes de IA. Aguarde a conclusão...');
+      onLeadUpdated();
+      fetchDiagnostic();
     } catch (e: any) {
       setMessage(`Erro: ${e.message}`);
-    } finally {
       setRunning(false);
     }
   };
@@ -387,15 +395,15 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   const handleRerunDiagnostic = async () => {
     if (!window.confirm('Refazer o diagnóstico irá substituir os dados atuais. Continuar?')) return;
     setRunning(true);
-    setMessage(null);
+    setMessage('Reiniciando diagnóstico...');
+    setShowDiagEditor(false);
     try {
       await runDiagnostic(lead.id);
-      setMessage('Diagnóstico reiniciado! Aguarde o processamento...');
-      setShowDiagEditor(false);
-      setTimeout(() => onLeadUpdated(), 4000);
+      setMessage('Diagnóstico em execução pelos 7 agentes de IA. Aguarde a conclusão...');
+      onLeadUpdated();
+      fetchDiagnostic();
     } catch (e: any) {
       setMessage(`Erro: ${e.message}`);
-    } finally {
       setRunning(false);
     }
   };

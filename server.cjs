@@ -1687,203 +1687,193 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
     } catch (e) {}
 
     let result = {};
-    switch (agentName) {
-      case 'gatekeeper':
-        result = await runGatekeeperAgent(baseUrl, htmlContent);
-        result.recommendedRobotsTxt = generateRobotsTxt(domain, result.robotsTxtAllowAiBots);
-        break;
-      case 'metadata':
-        result = await runMetadataAgent(htmlContent, domain);
-        result.llmsTxt = generateLlmsTxtContent(clientInfo, { overallGeoScore: 75 }, htmlContent);
-        result.generatedJsonLd = generateJsonLdSchema(clientInfo, domain, htmlContent);
-        break;
-      case 'content':
-        result = await runContentAgent(htmlContent);
-        result.aeoTemplates = generateAeoContentTemplate(domain, htmlContent);
-        break;
-      case 'seo_optimizer':
-        result = await runSeoOptimizerAgent(baseUrl, htmlContent);
-        break;
-      case 'semantic_explorer': {
-        const key = process.env.OPENROUTER_API_KEY || '';
-        result = await runSemanticExplorerAgent(baseUrl, htmlContent, key);
-        break;
-      }
-      case 'offpage': {
-        const key = process.env.OPENROUTER_API_KEY || '';
-        result = await runOffPageEntityAgent(baseUrl, htmlContent, key);
-        break;
-      }
-      case 'intent': {
-        const key = process.env.OPENROUTER_API_KEY || '';
-        result = await runIntentAgent(url, htmlContent, key);
-        break;
-      }
-      case 'checklist_architect': {
-        const key = process.env.OPENROUTER_API_KEY || '';
-        const [gk, md, ct, sem, off, seo] = await Promise.all([
-          runGatekeeperAgent(baseUrl, htmlContent),
-          runMetadataAgent(htmlContent, domain),
-          runContentAgent(htmlContent),
-          runSemanticExplorerAgent(baseUrl, htmlContent, key),
-          runOffPageEntityAgent(baseUrl, htmlContent, key),
-          runSeoOptimizerAgent(baseUrl, htmlContent),
-        ]);
-        result = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, domain, baseUrl);
-        break;
-      }
-      case 'orchestrator': {
-        const key = process.env.OPENROUTER_API_KEY || '';
-        const [gk, md, ct, sem, off, seo] = await Promise.all([
-          runGatekeeperAgent(baseUrl, htmlContent),
-          runMetadataAgent(htmlContent, domain),
-          runContentAgent(htmlContent),
-          runSemanticExplorerAgent(baseUrl, htmlContent, key),
-          runOffPageEntityAgent(baseUrl, htmlContent, key),
-          runSeoOptimizerAgent(baseUrl, htmlContent),
-        ]);
-        const vis = await runIntentAgent(url, htmlContent, key);
-        const chk = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, domain, baseUrl);
-        const score = calculateGeoScore(gk, md, ct, vis, sem, off, seo);
-        const actions = buildActionList(gk, md, ct, vis, sem, off, seo);
-
-        const deliverables = {
-          robotsTxt: generateRobotsTxt(domain, gk.robotsTxtAllowAiBots),
-          jsonLdSchema: generateJsonLdSchema(clientInfo, domain, htmlContent),
-          llmsTxt: generateLlmsTxtContent(clientInfo, { overallGeoScore: score }, htmlContent),
-          aeoTemplates: generateAeoContentTemplate(domain, htmlContent),
-          checklist: chk,
-        };
-
-        const actionPlanMarkdown = generateActionPlanByStages({ clientUrl: baseUrl, overallGeoScore: score, actionItemsPriorityList: actions });
-
-        result = {
-          overallGeoScore: score,
-          actionItemsPriorityList: actions,
-          gatekeeper: gk,
-          metadata: md,
-          content: ct,
-          visibility: vis,
-          seoOptimizer: seo,
-          semanticExplorer: sem,
-          offpage: off,
-          checklistArchitect: chk,
-          deliverables,
-          actionPlanMarkdown,
-        };
-
-        // Save diagnostic and update client score in background
-        (async () => {
+        // Funçao de persistência do resultado no Firestore para o cliente
+        const saveAgentResultToFirestore = async (diagnosticPatch) => {
           try {
             const accessToken = await getGoogleAccessToken();
+            
+            // 1. Buscar diagnóstico existente do cliente ou criar um novo se não existir
+            const diagsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
+            const diagsRes = await fetch(diagsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+            const diagsData = await diagsRes.json();
+
+            let targetDiagName = null;
+            for (const doc of (diagsData.documents || [])) {
+              const f = doc.fields || {};
+              const docClientId = f.clientId?.stringValue;
+              if (docClientId === clientId || doc.name.split('/').pop() === clientId) {
+                targetDiagName = doc.name;
+                break;
+              }
+            }
 
             function toFirestoreValue(val) {
-              if (typeof val === 'string') return { stringValue: val };
-              if (typeof val === 'number') return Number.isInteger(val) ? { integerValue: val } : { doubleValue: val };
-              if (typeof val === 'boolean') return { booleanValue: val };
-              if (Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
               if (val === null || val === undefined) return { nullValue: null };
+              if (typeof val === 'boolean') return { booleanValue: val };
+              if (typeof val === 'number' && Number.isInteger(val)) return { integerValue: String(val) };
+              if (typeof val === 'number') return { doubleValue: val };
+              if (typeof val === 'string') return { stringValue: val };
+              if (Array.isArray(val)) return { arrayValue: { values: val.map(toFirestoreValue) } };
               if (typeof val === 'object') {
                 const fields = {};
-                for (const [k, v] of Object.entries(val)) {
-                  fields[k] = toFirestoreValue(v);
-                }
+                for (const [k, v] of Object.entries(val)) { fields[k] = toFirestoreValue(v); }
                 return { mapValue: { fields } };
               }
               return { stringValue: String(val) };
             }
 
-            // Find client
-            const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
-            const clientsResponse = await fetch(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-            const clientsData = await clientsResponse.json();
-
-            let clientDoc = null;
-            let clientDocPath = null;
-            for (const doc of (clientsData.documents || [])) {
-              const docId = doc.name.split('/').pop();
-              const f = doc.fields || {};
-              if (docId === clientId || f.id?.stringValue === clientId) {
-                clientDocPath = doc.name;
-                clientDoc = doc.fields;
-                break;
+            if (targetDiagName) {
+              // Atualizar via PATCH com updateMask
+              const fields = {};
+              const updateMaskPaths = [];
+              for (const [k, v] of Object.entries(diagnosticPatch)) {
+                fields[k] = toFirestoreValue(v);
+                updateMaskPaths.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
               }
-            }
-
-            if (clientDoc) {
-              const leadId = clientDoc.leadId?.stringValue || '';
-              
-              // 1. Create and save new diagnostic
-              const diagnosticId = `diag_${clientId}_${Date.now()}`;
-              const diagnostic = {
-                id: diagnosticId,
-                clientId: clientId,
-                leadId: leadId,
-                clientUrl: baseUrl,
-                overallGeoScore: score,
-                gatekeeperStatus: gk,
-                metadataAnalysis: md,
-                contentReview: ct,
-                visibilityBenchmarking: vis,
-                actionItemsPriorityList: actions,
-                deliverables,
-                actionPlanMarkdown,
-                generatedAt: new Date().toISOString(),
-              };
-
-              const diagUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics`;
-              const diagFields = {};
-              for (const [k, v] of Object.entries(diagnostic)) {
-                diagFields[k] = toFirestoreValue(v);
-              }
-
-              await fetch(diagUrl, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fields: diagFields }),
-              });
-
-              // 2. Update client's geoScoreHistory
-              let historyValues = [];
-              if (clientDoc.geoScoreHistory?.arrayValue?.values) {
-                historyValues = [...clientDoc.geoScoreHistory.arrayValue.values];
-              }
-              historyValues.push({
-                mapValue: {
-                  fields: {
-                    date: { stringValue: new Date().toISOString() },
-                    score: { integerValue: score }
-                  }
-                }
-              });
-
-              const clientUpdateFields = {
-                geoScoreHistory: {
-                  arrayValue: {
-                    values: historyValues
-                  }
-                }
-              };
-
-              const updateMask = 'updateMask.fieldPaths=geoScoreHistory';
-              await fetch(`https://firestore.googleapis.com/v1/${clientDocPath}?${updateMask}`, {
+              const patchUrl = `https://firestore.googleapis.com/v1/${targetDiagName}?${updateMaskPaths.join('&')}`;
+              await fetch(patchUrl, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fields: clientUpdateFields }),
+                body: JSON.stringify({ fields }),
               });
-
-              console.log(`✅ Novo diagnóstico do Orquestrador salvo para o cliente ${clientId} — Score: ${score}%`);
+            } else {
+              // Criar novo diagnóstico para este cliente
+              const newDiagId = `diag_${clientId}_${Date.now()}`;
+              const fullDiag = {
+                id: newDiagId,
+                clientId,
+                clientUrl: baseUrl,
+                generatedAt: new Date().toISOString(),
+                ...diagnosticPatch,
+              };
+              const fields = {};
+              for (const [k, v] of Object.entries(fullDiag)) {
+                fields[k] = toFirestoreValue(v);
+              }
+              await fetch(diagsUrl, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fields }),
+              });
             }
           } catch (err) {
-            console.error('Error saving orchestrator diagnostic in background:', err);
+            console.error(`Erro ao salvar resultado do agente ${agentName} no Firestore:`, err);
           }
-        })();
+        };
 
-        break;
-      }
-      default:
-        return res.status(400).json({ error: `Agente desconhecido: ${agentName}` });
-    }
+        switch (agentName) {
+          case 'gatekeeper':
+            result = await runGatekeeperAgent(baseUrl, htmlContent);
+            result.recommendedRobotsTxt = generateRobotsTxt(domain, result.robotsTxtAllowAiBots);
+            await saveAgentResultToFirestore({ gatekeeperStatus: result });
+            break;
+          case 'metadata':
+            result = await runMetadataAgent(htmlContent, domain);
+            result.llmsTxt = generateLlmsTxtContent(clientInfo, { overallGeoScore: 75 }, htmlContent);
+            result.generatedJsonLd = generateJsonLdSchema(clientInfo, domain, htmlContent);
+            await saveAgentResultToFirestore({ metadataAnalysis: result });
+            break;
+          case 'content':
+            result = await runContentAgent(htmlContent);
+            result.aeoTemplates = generateAeoContentTemplate(domain, htmlContent);
+            await saveAgentResultToFirestore({ contentReview: result });
+            break;
+          case 'seo_optimizer':
+            result = await runSeoOptimizerAgent(baseUrl, htmlContent);
+            await saveAgentResultToFirestore({ seoAnalysis: result });
+            break;
+          case 'semantic_explorer': {
+            const key = process.env.OPENROUTER_API_KEY || '';
+            result = await runSemanticExplorerAgent(baseUrl, htmlContent, key);
+            await saveAgentResultToFirestore({ semanticAnalysis: result });
+            break;
+          }
+          case 'offpage': {
+            const key = process.env.OPENROUTER_API_KEY || '';
+            result = await runOffPageEntityAgent(baseUrl, htmlContent, key);
+            await saveAgentResultToFirestore({ offpageAnalysis: result });
+            break;
+          }
+          case 'intent': {
+            const key = process.env.OPENROUTER_API_KEY || '';
+            result = await runIntentAgent(url, htmlContent, key);
+            await saveAgentResultToFirestore({ visibilityBenchmarking: result });
+            break;
+          }
+          case 'checklist_architect': {
+            const key = process.env.OPENROUTER_API_KEY || '';
+            const [gk, md, ct, sem, off, seo] = await Promise.all([
+              runGatekeeperAgent(baseUrl, htmlContent),
+              runMetadataAgent(htmlContent, domain),
+              runContentAgent(htmlContent),
+              runSemanticExplorerAgent(baseUrl, htmlContent, key),
+              runOffPageEntityAgent(baseUrl, htmlContent, key),
+              runSeoOptimizerAgent(baseUrl, htmlContent),
+            ]);
+            result = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, domain, baseUrl);
+            await saveAgentResultToFirestore({ checklist: result });
+            break;
+          }
+          case 'orchestrator': {
+            const key = process.env.OPENROUTER_API_KEY || '';
+            const [gk, md, ct, sem, off, seo] = await Promise.all([
+              runGatekeeperAgent(baseUrl, htmlContent),
+              runMetadataAgent(htmlContent, domain),
+              runContentAgent(htmlContent),
+              runSemanticExplorerAgent(baseUrl, htmlContent, key),
+              runOffPageEntityAgent(baseUrl, htmlContent, key),
+              runSeoOptimizerAgent(baseUrl, htmlContent),
+            ]);
+            const vis = await runIntentAgent(url, htmlContent, key);
+            const chk = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, domain, baseUrl);
+            const score = calculateGeoScore(gk, md, ct, vis, sem, off, seo);
+            const actions = buildActionList(gk, md, ct, vis, sem, off, seo);
+
+            const deliverables = {
+              robotsTxt: generateRobotsTxt(domain, gk.robotsTxtAllowAiBots),
+              jsonLdSchema: generateJsonLdSchema(clientInfo, domain, htmlContent),
+              llmsTxt: generateLlmsTxtContent(clientInfo, { overallGeoScore: score }, htmlContent),
+              aeoTemplates: generateAeoContentTemplate(domain, htmlContent),
+              checklist: chk,
+            };
+
+            const actionPlanMarkdown = generateActionPlanByStages({ clientUrl: baseUrl, overallGeoScore: score, actionItemsPriorityList: actions });
+
+            result = {
+              overallGeoScore: score,
+              actionItemsPriorityList: actions,
+              gatekeeper: gk,
+              metadata: md,
+              content: ct,
+              visibility: vis,
+              seoOptimizer: seo,
+              semanticExplorer: sem,
+              offpage: off,
+              checklistArchitect: chk,
+              deliverables,
+              actionPlanMarkdown,
+            };
+
+            await saveAgentResultToFirestore({
+              overallGeoScore: score,
+              gatekeeperStatus: gk,
+              metadataAnalysis: md,
+              contentReview: ct,
+              visibilityBenchmarking: vis,
+              seoAnalysis: seo,
+              semanticAnalysis: sem,
+              offpageAnalysis: off,
+              checklist: chk,
+              actionItemsPriorityList: actions,
+              deliverables,
+              actionPlanMarkdown,
+            });
+
+            break;
+          }
+          default:
+            return res.status(400).json({ error: `Agente desconhecido: ${agentName}` });
+        }
 
     res.json({ success: true, result });
   } catch (err) {
