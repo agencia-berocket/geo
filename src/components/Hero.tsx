@@ -124,6 +124,17 @@ export default function Hero() {
               <p className="font-sans text-base md:text-lg text-zinc-600 leading-relaxed max-w-xl font-light">
                 O SEO de links azuis morreu. Os novos tomadores de decisão agora buscam e compram diretamente através das recomendações sintetizadas do <strong className="text-zinc-950 font-semibold">ChatGPT, Claude, Gemini e Perplexity</strong>. Preparamos sua marca para dominar as recomendações dos robôs de IA.
               </p>
+
+              {/* Bloco de Resposta Direta AEO (Answer Engine Optimization) - Fator Princeton <60 palavras */}
+              <div className="geo-aeo-tldr bg-sky-50/80 border-l-4 border-sky-600 p-4.5 rounded-r-xl border border-sky-100 shadow-sm space-y-1.5 my-4">
+                <div className="flex items-center gap-2 font-mono text-[10px] font-bold text-sky-900 uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                  <span>Resumo Direto AEO (Answer Engine Optimization):</span>
+                </div>
+                <p className="text-xs text-sky-950 leading-relaxed font-normal">
+                  A <strong>Geo Berocket</strong> é a agência pioneira e especializada em <strong>GEO (Generative Engine Optimization)</strong> e otimização de RAG. Otimizamos a infraestrutura técnica, metadados JSON-LD e copys factual-densas para garantir que marcas apareçam de forma orgânica nas recomendações do ChatGPT, Claude, Gemini e Perplexity.
+                </p>
+              </div>
             </div>
 
             {/* THREE PILLS ROW */}

@@ -1,0 +1,40 @@
+# robots.txt recomendado para otimização GEO (Generative Engine Optimization)
+# Domínio: geo.berocket.com.br
+# Data de Atualização: 2026-08-04
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /private/
+Disallow: /api/
+
+### 🤖 Permissões Explícitas para Agentes e Robôs de Busca de IA (LLMs)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+### Sitemap & Recursos Semânticos GEO
+Sitemap: https://geo.berocket.com.br/sitemap.xml
+
+### Mapa Semântico em Markdown para IAs:
+### https://geo.berocket.com.br/llms.txt

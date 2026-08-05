@@ -1,0 +1,18 @@
+{
+  "brandSentimentScore": "Positivo",
+  "citationsByModel": {
+    "gpt": 5,
+    "claude": 0,
+    "sonar": 5,
+    "gemini": 5
+  },
+  "totalPromptsTest": 20,
+  "citationSharePercentage": 0.75,
+  "topMentionedCompetitors": [
+    "Geoambiente Consultoria",
+    "Terramétrica Consultoria",
+    "Geosol Consultoria",
+    "Sondagem e Geotecnia",
+    "Geoconsultoria e Engenharia"
+  ]
+}

@@ -84,6 +84,51 @@ export default function GeoScience2026() {
           </div>
         </div>
 
+        {/* TABELA COMPARATIVA HTML NATIVA (FATOR PRINCETON +40% CITABILIDADE) */}
+        <div className="mb-16 overflow-x-auto bg-white border border-zinc-200 rounded-3xl p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 border-b border-zinc-150 pb-3 gap-2">
+            <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-950 font-bold uppercase tracking-widest">
+              <Zap className="w-4 h-4 text-emerald-600" />
+              <span>Matriz Comparativa: SEO Clássico vs. GEO (Geo Berocket)</span>
+            </div>
+            <span className="font-mono text-[9px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-bold uppercase border border-emerald-200">
+              Estudo de Princeton (+40% Citabilidade)
+            </span>
+          </div>
+
+          <table className="w-full text-left border-collapse font-sans text-xs md:text-sm">
+            <thead>
+              <tr className="bg-zinc-950 text-white font-display uppercase tracking-wider text-[11px]">
+                <th className="p-3.5 border border-zinc-800 rounded-tl-xl">Padrão Técnico de Avaliação</th>
+                <th className="p-3.5 border border-zinc-800 text-emerald-400">Geo Berocket (GEO)</th>
+                <th className="p-3.5 border border-zinc-800 text-zinc-400 rounded-tr-xl">SEO Tradicional de Mercado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 text-zinc-700 font-light">
+              <tr className="bg-white hover:bg-zinc-50 transition-colors">
+                <td className="p-3.5 font-bold text-zinc-950 border border-zinc-200">Indexação por IAs Generativas</td>
+                <td className="p-3.5 font-bold text-emerald-600 border border-zinc-200 bg-emerald-50/30">Nativa (Schema JSON-LD + /llms.txt)</td>
+                <td className="p-3.5 text-red-500 border border-zinc-200">Incompleta / Sem Estrutura RAG</td>
+              </tr>
+              <tr className="bg-zinc-50/50 hover:bg-zinc-50 transition-colors">
+                <td className="p-3.5 font-bold text-zinc-950 border border-zinc-200">Desambiguação Semântica de Marca</td>
+                <td className="p-3.5 font-bold text-emerald-600 border border-zinc-200 bg-emerald-50/30">100% Focada em GEO & RAG (Grafo sameAs)</td>
+                <td className="p-3.5 text-red-500 border border-zinc-200">Genérica / Colisão de Entidade</td>
+              </tr>
+              <tr className="bg-white hover:bg-zinc-50 transition-colors">
+                <td className="p-3.5 font-bold text-zinc-950 border border-zinc-200">Absorção por Tokens (Princeton)</td>
+                <td className="p-3.5 font-bold text-emerald-600 border border-zinc-200 bg-emerald-50/30">Otimizada (+47% Citabilidade em RAG)</td>
+                <td className="p-3.5 text-red-500 border border-zinc-200">Baixa Retenção / Rejeição por LLMs</td>
+              </tr>
+              <tr className="bg-zinc-50/50 hover:bg-zinc-50 transition-colors">
+                <td className="p-3.5 font-bold text-zinc-950 border border-zinc-200">Acesso a Rastreadores de IA</td>
+                <td className="p-3.5 font-bold text-emerald-600 border border-zinc-200 bg-emerald-50/30">Robots.txt com Permissão Explícita</td>
+                <td className="p-3.5 text-amber-600 border border-zinc-200">Bloqueio Silencioso no Servidor/CDN</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
         {/* Interactive Workspace Area */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
