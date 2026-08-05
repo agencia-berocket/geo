@@ -296,10 +296,10 @@ export const pricingPlans: PricingPlan[] = [
     color: '#EF4444',
     bullets: [
       'Tudo do plano Implantação Premium',
+      'Blindagem de SEO Clássico (Tráfego de Transição)',
+      'Checklist Técnico de QA em Código para Devs',
       '1 Novo Topic Cluster Mensal (1 Pillar + 3 Artigos)',
-      'Otimização AEO com Fatores de Princeton',
       'Seeding de Entidade no Wikidata & /llms.txt',
-      '1 Briefing de PR Digital Trimestral',
       'Scan Mensal Citation Share (20 prompts x 4 LLMs)'
     ],
     buttonText: 'Contratar GEO Growth',

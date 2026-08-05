@@ -386,10 +386,12 @@ Análise das bases acadêmicas do Generative Engine Optimization.
 *   **Lista de Entregáveis:**
     *   Tudo incluso no plano Implantação Premium
     *   Auditoria técnica de crawlability + Correção robots.txt / SSR (`gatekeeper`)
+    *   Otimização de SEO Clássico: Title/Meta Tags, Alt tags e PageRank interno (`seo_optimizer`)
     *   Schema Organization/Person + sameAs avançado + `/llms.txt` (`metadata`)
     *   Otimização AEO + 1 novo Topic Cluster mensal com Fatores Princeton (`content` & `semantic_explorer`)
     *   Perfil Wikidata + Monitoramento de co-ocorrência + 1 Briefing PR Digital trimestral (`offpage`)
     *   Scan mensal de Citation Share (20 prompts x 4 LLMs: ChatGPT, Claude, Gemini, Perplexity) + Detecção de alucinações (`intent`)
+    *   Checklist Interativo de QA com código pronto e tutoriais CMS para desenvolvedores (`checklist_architect`)
 *   **Texto do Botão:** `Contratar GEO Growth`
 
 ---

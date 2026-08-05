@@ -3,17 +3,19 @@
 
 ---
 
-## Índice de Agentes
+## Índice de Agentes (Ecossistema de 9 Agentes)
 
 | ID | Nome | Peso no Score | Responsabilidade Principal |
 |---|---|---|---|
-| `orchestrator` | Orquestrador Principal | — | Pipeline, score consolidado, relatórios HTML/PDF |
-| `gatekeeper` | Technical Gatekeeper | 20 pts | Infraestrutura técnica, robots.txt, SSR |
+| `orchestrator` | Orquestrador Principal | — | Pipeline master, score consolidado, relatórios HTML/PDF |
+| `gatekeeper` | Technical Gatekeeper | 18 pts | Infraestrutura técnica, robots.txt, SSR, latência |
 | `metadata` | Metadata Entity | 15 pts | JSON-LD, schemas, sameAs, /llms.txt |
-| `content` | Content Absorption | 20 pts | Conteúdo semântico, AEO, estatísticas Princeton |
-| `semantic_explorer` | Semantic Explorer | 15 pts | Mapeamento de Content Gaps e Topic Clusters |
+| `content` | Content Absorption | 18 pts | Conteúdo semântico, AEO, estatísticas Princeton |
+| `seo_optimizer` 🆕 | SEO Optimizer | 14 pts | Snippets clássicos, Title/Meta, PageRank interno, Alt tags |
+| `semantic_explorer` | Semantic Explorer | 13 pts | Mapeamento de Content Gaps e Topic Clusters |
 | `offpage` | Off-Page Entity Monitor | 10 pts | Autoridade de Entidade Externa & RP Digital |
-| `intent` | Intent Prompt | 20 pts | Citation Share real nas LLMs via OpenRouter |
+| `intent` | Intent Prompt | 12 pts | Citation Share real nas LLMs via OpenRouter |
+| `checklist_architect` 🆕 | Checklist Architect | — | QA, tradução de código (JSON-LD/robots.txt) e checklists CMS |
 
 ---
 
@@ -23,23 +25,22 @@
 
 ### Responsabilidades
 - Iniciar o pipeline completo de diagnóstico
-- Rodar Gatekeeper + Metadata + Content + Semantic Explorer + Off-Page Entity Monitor em paralelo
-- Rodar Intent sequencialmente após os cinco primeiros
-- Calcular o GEO Score composto (6 pilares)
-- Gerar a lista de ações priorizadas
+- Rodar Gatekeeper + Metadata + Content + SEO Optimizer + Semantic Explorer + Off-Page Entity Monitor em paralelo
+- Rodar Intent e Checklist Architect sequencialmente após os 6 especialistas
+- Calcular o GEO Score composto (7 pilares)
+- Gerar a lista de ações priorizadas e o checklist de QA
 - Gerar o relatório HTML e PDF completo para o cliente
 - Salvar o diagnóstico no Firestore
-- No modo cliente: re-executar análises periódicas e atualizar histórico
 
-### Fórmula do GEO Score Composto (6 Pilares)
+### Fórmula do GEO Score Composto (7 Pilares)
 
 ```javascript
 score = 0
 
-// Pilar 1 — Gatekeeper (20 pts)
-if (robotsTxtAllowAiBots)        score += 8
+// Pilar 1 — Gatekeeper (18 pts)
+if (robotsTxtAllowAiBots)        score += 7
 if (ssrActive)                   score += 6
-if (hasPrices)                   score += 6
+if (hasPrices)                   score += 5
 
 // Pilar 2 — Metadata (15 pts)
 if (organizationSchema)          score += 6
@@ -47,22 +48,25 @@ if (personSchema)                score += 3
 if (llmsTxtPublished)            score += 4
 if (sameAsCount > 0)             score += 2
 
-// Pilar 3 — Content (20 pts)
+// Pilar 3 — Content (18 pts)
 if (aeoFirstParagraph)           score += 5
 if (statisticsEvery150Words)     score += 5
-if (expertQuotes)                score += 5
-if (comparisonTables)            score += 3
+if (expertQuotes)                score += 4
+if (comparisonTables)            score += 2
 if (pricesVisible)               score += 2
 
-// Pilar 4 — Semantic Explorer (15 pts)
-score += Math.round((topicCoverageScore / 100) * 15)
+// Pilar 4 — SEO Optimizer (14 pts) 🆕
+score += Math.round((seoScore / 100) * 14)
 
-// Pilar 5 — Off-Page Entity Monitor (10 pts)
+// Pilar 5 — Semantic Explorer (13 pts)
+score += Math.round((topicCoverageScore / 100) * 13)
+
+// Pilar 6 — Off-Page Entity Monitor (10 pts)
 score += Math.round((externalEntityScore / 100) * 10)
 
-// Pilar 6 — Intent Prompt (20 pts)
-score += citationSharePct * 100 * 0.15
-if (sentiment === 'Positivo')    score += 5
+// Pilar 7 — Intent Prompt (12 pts)
+score += citationSharePct * 100 * 0.08
+if (sentiment === 'Positivo')    score += 4
 else if (sentiment === 'Neutro') score += 2
 
 GEO Score = clamp(score, 0, 100)
@@ -73,9 +77,11 @@ GEO Score = clamp(score, 0, 100)
 orchestrator → gatekeeper:        { url, htmlContent }
 orchestrator → metadata:          { htmlContent, domain }
 orchestrator → content:           { htmlContent }
+orchestrator → seo_optimizer:     { url, htmlContent }
 orchestrator → semantic_explorer: { url, htmlContent, apiKey }
 orchestrator → offpage:           { url, htmlContent, apiKey }
 orchestrator → intent:            { url, htmlContent, openrouterKey }
+orchestrator → checklist_architect:{ gatekeeper, metadata, content, seo, semantic, offpage, domain, clientUrl }
 ```
 
 ---

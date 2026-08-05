@@ -3,16 +3,18 @@
 
 ---
 
-## Hierarquia de Agentes
+## Hierarquia de Agentes (9 Agentes)
 
 ```
 ORQUESTRADOR (Master)
-├── GATEKEEPER        (Especialista Técnico)
-├── METADATA          (Especialista Semântico In-Site)
-├── CONTENT           (Especialista de Conteúdo On-Page)
-├── INTENT            (Especialista de Medição Empírica)
-├── SEMANTIC_EXPLORER (Especialista de Ideação & Clustering)
-└── OFFPAGE_MONITOR   (Especialista de Autoridade Externa & RP)
+├── GATEKEEPER        (Especialista em Infraestrutura & Bots)
+├── METADATA          (Especialista Semântico In-Site & Schemas)
+├── CONTENT           (Especialista de Copy & Fatores Princeton)
+├── SEO_OPTIMIZER     (Especialista em Snippets & Tráfego de Transição) 🆕
+├── SEMANTIC_EXPLORER (Especialista de Ideação & Content Gaps)
+├── OFFPAGE_MONITOR   (Especialista de Autoridade Externa & RP)
+├── INTENT            (Especialista de Medição Empírica de Citation Share)
+└── CHECKLIST_ARCHITECT (Garantia de Qualidade QA & Tutoriais de Código) 🆕
 ```
 
 O Orquestrador é o **único agente que conversa diretamente com o cliente** no dashboard. Os demais agentes são invocados pelo Orquestrador e entregam seus resultados ao pipeline.
@@ -24,19 +26,20 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 ### Diagnóstico de Lead (primeira análise)
 ```
 1. Orquestrador recebe { url, leadId, htmlContent }
-2. Promise.all([Gatekeeper, Metadata, Content, SemanticExplorer, OffPageMonitor])
-3. Aguarda os 5 resultados paralelos
+2. Promise.all([Gatekeeper, Metadata, Content, SeoOptimizer, SemanticExplorer, OffPageMonitor])
+3. Aguarda os 6 resultados paralelos
 4. Executa Intent (uso sequencial do OpenRouter com dados validados)
-5. Calcula GEO Score consolidado
-6. Gera relatórios HTML e PDF com ações priorizadas
-7. Salva em Firestore: diagnostics + atualiza leads
+5. Executa ChecklistArchitect (gera tutoriais de código, CMS e checklists de QA)
+6. Calcula GEO Score consolidado (7 pilares)
+7. Gera relatórios HTML e PDF com ações priorizadas e checklist interativo
+8. Salva em Firestore: diagnostics + atualiza leads
 ```
 
 ### Re-análise de Cliente (mensal)
 ```
 1. Orquestrador recebe { clientId, clientUrl }
 2. Executa fetch do HTML atual do site
-3. Roda pipeline completo (6 agentes)
+3. Roda pipeline completo (8 agentes especialistas)
 4. Compara score novo com histórico
 5. Gera relatório de evolução (delta)
 6. Atualiza Firestore: geoScoreHistory do cliente
@@ -56,7 +59,7 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 
 | Regra | Descrição |
 |---|---|
-| R1 — Um agente, uma responsabilidade | Cada agente entrega apenas seu escopo. Gatekeeper não comenta sobre conteúdo; Semantic Explorer foca em lacunas. |
+| R1 — Um agente, uma responsabilidade | Cada agente entrega apenas seu escopo. Gatekeeper não comenta sobre conteúdo; Checklist Architect compila QA sem calcular score. |
 | R2 — Nunca bloqueie o pipeline | Em caso de erro, retorne o objeto padrão com `error: true` e prossiga |
 | R3 — Resultado sempre JSON | Toda entrega de agente especialista é um objeto JSON estruturado |
 | R4 — Orquestrador é o único interlocutor | Agentes especialistas não respondem diretamente ao usuário final |
@@ -79,13 +82,20 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 | Inserir estatísticas a cada 150 palavras | Content |
 | Adicionar citações de especialistas | Content |
 | Criar tabela comparativa HTML | Content |
+| Otimizar Title Tags e Meta Descriptions clássicas | SEO Optimizer 🆕 |
+| Eliminar textos-âncora genéricos ("clique aqui") | SEO Optimizer 🆕 |
+| Garantir responsividade e tags mobile viewport | SEO Optimizer 🆕 |
+| Auditar atributo Alt em imagens do site | SEO Optimizer 🆕 |
 | Identificar lacunas de conteúdo (Content Gaps) | Semantic Explorer |
 | Mapear clusters semânticos de tópicos | Semantic Explorer |
 | Criar briefing de novos artigos e Pillar Pages | Semantic Explorer |
 | Monitorar menções externas à marca | Off-Page Entity Monitor |
-| Planejar pautas de PR Digital para LLMs | Off-Page Entity Monitor |
+| Planejar pautas de RP Digital para LLMs | Off-Page Entity Monitor |
 | Otimizar co-ocorrência de palavras-chave | Off-Page Entity Monitor |
 | Monitorar Citation Share mensal nas LLMs | Intent |
 | Identificar novos concorrentes nas IAs | Intent |
-| Calcular GEO Score e gerar relatório | Orchestrator |
+| Traduzir falhas de agentes em snippets de código validados | Checklist Architect 🆕 |
+| Gerar tutoriais de instalação por CMS (WordPress/Next) | Checklist Architect 🆕 |
+| Criar checklist de validação pós-implantação (QA) | Checklist Architect 🆕 |
+| Calcular GEO Score consolidado e gerar relatório final | Orchestrator |
 | Re-scan mensal completo | Orchestrator |

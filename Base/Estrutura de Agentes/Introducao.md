@@ -57,48 +57,46 @@ Após recuperar os chunks relevantes, a IA os usa para construir sua resposta. O
 
 ---
 
-## Os 6 Pilares do GEO (Framework b.rocket)
+## Os 7 Pilares do GEO (Framework b.rocket)
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                                   GEO SCORE (0–100%)                                    │
-├──────────────┬──────────────┬──────────────┬──────────────────┬──────────────┬──────────┤
-│  PILAR 1     │  PILAR 2     │  PILAR 3     │  PILAR 4         │  PILAR 5     │ PILAR 6  │
-│  GATEKEEPER  │  METADATA    │  CONTENT     │  SEMANTIC        │  OFF-PAGE    │ INTENT   │
-│  (20 pts)    │  (15 pts)    │  (20 pts)    │  EXPLORER(15pts) │  (10 pts)    │ (20 pts) │
-│              │              │              │                  │              │          │
-│ robots.txt   │ JSON-LD      │ AEO          │ Content Gaps     │ RP Digital   │ Citation │
-│ SSR          │ Organization │ Chunking     │ Topic Clusters   │ Co-ocorrência│ Share    │
-│ Latência     │ Person       │ Stats (150w) │ Briefings        │ Wikidata     │ Sentiment│
-│ Preços HTML  │ sameAs       │ Tables HTML  │ Pillar Pages     │ Crunchbase   │ LLMs Test│
-│ HTTPS        │ /llms.txt    │ Princeton    │ PAA Intenções    │ Portais Tech │ OpenRouter
-└──────────────┴──────────────┴──────────────┴──────────────────┴──────────────┴──────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       GEO SCORE (0–100%)                                         │
+├──────────────┬──────────────┬──────────────┬──────────────┬──────────────┬──────────────┬────────┤
+│  PILAR 1     │  PILAR 2     │  PILAR 3     │  PILAR 4 🆕  │  PILAR 5     │  PILAR 6     │PILAR 7 │
+│  GATEKEEPER  │  METADATA    │  CONTENT     │  SEO OPTIM   │  SEMANTIC    │  OFF-PAGE    │INTENT  │
+│  (18 pts)    │  (15 pts)    │  (18 pts)    │  (14 pts)    │  (13 pts)    │  (10 pts)    │(12 pts)│
+│              │              │              │              │              │              │        │
+│ robots.txt   │ JSON-LD      │ AEO          │ Title/Meta   │ Content Gaps │ RP Digital   │Citation│
+│ SSR          │ Organization │ Chunking     │ PageRank Link│ Topic Cluster│ Co-ocorrência│Share   │
+│ Latência     │ Person       │ Stats (150w) │ Alt Images   │ Briefings    │ Wikidata     │Sentim. │
+│ Preços HTML  │ sameAs       │ Tables HTML  │ Snippets     │ Pillar Pages │ Crunchbase   │LLMsTest│
+│ HTTPS        │ /llms.txt    │ Princeton    │ Mobile View  │ PAA Intenções│ Portais Tech │OpenRtr │
+└──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴──────────────┴────────┘
 ```
 
 ---
 
-## Fluxo de Trabalho dos Agentes
+## Fluxo de Trabalho do Ecossistema (9 Agentes)
 
 ```
 LEAD CAPTURADO
       ↓
 ORQUESTRADOR inicia pipeline de diagnóstico
       ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ GATEKEEPER │ METADATA │ CONTENT │ SEMANTIC_EXPLORER │ OFF-PAGE  │ ← 5 Agentes em Paralelo
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ GATEKEEPER │ METADATA │ CONTENT │ SEO_OPTIMIZER │ SEMANTIC_EXPLORER │ OFF-PAGE │ ← 6 Agentes em Paralelo
+└─────────────────────────────────────────────────────────────────────────────┘
       ↓
 INTENT PROMPT (OpenRouter — 20 testes reais em 4 LLMs)
       ↓
-ORQUESTRADOR consolida → GEO Score (6 pilares) → Relatórios HTML & PDF
+CHECKLIST ARCHITECT (QA & Gerador de códigos JSON-LD/robots.txt e tutoriais CMS)
+      ↓
+ORQUESTRADOR consolida → GEO Score (7 pilares) → Relatórios HTML & PDF com Checklist Interativo
       ↓
 GUILHERME envia diagnóstico ao lead / reunião estratégica
       ↓
-LEAD converte → vira CLIENTE
-      ↓
-WORKSPACE DE AGENTES (por cliente)
-  Cada agente executa sua missão de implantação técnica e semântica
-  GEO Score é re-medido mensalmente com histórico de evolução
+LEAD converte → vira CLIENTE (Plano GEO Growth / Enterprise)
 ```
 
 ---
