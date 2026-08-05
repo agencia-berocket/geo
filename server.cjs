@@ -11,6 +11,8 @@ const {
   runIntentAgent,
   runSemanticExplorerAgent,
   runOffPageEntityAgent,
+  runSeoOptimizerAgent,
+  runChecklistArchitectAgent,
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
@@ -403,18 +405,20 @@ app.post('/api/calendar/book', async (req, res) => {
           const htmlContent = await fetchUrl(baseUrl);
           const openrouterKey = process.env.OPENROUTER_API_KEY || '';
           
-          const [gk, md, ct, sem, off] = await Promise.all([
+          const [gk, md, ct, sem, off, seo] = await Promise.all([
             runGatekeeperAgent(baseUrl, htmlContent),
             runMetadataAgent(htmlContent, domain),
             runContentAgent(htmlContent),
             runSemanticExplorerAgent(baseUrl, htmlContent, openrouterKey),
             runOffPageEntityAgent(baseUrl, htmlContent, openrouterKey),
+            runSeoOptimizerAgent(baseUrl, htmlContent),
           ]);
           
           const vis = await runIntentAgent(baseUrl, htmlContent, openrouterKey);
+          const chk = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, domain, baseUrl);
           
-          const score = calculateGeoScore(gk, md, ct, vis, sem, off);
-          const actions = buildActionList(gk, md, ct, vis, sem, off);
+          const score = calculateGeoScore(gk, md, ct, vis, sem, off, seo);
+          const actions = buildActionList(gk, md, ct, vis, sem, off, seo);
           
           const diagnosticId = `diag_${leadIdToRun}_${Date.now()}`;
           const leadObj = { id: leadIdToRun, url: baseUrl, email, name, company };
@@ -426,9 +430,11 @@ app.post('/api/calendar/book', async (req, res) => {
             gatekeeperStatus: gk,
             metadataAnalysis: md,
             contentReview: ct,
+            seoAnalysis: seo,
             semanticAnalysis: sem,
             offpageAnalysis: off,
             visibilityBenchmarking: vis,
+            checklist: chk,
             actionItemsPriorityList: actions,
             generatedAt: new Date().toISOString(),
           };
@@ -897,23 +903,27 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
       const domain = baseUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
       const openrouterKey = process.env.OPENROUTER_API_KEY || '';
 
-      // Run 5 specialist agents in parallel
-      const [gatekeeper, metadata, content, semantic, offpage] = await Promise.all([
+      // Run 6 specialist agents in parallel
+      const [gatekeeper, metadata, content, semantic, offpage, seo] = await Promise.all([
         runGatekeeperAgent(baseUrl, htmlContent),
         runMetadataAgent(htmlContent, domain),
         runContentAgent(htmlContent),
         runSemanticExplorerAgent(baseUrl, htmlContent, openrouterKey),
         runOffPageEntityAgent(baseUrl, htmlContent, openrouterKey),
+        runSeoOptimizerAgent(baseUrl, htmlContent),
       ]);
 
       // Agente Intent (uses OpenRouter API)
       const visibility = await runIntentAgent(lead.url, htmlContent, openrouterKey);
 
-      // Calculate GEO Score across 6 pillars
-      const overallGeoScore = calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, offpage);
+      // Agente Checklist Architect (QA & Developer Checklists)
+      const checklist = await runChecklistArchitectAgent(gatekeeper, metadata, content, seo, semantic, offpage, domain, baseUrl);
 
-      // Build action list across 6 pillars
-      const actionItemsPriorityList = buildActionList(gatekeeper, metadata, content, visibility, semantic, offpage);
+      // Calculate GEO Score across 7 pillars
+      const overallGeoScore = calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, offpage, seo);
+
+      // Build action list
+      const actionItemsPriorityList = buildActionList(gatekeeper, metadata, content, visibility, semantic, offpage, seo);
 
       const diagnosticId = `diag_${leadId}_${Date.now()}`;
       const diagnostic = {
@@ -924,9 +934,11 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
         gatekeeperStatus: gatekeeper,
         metadataAnalysis: metadata,
         contentReview: content,
+        seoAnalysis: seo,
         semanticAnalysis: semantic,
         offpageAnalysis: offpage,
         visibilityBenchmarking: visibility,
+        checklist,
         actionItemsPriorityList,
         generatedAt: new Date().toISOString(),
       };
@@ -2683,6 +2695,7 @@ Você DEVE comunicar isso com honestidade absoluta em qualquer conversa.
 4. Se for falso positivo confirmado: "Você está certo. Isso foi um falso positivo do detector.
    O score deste item não reflete a realidade do site."
 5. NUNCA defenda um resultado incorreto inventando explicações plausíveis.
+6. Mantenha suas respostas estruturadas, diretas e completas. Sempre conclua seus raciocínios e listas sem cortar a resposta pela metade.
 
 Sua credibilidade e a do sistema dependem inteiramente de honestidade técnica.
 `;
@@ -2733,7 +2746,7 @@ Sua credibilidade e a do sistema dependem inteiramente de honestidade técnica.
       },
       generationConfig: {
         temperature: 0.5,
-        maxOutputTokens: 2500
+        maxOutputTokens: 8192
       }
     };
 
@@ -2757,7 +2770,13 @@ Sua credibilidade e a do sistema dependem inteiramente de honestidade técnica.
       return res.status(500).json({ error: parsed.error.message });
     }
 
-    const reply = parsed.candidates?.[0]?.content?.parts?.[0]?.text || 'Não consegui formular uma resposta.';
+    const candidate = parsed.candidates?.[0];
+    let reply = candidate?.content?.parts?.[0]?.text || 'Não consegui formular uma resposta.';
+
+    // Se a API cortou o output por limite de tokens, anexar aviso amigável em vez de cortar no meio da frase
+    if (candidate?.finishReason === 'MAX_TOKENS' || candidate?.finishReason === 'LENGTH') {
+      reply += '\n\n*(Nota: A resposta foi concluída no limite de tokens disponíveis.)*';
+    }
 
     // ─── SALVAR HISTÓRICO NO FIRESTORE ───────────────────────────────────────
     try {

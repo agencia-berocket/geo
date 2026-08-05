@@ -549,12 +549,209 @@ async function runOffPageEntityAgent(url, htmlContent, apiKey) {
   };
 }
 
+// ─── AGENTE 8: SEO Optimizer Agent (Tráfego de Transição SEO/GEO) ─────────────
+async function runSeoOptimizerAgent(url, htmlContent) {
+  const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  
+  const titleMatch = (htmlContent || '').match(/<title[^>]*>([^<]+)<\/title>/i);
+  const titleTagSnippet = titleMatch ? titleMatch[1].trim() : '';
+  const titleTagPresent = titleTagSnippet.length > 0;
+  const titleTagLength = titleTagSnippet.length;
+  
+  const metaDescMatch = (htmlContent || '').match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+  const metaDescriptionSnippet = metaDescMatch ? metaDescMatch[1].trim() : '';
+  const metaDescriptionPresent = metaDescriptionSnippet.length > 0;
+  const metaDescriptionLength = metaDescriptionSnippet.length;
+  
+  const mobileViewportPresent = /<meta[^>]*name=["']viewport["']/i.test(htmlContent || '');
+  
+  const imgTags = (htmlContent || '').match(/<img[^>]+>/gi) || [];
+  const imagesWithoutAlt = imgTags.filter(img => !/alt=["'][^"']+["']/i.test(img));
+  const imagesWithoutAltCount = imagesWithoutAlt.length;
+  
+  const anchorTags = (htmlContent || '').match(/<a[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi) || [];
+  const genericAnchors = anchorTags.filter(a => /clique aqui|saiba mais|leia mais|veja mais|link/i.test(a));
+  const genericAnchorsDetected = genericAnchors.length > 0;
+  
+  let seoScore = 100;
+  if (!titleTagPresent) seoScore -= 25;
+  else if (titleTagLength < 20 || titleTagLength > 70) seoScore -= 10;
+  
+  if (!metaDescriptionPresent) seoScore -= 25;
+  else if (metaDescriptionLength < 70 || metaDescriptionLength > 170) seoScore -= 10;
+  
+  if (!mobileViewportPresent) seoScore -= 15;
+  if (imagesWithoutAltCount > 0) seoScore -= Math.min(15, imagesWithoutAltCount * 3);
+  if (genericAnchorsDetected) seoScore -= 10;
+  
+  seoScore = Math.max(10, seoScore);
+  
+  const recommendations = [];
+  if (!titleTagPresent || titleTagLength < 20 || titleTagLength > 70) {
+    recommendations.push({
+      priority: 'Alto',
+      action: `Otimizar Title Tag clássica (Atual: "${titleTagSnippet || 'Ausente'}") para 30–60 caracteres`,
+      estimatedScoreGain: 8
+    });
+  }
+  if (!metaDescriptionPresent || metaDescriptionLength < 70 || metaDescriptionLength > 170) {
+    recommendations.push({
+      priority: 'Alto',
+      action: `Criar Meta Description otimizada para buscadores (Atual: "${metaDescriptionSnippet || 'Ausente'}")`,
+      estimatedScoreGain: 8
+    });
+  }
+  if (genericAnchorsDetected) {
+    recommendations.push({
+      priority: 'Médio',
+      action: `Substituir ${genericAnchors.length} textos-âncora genéricos ("clique aqui") por palavras-chave semânticas`,
+      estimatedScoreGain: 6
+    });
+  }
+
+  return {
+    seoScore,
+    titleTagPresent,
+    titleTagSnippet,
+    titleTagLength,
+    metaDescriptionPresent,
+    metaDescriptionSnippet,
+    metaDescriptionLength,
+    mobileViewportPresent,
+    imagesWithoutAltCount,
+    internalLinksCount: anchorTags.length,
+    genericAnchorsDetected,
+    genericAnchorsCount: genericAnchors.length,
+    recommendations,
+  };
+}
+
+// ─── AGENTE 9: Checklist Architect Agent (QA, Tutoriais & Checklist Interativo) ─
+async function runChecklistArchitectAgent(gatekeeper, metadata, content, seo, semantic, offpage, domain, clientUrl) {
+  const interactiveChecklist = [];
+  const postImplementationQaChecklist = [];
+  
+  if (!gatekeeper.robotsTxtAllowAiBots) {
+    interactiveChecklist.push({
+      taskId: 'chk_robots',
+      category: 'Fácil / Alto Impacto',
+      agentOrigin: 'TECHNICAL_GATEKEEPER_AGENT',
+      title: 'Liberar Rastreamento de IA no robots.txt',
+      description: 'Permitir que crawlers de busca em tempo real (OAI-SearchBot, PerplexityBot, Claude-SearchBot) indexem o site.',
+      effortLevel: 'Fácil (5 minutos)',
+      impactLevel: 'Crítico',
+      codeSnippet: `User-agent: *\nAllow: /\n\nUser-agent: OAI-SearchBot\nAllow: /\n\nUser-agent: PerplexityBot\nAllow: /\n\nUser-agent: Claude-SearchBot\nAllow: /\n\nSitemap: ${clientUrl}/sitemap.xml`,
+      cmsInstruction: 'WordPress: Edite via Yoast SEO > Ferramentas > Editor de arquivos ou publique na raiz do servidor via FTP/cPanel.',
+      verificationMethod: `Acesse ${clientUrl}/robots.txt e confirme que os bot agents estão liberados.`
+    });
+    postImplementationQaChecklist.push(`Validar HTTP 200 em ${clientUrl}/robots.txt`);
+  }
+
+  if (!metadata.organizationSchemaPresent) {
+    interactiveChecklist.push({
+      taskId: 'chk_schema_org',
+      category: 'Fácil / Alto Impacto',
+      agentOrigin: 'METADATA_ENTITY_AGENT',
+      title: 'Inserir JSON-LD Schema Organization',
+      description: 'Fornecer a identidade formal da empresa com referências sameAs (LinkedIn, Wikidata, Wikipedia).',
+      effortLevel: 'Fácil (10 minutos)',
+      impactLevel: 'Crítico',
+      codeSnippet: `<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "${domain}",
+  "url": "${clientUrl}",
+  "sameAs": [
+    "https://www.linkedin.com/company/${domain.split('.')[0]}"
+  ]
+}
+</script>`,
+      cmsInstruction: 'Insira a tag de script no cabeçalho (<head>) do seu site através do CMS ou Header Injection.',
+      verificationMethod: 'Verifique no validador de Rich Results do Google (search.google.com/test/rich-results).'
+    });
+    postImplementationQaChecklist.push('Validar sintaxe do JSON-LD no Schema Validator');
+  }
+
+  if (!metadata.llmsTxtPublished) {
+    interactiveChecklist.push({
+      taskId: 'chk_llmstxt',
+      category: 'Fácil / Alto Impacto',
+      agentOrigin: 'METADATA_ENTITY_AGENT',
+      title: 'Publicar arquivo /llms.txt na raiz do domínio',
+      description: 'Fornecer o mapa conceitual em Markdown estruturado para consumo rápido de LLMs.',
+      effortLevel: 'Fácil (5 minutos)',
+      impactLevel: 'Alto',
+      codeSnippet: metadata.suggestedLlmsTxt || `# ${domain}\n> Empresa especializada.\n\n## Páginas Principais\n- [Home](${clientUrl})`,
+      cmsInstruction: 'Crie o arquivo llms.txt e coloque na pasta /public ou raiz do servidor web.',
+      verificationMethod: `Navegue até ${clientUrl}/llms.txt e confirme se exibe o texto em Markdown.`
+    });
+    postImplementationQaChecklist.push(`Testar disponibilidade de ${clientUrl}/llms.txt`);
+  }
+
+  if (!content.factorsDetected.hasTldrAnswerFirstParagraph) {
+    interactiveChecklist.push({
+      taskId: 'chk_aeo_intro',
+      category: 'Médio / Alto Impacto',
+      agentOrigin: 'CONTENT_ABSORPTION_AGENT',
+      title: 'Aplicar Fórmula Answer-First nas primeiras 60 palavras',
+      description: 'Reescrever os parágrafos iniciais de cada seção H2 com respostas diretas e sem enrolação publicitária.',
+      effortLevel: 'Médio (30 minutos)',
+      impactLevel: 'Alto',
+      codeSnippet: `Exemplo: "A empresa ${domain} é especializada em soluções de mercado, oferecendo atendimento direto e resultados mensuráveis em 14 dias."`,
+      cmsInstruction: 'Edite a copy das páginas principais no editor de texto do seu CMS.',
+      verificationMethod: 'Garantir que a primeira frase contenha fatos objetivos e números concretos.'
+    });
+  }
+
+  if (seo && (!seo.titleTagPresent || !seo.metaDescriptionPresent || seo.genericAnchorsDetected)) {
+    interactiveChecklist.push({
+      taskId: 'chk_seo_snippets',
+      category: 'Fácil / Médio Impacto',
+      agentOrigin: 'SEO_OPTIMIZER_AGENT',
+      title: 'Otimizar Title Tag, Meta Description e Textos-Âncora',
+      description: 'Ajustar snippets de busca e substituir links genéricos ("clique aqui") por termos semânticos.',
+      effortLevel: 'Fácil (15 minutos)',
+      impactLevel: 'Médio',
+      codeSnippet: `<title>Soluções em ${domain} | Líder de Mercado</title>\n<meta name="description" content="Conheça as soluções de ${domain}. Atendimento especializado com foco em resultados auditados.">`,
+      cmsInstruction: 'Edite os campos de SEO no plugin Yoast/RankMath ou nas meta tags do layout.',
+      verificationMethod: 'Inspecione a página (Ctrl+U) e busque por <title> e <meta name="description">.'
+    });
+    postImplementationQaChecklist.push('Verificar exibição correta dos snippets no SERP Preview');
+  }
+
+  if (semantic && semantic.contentGaps && semantic.contentGaps.length > 0) {
+    interactiveChecklist.push({
+      taskId: 'chk_semantic_gap',
+      category: 'Complexo / Alto Impacto',
+      agentOrigin: 'SEMANTIC_EXPLORER_AGENT',
+      title: `Criar página para o Topic Cluster: '${semantic.contentGaps[0].topic}'`,
+      description: `Desenvolver landing page comparativa com tabela HTML para preencher a lacuna semântica detectada.`,
+      effortLevel: 'Complexo (2 horas)',
+      impactLevel: 'Alto',
+      codeSnippet: '<table>\n  <thead><tr><th>Critério</th><th>Sua Empresa</th><th>Mercado</th></tr></thead>\n  <tbody><tr><td>Tempo de Resposta</td><td>Imediato</td><td>24h</td></tr></tbody>\n</table>',
+      cmsInstruction: 'Crie uma nova página de conteúdo estruturada com cabeçalhos H1, H2 e tabela.',
+      verificationMethod: 'Re-executar o scan do b.rocket GEO-Score após publicar a nova página.'
+    });
+  }
+
+  const quickWinsCount = interactiveChecklist.filter(t => t.category.includes('Fácil')).length;
+  const complexTasksCount = interactiveChecklist.length - quickWinsCount;
+
+  return {
+    totalTasks: interactiveChecklist.length,
+    quickWinsCount,
+    complexTasksCount,
+    interactiveChecklist,
+    postImplementationQaChecklist
+  };
+}
+
 // ─── ORQUESTRADOR: Calcular GEO Score ────────────────────────────────────────
-function calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, offpage) {
+function calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, offpage, seo) {
   let score = 0;
 
   if (!semantic && !offpage) {
-    // Legacy 4-agent calculation
     if (gatekeeper.robotsTxtAllowAiBots) score += 10;
     if (gatekeeper.ssrActive) score += 8;
     if (!gatekeeper.hasPriceGatekeeperIssue) score += 7;
@@ -577,11 +774,11 @@ function calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, 
     return Math.min(100, Math.max(0, score));
   }
 
-  // 6-Pillar Full Calculation (100 pts total)
-  // 1. Technical Gatekeeper (20 pts)
-  if (gatekeeper.robotsTxtAllowAiBots) score += 8;
+  // 7-Pillar Multi-Agent Calculation (100 pts total)
+  // 1. Technical Gatekeeper (18 pts)
+  if (gatekeeper.robotsTxtAllowAiBots) score += 7;
   if (gatekeeper.ssrActive) score += 6;
-  if (!gatekeeper.hasPriceGatekeeperIssue) score += 6;
+  if (!gatekeeper.hasPriceGatekeeperIssue) score += 5;
 
   // 2. Metadata Entity (15 pts)
   if (metadata.organizationSchemaPresent) score += 6;
@@ -589,33 +786,38 @@ function calculateGeoScore(gatekeeper, metadata, content, visibility, semantic, 
   if (metadata.llmsTxtPublished) score += 4;
   if (metadata.organizationSameAsCount > 0) score += 2;
 
-  // 3. Content Absorption (20 pts)
+  // 3. Content Absorption (18 pts)
   if (content.factorsDetected.hasTldrAnswerFirstParagraph) score += 5;
   if (content.factorsDetected.hasStatisticsPer150Words) score += 5;
-  if (content.factorsDetected.hasExpertQuotes) score += 5;
-  if (content.factorsDetected.hasHtmlComparisonTables) score += 3;
+  if (content.factorsDetected.hasExpertQuotes) score += 4;
+  if (content.factorsDetected.hasHtmlComparisonTables) score += 2;
   if (!content.priceNotMentioned) score += 2;
 
-  // 4. Semantic Explorer (15 pts)
-  if (semantic) {
-    score += Math.round((semantic.topicCoverageScore / 100) * 15);
+  // 4. SEO Optimizer (14 pts)
+  if (seo) {
+    score += Math.round((seo.seoScore / 100) * 14);
   }
 
-  // 5. Off-Page Entity Monitor (10 pts)
+  // 5. Semantic Explorer (13 pts)
+  if (semantic) {
+    score += Math.round((semantic.topicCoverageScore / 100) * 13);
+  }
+
+  // 6. Off-Page Entity Monitor (10 pts)
   if (offpage) {
     score += Math.round((offpage.externalEntityScore / 100) * 10);
   }
 
-  // 6. Intent Prompt (20 pts)
-  score += Math.round(visibility.citationSharePercentage * 100 * 0.15);
-  if (visibility.brandSentimentScore === 'Positivo') score += 5;
+  // 7. Intent Prompt (12 pts)
+  score += Math.round(visibility.citationSharePercentage * 100 * 0.08);
+  if (visibility.brandSentimentScore === 'Positivo') score += 4;
   else if (visibility.brandSentimentScore === 'Neutro') score += 2;
 
   return Math.min(100, Math.max(0, score));
 }
 
 // ─── Build priority action list ───────────────────────────────────────────────
-function buildActionList(gatekeeper, metadata, content, visibility, semantic, offpage) {
+function buildActionList(gatekeeper, metadata, content, visibility, semantic, offpage, seo) {
   const actions = [];
 
   if (!gatekeeper.robotsTxtAllowAiBots) {
@@ -696,6 +898,17 @@ function buildActionList(gatekeeper, metadata, content, visibility, semantic, of
       agentOwner: 'INTENT_PROMPT_AGENT',
       impact: 'Alto',
       task: 'Brand não detectada pelas IAs — iniciar estratégia de relações públicas digitais e seeding em portais de alta autoridade',
+    });
+  }
+
+  if (seo && seo.recommendations) {
+    seo.recommendations.forEach(r => {
+      actions.push({
+        step: actions.length + 1,
+        agentOwner: 'SEO_OPTIMIZER_AGENT',
+        impact: r.priority,
+        task: r.action,
+      });
     });
   }
 
@@ -1098,6 +1311,98 @@ function generateHtmlReport(lead, diagnostic) {
       </table>
     </div>
   </div>
+
+  <!-- SEO Optimizer (Tráfego de Transição) -->
+  ${diagnostic.seoAnalysis ? `
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align="left" style="vertical-align:middle;">
+          ${iconShield}
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">SEO Optimizer (Tráfego de Transição)</span>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;${diagnostic.seoAnalysis.seoScore >= 70 ? 'color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;' : 'color:#b45309;background:#fff7ed;border:1px solid #fed7aa;'}">
+            SEO SCORE: ${diagnostic.seoAnalysis.seoScore}%
+          </span>
+        </td>
+      </tr>
+    </table>
+    
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(diagnostic.seoAnalysis.titleTagPresent)} Title Tag (Snippet Google): "${diagnostic.seoAnalysis.titleTagSnippet || 'Ausente'}" (${diagnostic.seoAnalysis.titleTagLength} chars)
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(diagnostic.seoAnalysis.metaDescriptionPresent)} Meta Description: "${diagnostic.seoAnalysis.metaDescriptionSnippet || 'Ausente'}" (${diagnostic.seoAnalysis.metaDescriptionLength} chars)
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(diagnostic.seoAnalysis.mobileViewportPresent)} Tag Viewport Mobile
+    </div>
+    <div style="margin-bottom:10px;font-size:13px;color:#4b5563;line-height:1.4;${fontSans}">
+      ${formatCheck(!diagnostic.seoAnalysis.genericAnchorsDetected)} Ausência de textos-âncora genéricos ("clique aqui")
+    </div>
+  </div>
+  ` : ''}
+
+  <!-- Checklist Interativo b.rocket (QA & DEVS) -->
+  ${diagnostic.checklist && diagnostic.checklist.interactiveChecklist ? `
+  <div style="${cardStyle}">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align="left" style="vertical-align:middle;">
+          ${iconList}
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Checklist Interativo b.rocket (QA & DEVS)</span>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;">
+            ${diagnostic.checklist.quickWinsCount} VITÓRIAS RÁPIDAS
+          </span>
+        </td>
+      </tr>
+    </table>
+
+    <div style="font-size:12.5px;color:#52525b;margin-bottom:16px;line-height:1.5;${fontSans}">
+      Tarefas técnicas prontas para execução pelo seu time de desenvolvimento ou gestor de conteúdo:
+    </div>
+
+    ${diagnostic.checklist.interactiveChecklist.map((item, idx) => `
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:16px;margin-bottom:14px;">
+      <div style="margin-bottom:8px;">
+        <span style="${fontMono} font-size:10px;font-weight:bold;padding:3px 8px;border-radius:6px;text-transform:uppercase;${impactStyles(item.impactLevel)}">
+          ${item.category} // ${item.effortLevel}
+        </span>
+      </div>
+      <h4 style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;${fontSans}">
+        ${idx + 1}. ${item.title}
+      </h4>
+      <p style="margin:0 0 10px;font-size:12.5px;color:#4b5563;line-height:1.4;${fontSans}">
+        ${item.description}
+      </p>
+
+      ${item.codeSnippet ? `
+      <div style="background:#09090b;color:#f4f4f5;border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.4;overflow-x:auto;margin-bottom:10px;white-space:pre-wrap;word-break:break-all;">
+${item.codeSnippet.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+      </div>
+      ` : ''}
+
+      <div style="font-size:11.5px;color:#6b7280;${fontSans}">
+        💡 <strong>Instrução CMS:</strong> ${item.cmsInstruction}
+      </div>
+    </div>
+    `).join('')}
+
+    ${diagnostic.checklist.postImplementationQaChecklist && diagnostic.checklist.postImplementationQaChecklist.length > 0 ? `
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px;margin-top:14px;">
+      <p style="margin:0 0 6px;font-weight:bold;color:#166534;font-size:12.5px;${fontDisplay}">🔍 Checklist de Validação Pós-Implantação (QA):</p>
+      ${diagnostic.checklist.postImplementationQaChecklist.map(qa => `
+      <div style="font-size:12px;color:#15803d;line-height:1.5;${fontSans}">
+        ✓ ${qa}
+      </div>
+      `).join('')}
+    </div>
+    ` : ''}
+  </div>
+  ` : ''}
 
   <!-- Plano de Ação Priorizado -->
   <div style="${cardStyle}">
@@ -1979,6 +2284,8 @@ module.exports = {
   runIntentAgent,
   runSemanticExplorerAgent,
   runOffPageEntityAgent,
+  runSeoOptimizerAgent,
+  runChecklistArchitectAgent,
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,

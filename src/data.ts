@@ -274,8 +274,8 @@ export const pricingPlans: PricingPlan[] = [
     name: 'Implantação Premium',
     price: 'R$ 497,00',
     billing: '/mês',
-    duration: 'Mínimo de 6 meses',
-    color: '#EF4444',
+    duration: 'Mínimo de 3 meses',
+    color: '#3B82F6',
     bullets: [
       'Mapeamento Completo de Entidades',
       'Reescrita de Conteúdo para Princeton Study',
@@ -289,6 +289,24 @@ export const pricingPlans: PricingPlan[] = [
   },
   {
     id: 'pl3',
+    name: 'GEO Growth',
+    price: 'R$ 1.890,00',
+    billing: '/mês',
+    duration: 'Mínimo de 6 meses',
+    color: '#EF4444',
+    bullets: [
+      'Tudo do plano Implantação Premium',
+      '1 Novo Topic Cluster Mensal (1 Pillar + 3 Artigos)',
+      'Otimização AEO com Fatores de Princeton',
+      'Seeding de Entidade no Wikidata & /llms.txt',
+      '1 Briefing de PR Digital Trimestral',
+      'Scan Mensal Citation Share (20 prompts x 4 LLMs)'
+    ],
+    buttonText: 'Contratar GEO Growth',
+    cardImage: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=100'
+  },
+  {
+    id: 'pl4',
     name: 'b.rocket Enterprise',
     price: 'Sob Consulta',
     billing: '',

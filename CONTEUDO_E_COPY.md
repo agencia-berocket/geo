@@ -366,7 +366,7 @@ Análise das bases acadêmicas do Generative Engine Optimization.
 
 ---
 
-### Plano 02: Implantação Premium (Recomendado)
+### Plano 02: Implantação Premium
 *   **Preço:** `R$ 497,00 / mês`
 *   **Período:** Mínimo de 3 meses
 *   **Lista de Entregáveis:**
@@ -380,7 +380,21 @@ Análise das bases acadêmicas do Generative Engine Optimization.
 
 ---
 
-### Plano 03: b.rocket Enterprise
+### Plano 03: GEO Growth (Recomendado)
+*   **Preço:** `R$ 1.890,00 / mês`
+*   **Período:** Mínimo de 6 meses
+*   **Lista de Entregáveis:**
+    *   Tudo incluso no plano Implantação Premium
+    *   Auditoria técnica de crawlability + Correção robots.txt / SSR (`gatekeeper`)
+    *   Schema Organization/Person + sameAs avançado + `/llms.txt` (`metadata`)
+    *   Otimização AEO + 1 novo Topic Cluster mensal com Fatores Princeton (`content` & `semantic_explorer`)
+    *   Perfil Wikidata + Monitoramento de co-ocorrência + 1 Briefing PR Digital trimestral (`offpage`)
+    *   Scan mensal de Citation Share (20 prompts x 4 LLMs: ChatGPT, Claude, Gemini, Perplexity) + Detecção de alucinações (`intent`)
+*   **Texto do Botão:** `Contratar GEO Growth`
+
+---
+
+### Plano 04: b.rocket Enterprise
 *   **Preço:** `Sob Consulta`
 *   **Período:** Contrato anual corporativo
 *   **Lista de Entregáveis:**
