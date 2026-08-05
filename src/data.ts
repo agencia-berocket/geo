@@ -304,24 +304,6 @@ export const pricingPlans: PricingPlan[] = [
     ],
     buttonText: 'Contratar GEO Growth',
     cardImage: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=100'
-  },
-  {
-    id: 'pl4',
-    name: 'b.rocket Enterprise',
-    price: 'Sob Consulta',
-    billing: '',
-    duration: 'Anual corporativo',
-    color: '#18181B',
-    bullets: [
-      'GEO focado em Múltiplos Idiomas',
-      'Acesso Imediato à API de Mapeamento b.rocket',
-      'Consultoria Técnica e de RAG com Guilherme',
-      'Customização de Crawlers e Servidor',
-      'Garantia Contratual de Indexação Corporativa',
-      'SLA de 2 Horas para Ajustes Críticos'
-    ],
-    buttonText: 'Agendar Reunião',
-    cardImage: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=100'
   }
 ];
 

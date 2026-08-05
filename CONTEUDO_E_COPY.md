@@ -396,20 +396,6 @@ Análise das bases acadêmicas do Generative Engine Optimization.
 
 ---
 
-### Plano 04: b.rocket Enterprise
-*   **Preço:** `Sob Consulta`
-*   **Período:** Contrato anual corporativo
-*   **Lista de Entregáveis:**
-    *   GEO focado em Múltiplos Idiomas (Inglês, Espanhol, Português)
-    *   Acesso Imediato à API de Mapeamento b.rocket
-    *   Consultoria Técnica e de RAG com o Guilherme
-    *   Customização de Crawlers e regras complexas de Servidor
-    *   Garantia Contratual de Indexação Corporativa estável
-    *   SLA de 2 Horas para Ajustes Críticos
-*   **Texto do Botão:** `Agendar Reunião`
-
----
-
 ### Formulário de Agendamento Rápido (Rodapé de Preços)
 *   **Título:** `Agende com o Especialista`
 *   **Subtítulo:** Insira seus dados abaixo para que Guilherme entre em contato diretamente via WhatsApp ou e-mail profissional nas próximas 2 horas.

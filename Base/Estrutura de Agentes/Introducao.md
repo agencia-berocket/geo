@@ -105,9 +105,9 @@ LEAD converte → vira CLIENTE (Plano GEO Growth / Enterprise)
 
 | Tipo | Duração | Foco Principal |
 |---|---|---|
-| Lead (gratuito) | Único | Diagnóstico de Raio-X e relatório de GEO Score nos 6 pilares |
-| Premium R$ 497/mês | 3+ meses | Implantação completa dos 6 pilares de GEO |
-| Enterprise (consulta) | Anual | Multi-idioma, API, SLA, squad dedicado e PR Digital continuada |
+| Lead (gratuito) | Único | Diagnóstico de Raio-X e relatório de GEO Score nos 7 pilares |
+| Implantação Premium R$ 497/mês | Pontual | Implantação completa inicial dos pilares de GEO |
+| GEO Growth R$ 1.890/mês | Recorrente (6m) | Acompanhamento mensal, Topic Clusters, Citation Share & QA para Devs |
 
 ---
 
