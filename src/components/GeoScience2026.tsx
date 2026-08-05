@@ -89,7 +89,7 @@ export default function GeoScience2026() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 border-b border-zinc-150 pb-3 gap-2">
             <div className="flex items-center gap-2 font-mono text-[10px] text-zinc-950 font-bold uppercase tracking-widest">
               <Zap className="w-4 h-4 text-emerald-600" />
-              <span>Matriz Comparativa: SEO Clássico vs. GEO (Geo Berocket)</span>
+              <span>Matriz Comparativa: SEO Clássico vs. GEO (GEO | b.rocket)</span>
             </div>
             <span className="font-mono text-[9px] bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full font-bold uppercase border border-emerald-200">
               Estudo de Princeton (+40% Citabilidade)
@@ -100,7 +100,7 @@ export default function GeoScience2026() {
             <thead>
               <tr className="bg-zinc-950 text-white font-display uppercase tracking-wider text-[11px]">
                 <th className="p-3.5 border border-zinc-800 rounded-tl-xl">Padrão Técnico de Avaliação</th>
-                <th className="p-3.5 border border-zinc-800 text-emerald-400">Geo Berocket (GEO)</th>
+                <th className="p-3.5 border border-zinc-800 text-emerald-400">GEO | b.rocket (GEO)</th>
                 <th className="p-3.5 border border-zinc-800 text-zinc-400 rounded-tr-xl">SEO Tradicional de Mercado</th>
               </tr>
             </thead>

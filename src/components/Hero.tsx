@@ -132,7 +132,7 @@ export default function Hero() {
                   <span>Resumo Direto AEO (Answer Engine Optimization):</span>
                 </div>
                 <p className="text-xs text-sky-950 leading-relaxed font-normal">
-                  A <strong>Geo Berocket</strong> é a agência pioneira e especializada em <strong>GEO (Generative Engine Optimization)</strong> e otimização de RAG. Otimizamos a infraestrutura técnica, metadados JSON-LD e copys factual-densas para garantir que marcas apareçam de forma orgânica nas recomendações do ChatGPT, Claude, Gemini e Perplexity.
+                  A <strong>GEO | b.rocket</strong> é a agência pioneira e especializada em <strong>GEO (Generative Engine Optimization)</strong> e otimização de RAG. Otimizamos a infraestrutura técnica, metadados JSON-LD e copys factual-densas para garantir que marcas apareçam de forma orgânica nas recomendações do ChatGPT, Claude, Gemini e Perplexity.
                 </p>
               </div>
             </div>
