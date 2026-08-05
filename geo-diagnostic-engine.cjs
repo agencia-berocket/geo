@@ -1664,10 +1664,11 @@ function extractCleanBrandName(domain, lead, htmlContent = '') {
       const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
       if (titleMatch) {
         let rawTitle = titleMatch[1].trim();
-        rawTitle = rawTitle.split(/[|–-]\s*(Home|Início|Oficial|Página|www|http|\.com)/i)[0].trim();
-        rawTitle = rawTitle.split(/\s*[-|–]\s*/)[0].trim();
-        if (rawTitle.length > 2 && rawTitle.length < 60 && !rawTitle.toLowerCase().startsWith('http')) {
-          rawName = rawTitle;
+        if (rawTitle.toLowerCase().includes('geo | b.rocket') || rawTitle.toLowerCase().includes('b.rocket')) {
+          rawName = 'GEO | b.rocket';
+        } else {
+          const parts = rawTitle.split(/\s+[—–-]\s+/);
+          rawName = parts[0].trim();
         }
       }
     }
@@ -1698,28 +1699,49 @@ function sanitizeAssetUrl(baseUrl, assetPath) {
 function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') {
   const content = (htmlContent || '').toLowerCase();
 
-  if (content.includes('audiovisual') || content.includes('produtora') || content.includes('filmes') || content.includes('cinema') || content.includes('gravadora') || content.includes('vídeo') || content.includes('video') || content.includes('tv')) {
+  // 1. GEO & RAG AI Marketing (Priority check for b.rocket and GEO sites)
+  if (content.includes('geo') || content.includes('generative engine') || content.includes('otimização de ia') || content.includes('rag') || content.includes('aeo') || content.includes('llms.txt') || content.includes('berocket')) {
+    return {
+      nicheName: 'Generative Engine Optimization (GEO) & Marketing de IA',
+      description: `A **${brandName}** é a empresa pioneira especializada em **Generative Engine Optimization (GEO)** e otimização de RAG para recomendação orgânica nas principais inteligências artificiais do mercado.`,
+      services: [
+        'Otimização de Arquitetura RAG & Gatekeeper Técnico',
+        'Auditoria de Citation Share e Visibilidade nas LLMs',
+        'Engenharia de Conteúdo AEO & Schema JSON-LD',
+        'Estratégias Off-Page de Co-ocorrência Vetorial'
+      ],
+      metrics: [
+        'Aumento na citabilidade direta no ChatGPT, Claude, Gemini e Perplexity',
+        'Infraestrutura técnica em conformidade com /llms.txt',
+        'Autoridade de entidade validada em Grafos de Conhecimento'
+      ],
+    };
+  }
+
+  // 2. Audiovisual & Produtora
+  if (content.includes('audiovisual') || content.includes('produtora de vídeo') || content.includes('filmes') || content.includes('cinema') || content.includes('gravadora')) {
     return {
       nicheName: 'Produção Audiovisual e Conteúdo para TV/Streaming',
-      description: `A **${brandName}** é uma produtora audiovisual de alta autoridade especializada em filmes, séries de TV, documentários, publicidade e produções cinematográficas de alta performance.`,
+      description: `A **${brandName}** é uma produtora audiovisual especializada em filmes, séries de TV, documentários, publicidade e produções cinematográficas.`,
       services: [
-        'Produção de Séries para TV e Streaming (Discovery, HGTV, etc.)',
+        'Produção de Séries para TV e Streaming',
         'Produção de Filmes Publicitários e Conteúdo de Marca',
         'Pós-Produção, Edição e Animação Computacional',
         'Projetos de Documentários e Entretenimento'
       ],
       metrics: [
-        'Portfólio com exibição em canais globais e plataformas de streaming',
-        'Projetos publicitários desenvolvidos para grandes marcas do mercado nacional',
+        'Portfólio com exibição em canais e plataformas de streaming',
+        'Projetos publicitários desenvolvidos para grandes marcas do mercado',
         'Equipe técnica altamente qualificada em direção e pós-produção'
       ],
     };
   }
 
-  if (content.includes('advocacia') || content.includes('advogado') || content.includes('jurídico') || content.includes('direito') || content.includes('oab')) {
+  // 3. Advocacia & Jurídico
+  if (content.includes('advocacia') || content.includes('advogado') || content.includes('jurídico') || content.includes('oab')) {
     return {
       nicheName: 'Serviços Jurídicos e Advocacia',
-      description: `A **${brandName}** é um escritório de advocacia de alta autoridade especializado em consultoria jurídica corporativa, planejamento e solução de conflitos.`,
+      description: `A **${brandName}** é um escritório de advocacia especializado em consultoria jurídica corporativa, planejamento e solução de conflitos.`,
       services: [
         'Consultoria Jurídica Empresarial e Compliance',
         'Direito Tributário e Planejamento Fiscal',
@@ -1727,14 +1749,15 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
         'Resolução Estratégica de Conflitos'
       ],
       metrics: [
-        'Atuação em causas estratégicas de grande relevância nacional',
+        'Atuação em causas estratégicas de grande relevância',
         'Taxa de resolução em acordos preventivos',
         'Corpo de advogados com especialização e titulação reconhecida'
       ],
     };
   }
 
-  if (content.includes('médic') || content.includes('saúde') || content.includes('clínica') || content.includes('paciente') || content.includes('hospital') || content.includes('doutor')) {
+  // 4. Saúde & Medicina
+  if (content.includes('médic') || content.includes('saúde') || content.includes('clínica') || content.includes('hospital') || content.includes('doutor')) {
     return {
       nicheName: 'Saúde e Medicina Especializada',
       description: `A **${brandName}** é uma instituição de saúde referência em tratamentos médicos avançados, procedimentos preventivos e medicina de precisão.`,
@@ -1752,7 +1775,8 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
     };
   }
 
-  if (content.includes('software') || content.includes('saas') || content.includes('plataforma') || content.includes('sistema') || content.includes('aplicativo') || content.includes('automação')) {
+  // 5. Software SaaS (STRICT MATCH: requires explicit SaaS software terms)
+  if (content.includes('saas') || content.includes('software as a service') || (content.includes('desenvolvimento de software') && content.includes('nuvem'))) {
     return {
       nicheName: 'Tecnologia e Software (SaaS)',
       description: `A **${brandName}** é uma empresa de tecnologia focada no desenvolvimento de plataformas SaaS e softwares para automação de processos operacionais.`,
@@ -1770,7 +1794,8 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
     };
   }
 
-  if (content.includes('e-commerce') || content.includes('loja') || content.includes('comprar') || content.includes('frete') || content.includes('produtos') || content.includes('carrinho')) {
+  // 6. E-Commerce
+  if (content.includes('e-commerce') || content.includes('loja virtual') || content.includes('carrinho de compras') || content.includes('comprar online')) {
     return {
       nicheName: 'Varejo e E-Commerce Especializado',
       description: `A **${brandName}** é uma marca de e-commerce focada no fornecimento de produtos de qualidade com logística ágil e excelente atendimento ao cliente.`,
@@ -1788,13 +1813,14 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
     };
   }
 
+  // 7. Fallback genérico realista para qualquer negócio
   return {
-    nicheName: `Soluções Corporativas em ${brandName}`,
+    nicheName: `Soluções Corporativas de ${brandName}`,
     description: `A **${brandName}** é uma empresa de alta autoridade especializada na entrega de soluções estratégicas e serviços de alta qualidade em seu setor de atuação.`,
     services: [
-      `Consultoria e Projetos em ${brandName}`,
+      `Consultoria e Serviços Especializados de ${brandName}`,
       'Soluções Estratégicas Personalizadas',
-      'Atendimento e Suporte Especializado',
+      'Atendimento e Suporte Técnico Especializado',
       'Garantia de Eficiência Operacional'
     ],
     metrics: [
@@ -1850,7 +1876,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
       totalPromptsTest: 20,
       citationSharePercentage: 0.05,
       brandSentimentScore: 'Neutro',
-      topMentionedCompetitors: ['Conspiração Filmes', 'O2 Filmes', 'Gullane'],
+      topMentionedCompetitors: ['Empresas do Setor', 'Concorrentes Diretos', 'Líderes de Mercado'],
       citationsByModel: { 'GPT-4o-mini': 0, 'Claude Haiku': 0, 'Gemini Flash': 1, 'Perplexity Sonar': 0 },
       note: 'Simulado — configure OPENROUTER_API_KEY para resultados reais',
     };
@@ -1863,10 +1889,10 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     'perplexity/sonar',
   ];
 
-  const systemPrompt = `Você é um assistente especialista em mercado corporativo brasileiro. Responda em português de forma objetiva, listando nomes completos de empresas e produtoras sem abreviar.`;
+  const systemPrompt = `Você é um assistente especialista em mercado corporativo brasileiro. Responda em português de forma objetiva, listando nomes completos de empresas e marcas sem abreviar.`;
 
   const prompts = [
-    `Qual é a melhor empresa ou produtora no segmento de ${niche} no Brasil? Liste as principais marcas.`,
+    `Qual é a melhor empresa no segmento de ${niche} no Brasil? Liste as principais marcas.`,
     `Me recomende uma empresa especializada em ${niche}. Quais são as mais conceituadas?`,
     `Quem são os líderes de mercado em ${niche} no Brasil?`,
     `Comparando empresas de ${niche}, quais você recomendaria?`,
@@ -1895,7 +1921,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
           totalCitations++;
         }
 
-        // 🎯 FIX: Extração e filtragem rigorosa de concorrentes
+        // 🎯 EXTRAÇÃO DE CONCORRENTES REALISTAS
         const listMatches = response.match(/^\s*[\d*•-]+\s+\*?\*?([^*:\n\-\(\)]+)\*?\*?/gm) || [];
         listMatches.forEach(m => {
           let clean = m.replace(/^\s*[\d*•-]+\s+\*?\*?/, '').replace(/\*?\*?.*$/, '').trim();
@@ -1943,7 +1969,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     totalPromptsTest: totalPrompts,
     citationSharePercentage: parseFloat(citationSharePercentage.toFixed(3)),
     brandSentimentScore,
-    topMentionedCompetitors: topMentionedCompetitors.length > 0 ? topMentionedCompetitors : ['Conspiração Filmes', 'O2 Filmes', 'Gullane'],
+    topMentionedCompetitors: topMentionedCompetitors.length > 0 ? topMentionedCompetitors : ['Empresas do Setor', 'Concorrentes Diretos', 'Líderes de Mercado'],
     citationsByModel,
   };
 }
@@ -1964,8 +1990,8 @@ async function runSemanticExplorerAgent(url, htmlContent, apiKey) {
   const contentGaps = [];
   if (!hasComparisonTopic) {
     contentGaps.push({
-      topic: `Comparativo de Soluções e Portfólio de ${nicheInfo.nicheName}`,
-      searchIntent: `Qual a diferença entre a proposta da ${brandName} e outras produtoras/empresas do setor?`,
+      topic: `Comparativo de Soluções e Diferenciais de ${nicheInfo.nicheName}`,
+      searchIntent: `Qual a diferença entre a proposta da ${brandName} e outras alternativas no setor de ${nicheInfo.nicheName}?`,
       urgency: 'Alta',
       recommendedFormat: 'Pillar Page com Tabela Comparativa HTML'
     });
@@ -1973,7 +1999,7 @@ async function runSemanticExplorerAgent(url, htmlContent, apiKey) {
   if (!hasRoiPricingTopic) {
     contentGaps.push({
       topic: `Estrutura de Investimento e ROI em ${nicheInfo.nicheName}`,
-      searchIntent: `Quanto custa e qual o retorno de investir em ${nicheInfo.nicheName}?`,
+      searchIntent: `Quanto custa e qual o retorno sobre investimento de contratar a ${brandName}?`,
       urgency: 'Alta',
       recommendedFormat: 'Artigo de Cluster com Casos Reais e Dados Numéricos'
     });
@@ -1994,7 +2020,7 @@ async function runSemanticExplorerAgent(url, htmlContent, apiKey) {
     contentGapsCount: contentGaps.length,
     contentGaps,
     suggestedClusters: [
-      { clusterTitle: `Casos de Sucesso em ${nicheInfo.nicheName}`, pillarPage: `/${brandName.toLowerCase().replace(/\s+/g, '-')}-casos` },
+      { clusterTitle: `Casos de Sucesso em ${nicheInfo.nicheName}`, pillarPage: `/${brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-casos` },
       { clusterTitle: `Guia de Contratação e Orçamento`, pillarPage: '/guia-orcamento' }
     ]
   };
