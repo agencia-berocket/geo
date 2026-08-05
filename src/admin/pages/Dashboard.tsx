@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useLeads, useClients } from '../hooks/useFirestore';
 import StatusBadge from '../components/StatusBadge';
-import { IconClipboard, IconActivity, IconRocket, IconLightbulb } from '../components/icons';
+import { IconClipboard, IconActivity, IconRocket } from '../components/icons';
 
 interface DashboardProps {
   onNavigate: (page: string, id?: string) => void;
@@ -10,13 +10,10 @@ interface DashboardProps {
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const { leads, loading: leadsLoading, fetchLeads } = useLeads();
   const { clients, fetchClients } = useClients();
-  const [apiCostMonth, setApiCostMonth] = useState<number | null>(null);
 
   useEffect(() => {
     fetchLeads();
     fetchClients();
-    const diagCompleted = leads.filter(l => l.status === 'completed' || l.status === 'converted').length;
-    setApiCostMonth(diagCompleted * 0.06);
   }, []);
 
   const newLeads = leads.filter(l => l.status === 'new');
@@ -28,7 +25,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     { label: 'Total Leads', value: leads.length, icon: IconClipboard, color: 'text-zinc-900', sub: `${newLeads.length} novos` },
     { label: 'Diagnósticos', value: completed.length + converted.length, icon: IconActivity, color: 'text-zinc-900', sub: `${processing.length} em fila` },
     { label: 'Clientes Ativos', value: clients.length, icon: IconRocket, color: 'text-zinc-900', sub: 'com workspace GEO' },
-    { label: 'Custo/Mês (est.)', value: `US$ ${apiCostMonth?.toFixed(2) ?? '0.00'}`, icon: IconLightbulb, color: 'text-zinc-900', sub: 'via OpenRouter' },
   ];
 
   const recentLeads = [...leads].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
@@ -42,7 +38,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {stats.map(stat => {
           const Icon = stat.icon;
           return (
