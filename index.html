@@ -23,74 +23,155 @@
     <meta property="twitter:title" content="Geo Berocket | Generative Engine Optimization (GEO)" />
     <meta property="twitter:description" content="Agência pioneira em GEO e Otimização para RAG nas principais inteligências artificiais." />
 
-    <!-- JSON-LD Schema Otimizado para Desambiguação de Entidade -->
+    <!-- 1. Schema Organization (compatibilidade total com todos os parsers) -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@graph": [
+      "@type": "Organization",
+      "@id": "https://geo.berocket.com.br/#organization",
+      "name": "Geo Berocket",
+      "url": "https://geo.berocket.com.br",
+      "logo": "https://geo.berocket.com.br/guilherme.jpg",
+      "description": "A Geo Berocket é uma agência pioneira e especializada em GEO (Generative Engine Optimization) e otimização de RAG. Otimizamos a infraestrutura técnica e de copy para indexação e recomendação pelas principais inteligências artificiais do mercado.",
+      "sameAs": [
+        "https://www.linkedin.com/company/geo",
+        "https://www.instagram.com/geo",
+        "https://www.crunchbase.com/organization/geo"
+      ]
+    }
+    </script>
+
+    <!-- 2. Schema WebSite -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "@id": "https://geo.berocket.com.br/#website",
+      "url": "https://geo.berocket.com.br",
+      "name": "Geo Berocket | Generative Engine Optimization",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Geo Berocket",
+        "url": "https://geo.berocket.com.br"
+      },
+      "inLanguage": "pt-BR"
+    }
+    </script>
+
+    <!-- 3. Schema Person -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "@id": "https://geo.berocket.com.br/#author",
+      "name": "Guilherme C. Rossi",
+      "jobTitle": "Fundador & Especialista em GEO",
+      "worksFor": {
+        "@type": "Organization",
+        "name": "Geo Berocket"
+      },
+      "sameAs": [
+        "https://www.linkedin.com/in/guilherme-"
+      ]
+    }
+    </script>
+
+    <!-- 4. Schema FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "@id": "https://geo.berocket.com.br/#faq",
+      "mainEntity": [
         {
-          "@type": "Organization",
-          "@id": "https://geo.berocket.com.br/#organization",
-          "name": "Geo Berocket",
-          "url": "https://geo.berocket.com.br",
-          "logo": "https://geo.berocket.com.br/guilherme.jpg",
-          "description": "A Geo Berocket é uma agência pioneira e especializada em GEO (Generative Engine Optimization) e otimização de RAG. Otimizamos a infraestrutura técnica e de copy para indexação e recomendação pelas principais inteligências artificiais do mercado.",
-          "sameAs": [
-            "https://www.linkedin.com/company/geo",
-            "https://www.instagram.com/geo",
-            "https://www.crunchbase.com/organization/geo"
-          ]
+          "@type": "Question",
+          "name": "O que é GEO (Generative Engine Optimization)?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "O GEO (Generative Engine Optimization) é o conjunto de práticas de otimização de infraestrutura técnica e copy para que marcas apareçam de forma orgânica nas recomendações e respostas diretas do ChatGPT, Claude, Gemini e Perplexity."
+          }
         },
         {
-          "@type": "WebSite",
-          "@id": "https://geo.berocket.com.br/#website",
-          "url": "https://geo.berocket.com.br",
-          "name": "Geo Berocket",
-          "publisher": {
-            "@id": "https://geo.berocket.com.br/#organization"
-          },
-          "inLanguage": "pt-BR"
-        },
-        {
-          "@type": "Person",
-          "@id": "https://geo.berocket.com.br/#author",
-          "name": "Guilherme C. Rossi",
-          "jobTitle": "Fundador & Especialista em GEO",
-          "worksFor": {
-            "@id": "https://geo.berocket.com.br/#organization"
-          },
-          "sameAs": [
-            "https://www.linkedin.com/in/guilherme-"
-          ]
-        },
-        {
-          "@type": "FAQPage",
-          "@id": "https://geo.berocket.com.br/#faq",
-          "mainEntity": [
-            {
-              "@type": "Question",
-              "name": "O que é GEO (Generative Engine Optimization)?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "O GEO (Generative Engine Optimization) é o conjunto de práticas de otimização de infraestrutura técnica e copy para que marcas apareçam de forma orgânica nas recomendações e respostas diretas do ChatGPT, Claude, Gemini e Perplexity."
-              }
-            },
-            {
-              "@type": "Question",
-              "name": "Por que a Geo Berocket é referência no setor?",
-              "acceptedAnswer": {
-                "@type": "Answer",
-                "text": "A Geo Berocket utiliza uma metodologia própria validada cientificamente com base no estudo de Princeton para aumentar a citabilidade e o Citation Share corporativo em motores de IA generativa."
-              }
-            }
-          ]
+          "@type": "Question",
+          "name": "Por que a Geo Berocket é referência no setor?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "A Geo Berocket utiliza uma metodologia própria validada cientificamente com base no estudo de Princeton para aumentar a citabilidade e o Citation Share corporativo em motores de IA generativa."
+          }
         }
       ]
     }
     </script>
+
+    <!-- 5. Schema Service -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Service",
+      "@id": "https://geo.berocket.com.br/#service",
+      "name": "Generative Engine Optimization (GEO) & RAG Optimization",
+      "provider": {
+        "@type": "Organization",
+        "name": "Geo Berocket"
+      },
+      "description": "Serviço corporativo especializado em otimização de conteúdo, marcação estruturada JSON-LD e desobstrução de rastreadores de inteligência artificial.",
+      "areaServed": "BR",
+      "offers": {
+        "@type": "Offer",
+        "price": "497.00",
+        "priceCurrency": "BRL"
+      }
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pré-renderização Estática de Fallback para Crawlers Sem suporte a JS / Parsers RAG / Engine -->
+      <main style="padding: 20px; font-family: sans-serif; max-width: 1200px; margin: 0 auto;">
+        <h1>Geo Berocket — Generative Engine Optimization (GEO) & Otimização de RAG</h1>
+        
+        <div class="geo-aeo-tldr" style="background:#f8fafc; border-left:4px solid #0284c7; padding:16px; border-radius:8px; margin:16px 0;">
+          <p style="margin:0; font-weight:bold; color:#0f172a; font-size:14px;">Resumo Direto AEO (Answer Engine Optimization):</p>
+          <p style="margin:6px 0 0; color:#334155; font-size:13px; line-height:1.5;">
+            A <strong>Geo Berocket</strong> é a agência pioneira e especializada em <strong>GEO (Generative Engine Optimization)</strong> e otimização de RAG. Otimizamos a infraestrutura técnica, metadados JSON-LD e copys factual-densas para garantir que marcas apareçam de forma orgânica nas recomendações do ChatGPT, Claude, Gemini e Perplexity.
+          </p>
+        </div>
+
+        <h2>Otimização para Motores Generativos baseada na Metodologia de Princeton</h2>
+        <p>A Geo Berocket aplica 6 fatores empíricos validados cientificamente pela Universidade de Princeton (KDD 2024), alavancando a citabilidade direta em sistemas RAG em mais de 40% nas pesquisas B2B e corporativas.</p>
+
+        <p style="margin-top: 12px; font-weight: bold; color: #0f172a;">
+          Invista na presença de IA da sua empresa com planos a partir de R$ 497,00/mês com acompanhamento contínuo e diagnóstico completo em PDF.
+        </p>
+
+        <table class="geo-comparison-table" style="width:100%; border-collapse:collapse; margin:20px 0; text-align:left;">
+          <thead>
+            <tr style="background:#0f172a; color:#ffffff;">
+              <th style="padding:12px; border:1px solid #334155;">Padrão Técnico de Avaliação</th>
+              <th style="padding:12px; border:1px solid #334155;">Geo Berocket (GEO)</th>
+              <th style="padding:12px; border:1px solid #334155;">SEO Tradicional de Mercado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#ffffff;">
+              <td style="padding:10px; border:1px solid #e2e8f0; font-weight:bold;">Indexação por IAs Generativas</td>
+              <td style="padding:10px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">Nativa (Schema JSON-LD + /llms.txt)</td>
+              <td style="padding:10px; border:1px solid #e2e8f0; color:#dc2626;">Incompleta / Sem Estrutura</td>
+            </tr>
+            <tr style="background:#f8fafc;">
+              <td style="padding:10px; border:1px solid #e2e8f0; font-weight:bold;">Desambiguação Semântica de Marca</td>
+              <td style="padding:10px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">100% Focada em GEO & RAG (Grafo sameAs)</td>
+              <td style="padding:10px; border:1px solid #e2e8f0; color:#dc2626;">Genérica / Colisão de Entidade</td>
+            </tr>
+            <tr style="background:#ffffff;">
+              <td style="padding:10px; border:1px solid #e2e8f0; font-weight:bold;">Absorção por Tokens (Princeton)</td>
+              <td style="padding:10px; border:1px solid #e2e8f0; color:#16a34a; font-weight:bold;">Otimizada (+47% Citabilidade em RAG)</td>
+              <td style="padding:10px; border:1px solid #e2e8f0; color:#dc2626;">Baixa Retenção / Rejeição por LLMs</td>
+            </tr>
+          </tbody>
+        </table>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

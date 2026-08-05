@@ -161,17 +161,24 @@ async function runMetadataAgent(htmlContent, domain) {
   while ((match = jsonLdRegex.exec(htmlContent)) !== null) {
     try {
       const parsed = JSON.parse(match[1]);
-      jsonLdBlocks.push(parsed);
-      const type = parsed['@type'];
-      if (type) schemasFound.push(Array.isArray(type) ? type.join(', ') : type);
+      if (Array.isArray(parsed['@graph'])) {
+        parsed['@graph'].forEach(node => jsonLdBlocks.push(node));
+      } else {
+        jsonLdBlocks.push(parsed);
+      }
     } catch {}
   }
+
+  jsonLdBlocks.forEach(b => {
+    const type = b['@type'];
+    if (type) schemasFound.push(Array.isArray(type) ? type.join(', ') : type);
+  });
 
   // Check required schemas
   const orgSchema = jsonLdBlocks.find(b => b['@type'] === 'Organization' || b['@type'] === 'LocalBusiness');
   const personSchema = jsonLdBlocks.find(b => b['@type'] === 'Person');
   const faqSchema = jsonLdBlocks.find(b => b['@type'] === 'FAQPage');
-  const productSchema = jsonLdBlocks.find(b => ['Product', 'Service', 'WebPage'].includes(b['@type']));
+  const productSchema = jsonLdBlocks.find(b => ['Product', 'Service', 'WebPage', 'Website'].includes(b['@type']));
 
   if (!orgSchema) missingSchemas.push('Organization');
   if (!personSchema) missingSchemas.push('Person');
