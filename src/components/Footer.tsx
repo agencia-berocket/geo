@@ -164,10 +164,9 @@ export default function Footer() {
                 Redes Sociais
               </h4>
               <ul className="space-y-2.5 font-display text-sm text-zinc-600 font-medium">
-                <li><a href="https://twitter.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 transition-colors">X (Twitter)</a></li>
-                <li><a href="https://youtube.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 transition-colors">YouTube</a></li>
-                <li><a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 transition-colors">LinkedIn</a></li>
-                <li><a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:text-zinc-950 transition-colors">Instagram</a></li>
+                <li><a href="https://x.com/berocketgui" target="_blank" rel="noreferrer" className="hover:text-zinc-950 transition-colors">X (Twitter)</a></li>
+                <li><a href="https://www.linkedin.com/in/guilhermecrossi/" target="_blank" rel="noreferrer" className="hover:text-zinc-950 transition-colors">LinkedIn</a></li>
+                <li><a href="https://www.instagram.com/b.rocket.agencia/" target="_blank" rel="noreferrer" className="hover:text-zinc-950 transition-colors">Instagram</a></li>
               </ul>
             </div>
 

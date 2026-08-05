@@ -236,7 +236,7 @@ export const team: TeamMember[] = [
     description: 'Ao longo da minha trajetória profissional, dediquei minha carreira a compreender a arquitetura informativa da web, desenvolvendo estratégias sólidas de SEO, posicionamento corporativo de marcas e redação de experiência para produtos digitais. Diante da rápida transição dos motores de busca clássicos para as respostas diretas sintetizadas, decidi fundar a b.rocket. O meu objetivo pessoal é claro: preparar as marcas e infraestruturas técnicas de dados das empresas para que elas se adaptem e prosperem de forma ética nesse novo ecossistema, gerando confiança e clareza de dados onde o futuro das buscas de alta conversão já está acontecendo.',
     image: '/guilherme.jpg',
     socials: {
-      linkedin: '#'
+      linkedin: 'https://www.linkedin.com/in/guilhermecrossi/'
     }
   }
 ];

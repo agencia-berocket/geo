@@ -190,6 +190,10 @@ Este documento reúne de forma estruturada e completa todo o conteúdo de texto,
 ## 14. Rodapé e Newsletter (Footer)
 
 * **Newsletter:** Assine a Newsletter de Inteligência Semântica
+* **Redes Sociais Oficiais:**
+  * **X (Twitter):** `https://x.com/berocketgui`
+  * **LinkedIn:** `https://www.linkedin.com/in/guilhermecrossi/`
+  * **Instagram:** `https://www.instagram.com/b.rocket.agencia/`
 * **Slogan:** b.rocket — Otimizando o futuro da busca para mentes brilhantes.
 * **Metadados:** `b.rocket © 2026 // ALL SYSTEM PARAMETERS NOMINAL`
 * **Links:** Termos de Uso | Política de Privacidade | Política de Cookies
