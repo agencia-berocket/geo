@@ -656,6 +656,36 @@ function ClientWorkspacePage({ client, onBack, onEdit, onDelete }: {
                   </>
                 )}
 
+                {/* SEO Optimizer Deliverable */}
+                {activeAgent === 'seo_optimizer' && (
+                  <DeliverableCard
+                    title="Relatório de Otimização de SEO Clássico (Title/Meta, Alt Tags, PageRank)"
+                    description="Diagnóstico de trechos, atributos de imagens e links internos."
+                    content={JSON.stringify(currentOutput, null, 2)}
+                    filename="relatorio_seo_optimizer.json"
+                  />
+                )}
+
+                {/* Semantic Explorer Deliverable */}
+                {activeAgent === 'semantic_explorer' && (
+                  <DeliverableCard
+                    title="Mapeamento de Content Gaps e Topic Clusters"
+                    description="Ideação de lacunas de conteúdo e briefings estruturados."
+                    content={JSON.stringify(currentOutput, null, 2)}
+                    filename="topic_clusters_briefing.json"
+                  />
+                )}
+
+                {/* Off-Page Entity Monitor Deliverable */}
+                {activeAgent === 'offpage' && (
+                  <DeliverableCard
+                    title="Auditoria de Entidade Externa, Wikidata e Pautas de PR Digital"
+                    description="Co-ocorrência semântica e oportunidades de imprensa."
+                    content={JSON.stringify(currentOutput, null, 2)}
+                    filename="relatorio_offpage_pr.json"
+                  />
+                )}
+
                 {/* Intent Prompt Deliverable */}
                 {activeAgent === 'intent' && (
                   <DeliverableCard
@@ -663,6 +693,16 @@ function ClientWorkspacePage({ client, onBack, onEdit, onDelete }: {
                     description="Mapeamento de Citation Share e perguntas de intenção testadas."
                     content={JSON.stringify(currentOutput, null, 2)}
                     filename="citation_share_report.json"
+                  />
+                )}
+
+                {/* Checklist Architect Deliverable */}
+                {activeAgent === 'checklist_architect' && (
+                  <DeliverableCard
+                    title="Checklist Interativo de QA & Instruções CMS para Devs"
+                    description="Snippets de código compilados, tutoriais de instalação e checklist de validação."
+                    content={JSON.stringify(currentOutput, null, 2)}
+                    filename="checklist_qa_devs.json"
                   />
                 )}
               </div>

@@ -1701,27 +1701,58 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
         result = await runContentAgent(htmlContent);
         result.aeoTemplates = generateAeoContentTemplate(domain, htmlContent);
         break;
+      case 'seo_optimizer':
+        result = await runSeoOptimizerAgent(baseUrl, htmlContent);
+        break;
+      case 'semantic_explorer': {
+        const key = process.env.OPENROUTER_API_KEY || '';
+        result = await runSemanticExplorerAgent(baseUrl, htmlContent, key);
+        break;
+      }
+      case 'offpage': {
+        const key = process.env.OPENROUTER_API_KEY || '';
+        result = await runOffPageEntityAgent(baseUrl, htmlContent, key);
+        break;
+      }
       case 'intent': {
         const key = process.env.OPENROUTER_API_KEY || '';
         result = await runIntentAgent(url, htmlContent, key);
         break;
       }
-      case 'orchestrator': {
-        const [gk, md, ct] = await Promise.all([
+      case 'checklist_architect': {
+        const key = process.env.OPENROUTER_API_KEY || '';
+        const [gk, md, ct, sem, off, seo] = await Promise.all([
           runGatekeeperAgent(baseUrl, htmlContent),
           runMetadataAgent(htmlContent, domain),
           runContentAgent(htmlContent),
+          runSemanticExplorerAgent(baseUrl, htmlContent, key),
+          runOffPageEntityAgent(baseUrl, htmlContent, key),
+          runSeoOptimizerAgent(baseUrl, htmlContent),
         ]);
+        result = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, domain, baseUrl);
+        break;
+      }
+      case 'orchestrator': {
         const key = process.env.OPENROUTER_API_KEY || '';
+        const [gk, md, ct, sem, off, seo] = await Promise.all([
+          runGatekeeperAgent(baseUrl, htmlContent),
+          runMetadataAgent(htmlContent, domain),
+          runContentAgent(htmlContent),
+          runSemanticExplorerAgent(baseUrl, htmlContent, key),
+          runOffPageEntityAgent(baseUrl, htmlContent, key),
+          runSeoOptimizerAgent(baseUrl, htmlContent),
+        ]);
         const vis = await runIntentAgent(url, htmlContent, key);
-        const score = calculateGeoScore(gk, md, ct, vis);
-        const actions = buildActionList(gk, md, ct, vis);
+        const chk = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, domain, baseUrl);
+        const score = calculateGeoScore(gk, md, ct, vis, sem, off, seo);
+        const actions = buildActionList(gk, md, ct, vis, sem, off, seo);
 
         const deliverables = {
           robotsTxt: generateRobotsTxt(domain, gk.robotsTxtAllowAiBots),
           jsonLdSchema: generateJsonLdSchema(clientInfo, domain, htmlContent),
           llmsTxt: generateLlmsTxtContent(clientInfo, { overallGeoScore: score }, htmlContent),
           aeoTemplates: generateAeoContentTemplate(domain, htmlContent),
+          checklist: chk,
         };
 
         const actionPlanMarkdown = generateActionPlanByStages({ clientUrl: baseUrl, overallGeoScore: score, actionItemsPriorityList: actions });
@@ -1733,6 +1764,10 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
           metadata: md,
           content: ct,
           visibility: vis,
+          seoOptimizer: seo,
+          semanticExplorer: sem,
+          offpage: off,
+          checklistArchitect: chk,
           deliverables,
           actionPlanMarkdown,
         };
