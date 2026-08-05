@@ -18,7 +18,7 @@ const privacySections = [
   {
     title: 'Finalidade do Tratamento de Dados',
     content: [
-      'Utilizamos seus dados pessoais para as seguintes finalidades: (i) prestação dos serviços contratados de GEO (Generative Engine Optimization), diagnósticos de presença digital e consultoria especializada; (ii) envio de comunicações relacionadas aos serviços, incluindo relatórios em PDF, acompanhamento de progresso e suporte técnico; (iii) envio de conteúdo informativo por meio de nossa newsletter, caso você tenha consentido expressamente.',
+      'Utilizamos seus dados pessoais para as seguintes finalidades: (i) prestação dos serviços contratados de GEO (Generative Engine Optimization), diagnósticos de presença digital e consultoria especializada; (ii) envio de comunicações relacionadas aos serviços, incluindo relatórios em Arquivo HTML, acompanhamento de progresso e suporte técnico; (iii) envio de conteúdo informativo por meio de nossa newsletter, caso você tenha consentido expressamente.',
       'Adicionalmente, seus dados poderão ser tratados para: (iv) análise estatística e melhoria contínua de nossos serviços e plataformas; (v) cumprimento de obrigações legais, regulatórias ou judiciais; (vi) proteção dos direitos da b.rocket em processos administrativos, judiciais ou arbitrais.'
     ]
   },

@@ -32,7 +32,7 @@ export default function FAQ() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-zinc-200/60 pb-8 mb-16 gap-4">
           <div className="flex items-center gap-3">
             <span className="w-1.5 h-1.5 bg-zinc-950 rounded-full" />
-            <span className="font-mono text-xs uppercase tracking-widest text-zinc-500">FAQ</span>
+            <span className="font-mono text-xs uppercase tracking-widest text-zinc-500">PERGUNTAS FREQUENTES</span>
           </div>
           <div className="flex items-center gap-3 font-mono text-xs text-zinc-500">
             <span>Respostas Clarificadas</span>
@@ -44,8 +44,7 @@ export default function FAQ() {
         {/* Large Header Title */}
         <div className="max-w-5xl mb-20 md:mb-24">
           <h2 className="font-display font-black text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-zinc-950 leading-[1.05] tracking-tight uppercase text-tactile-3d-dark">
-            TUDO QUE VOCÊ PRECISA<br />
-            <span className="text-zinc-500/80">SABER ANTES DE COMEÇAR.</span>
+            Tire suas dúvidas técnicas sobre GEO
           </h2>
         </div>
 

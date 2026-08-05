@@ -30,12 +30,17 @@ export default function Navbar() {
   const menuItems = [
     { name: 'Diagnósticos', href: '#projects' },
     { name: 'Metodologia', href: '#services' },
-    { name: 'Google IA', href: '#google-mode' },
+    { name: 'Google IA', href: '#expertise' },
     { name: 'Processo', href: '#process' },
     { name: 'Pilares', href: '#expertise' },
     { name: 'Planos', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
+
+  const handleOpenBooking = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.dispatchEvent(new Event('open-booking-modal'));
+  };
 
   return (
     <header 
@@ -83,33 +88,33 @@ export default function Navbar() {
         </a>
 
         {/* Desktop Menu */}
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-5 xl:gap-7">
           {menuItems.map((item, index) => (
             <a
               key={index}
               href={item.href}
-              className="font-mono text-[10px] text-zinc-600 hover:text-zinc-950 uppercase tracking-widest font-bold transition-colors duration-200 relative group py-1"
+              className="font-mono text-[10px] xl:text-[11px] text-zinc-600 hover:text-zinc-950 uppercase tracking-widest font-bold transition-colors duration-200 relative group py-1 whitespace-nowrap"
             >
               {item.name}
               <span className="absolute bottom-0 left-0 w-0 h-[1.5px] bg-zinc-950 transition-all duration-300 group-hover:w-full" />
             </a>
           ))}
-          <a
-            href="#pricing"
-            className="tactile-raised !bg-zinc-950 text-white font-mono text-[10px] md:text-xs font-semibold px-5 py-2.5 hover:bg-zinc-800 uppercase tracking-widest transition-all duration-300 flex items-center gap-1.5 rounded-xl shadow-lg border-t border-zinc-700 hover:scale-102"
+          <button
+            onClick={handleOpenBooking}
+            className="tactile-raised !bg-zinc-950 text-white font-mono text-[10px] xl:text-xs font-bold px-5 py-2.5 hover:bg-zinc-800 uppercase tracking-widest transition-all duration-300 flex items-center gap-1.5 rounded-xl shadow-lg border-t border-zinc-700 hover:scale-102 cursor-pointer whitespace-nowrap"
           >
-            Início <ArrowUpRight className="w-3.5 h-3.5 text-zinc-300" />
-          </a>
+            Implantar GEO <ArrowUpRight className="w-3.5 h-3.5 text-zinc-300" />
+          </button>
         </nav>
 
         {/* Mobile Toggle */}
-        <div className="md:hidden flex items-center gap-3">
-          <a
-            href="#pricing"
+        <div className="lg:hidden flex items-center gap-3">
+          <button
+            onClick={handleOpenBooking}
             className="bg-zinc-950 text-white font-mono text-[10px] font-bold px-4 py-2 hover:bg-zinc-800 uppercase tracking-wider transition-all duration-300 rounded-xl"
           >
-            Começar
-          </a>
+            Implantar GEO
+          </button>
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center border border-white shadow-sm text-zinc-950 hover:text-zinc-700 focus:outline-none"
@@ -128,26 +133,28 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="absolute top-full left-0 w-full px-6 py-4 md:hidden z-40"
+            className="absolute top-full left-0 w-full px-6 py-4 lg:hidden z-40"
           >
-            <div className="tactile-raised bg-white p-6 flex flex-col gap-5 shadow-2xl">
+            <div className="tactile-raised bg-white p-6 flex flex-col gap-4 shadow-2xl">
               {menuItems.map((item, index) => (
                 <a
                   key={index}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
-                  className="font-display font-extrabold text-base text-zinc-800 hover:text-zinc-950 uppercase tracking-wider border-b border-zinc-100 pb-2"
+                  className="font-display font-extrabold text-sm text-zinc-800 hover:text-zinc-950 uppercase tracking-wider border-b border-zinc-100 pb-2"
                 >
                   {item.name}
                 </a>
               ))}
-              <a
-                href="#pricing"
-                onClick={() => setIsOpen(false)}
+              <button
+                onClick={(e) => {
+                  setIsOpen(false);
+                  handleOpenBooking(e);
+                }}
                 className="bg-zinc-950 text-white font-mono text-xs font-bold py-3 text-center uppercase tracking-widest flex items-center justify-center gap-2 mt-2 rounded-xl"
               >
-                Começar Otimização GEO <ArrowUpRight className="w-4 h-4" />
-              </a>
+                Implantar GEO <ArrowUpRight className="w-4 h-4" />
+              </button>
             </div>
           </motion.div>
         )}

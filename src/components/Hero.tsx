@@ -115,14 +115,12 @@ export default function Hero() {
               </div>
 
               {/* GIANT 3D TEXT */}
-              <h1 className="font-display font-black text-4xl sm:text-5xl md:text-6xl lg:text-[4rem] text-zinc-950 tracking-tight leading-[1.05] uppercase text-tactile-3d-dark">
-                O SEU SITE<br />
-                RECOMENDADO<br />
-                PELAS IAs
+              <h1 className="font-display font-black text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] text-zinc-950 tracking-tight leading-[1.08] uppercase text-tactile-3d-dark [text-wrap:balance]">
+                Faça o seu site ser a resposta recomendada pelas Inteligências Artificiais
               </h1>
               
               <p className="font-sans text-base md:text-lg text-zinc-600 leading-relaxed max-w-xl font-light">
-                O SEO de links azuis morreu. Os novos tomadores de decisão agora buscam e compram diretamente através das recomendações sintetizadas do <strong className="text-zinc-950 font-semibold">ChatGPT, Claude, Gemini e Perplexity</strong>. Preparamos sua marca para dominar as recomendações dos robôs de IA.
+                As buscas na internet estão mudando rapidamente. Hoje, novos tomadores de decisão não clicam mais apenas em listas de links azuis. Eles buscam e compram diretamente através das recomendações sintetizadas do <strong className="text-zinc-950 font-semibold">ChatGPT, Claude, Gemini e Perplexity</strong>. Nós preparamos toda a estrutura técnica de dados e a copy do seu site para que a sua empresa seja a resposta mais citada e recomendada pelas IAs.
               </p>
 
               {/* Bloco de Resposta Direta AEO (Answer Engine Optimization) - Fator Princeton <60 palavras */}
@@ -132,21 +130,21 @@ export default function Hero() {
                   <span>Resumo Direto AEO (Answer Engine Optimization):</span>
                 </div>
                 <p className="text-xs text-sky-950 leading-relaxed font-normal">
-                  A <strong>GEO | b.rocket</strong> é a agência pioneira e especializada em <strong>GEO (Generative Engine Optimization)</strong> e otimização de RAG. Otimizamos a infraestrutura técnica, metadados JSON-LD e copys factual-densas para garantir que marcas apareçam de forma orgânica nas recomendações do ChatGPT, Claude, Gemini e Perplexity.
+                  A <strong>b.rocket</strong> é especializada em <strong>Generative Engine Optimization (GEO)</strong>. Reestruturamos a copy, a acessibilidade de crawlers e os metadados JSON-LD do seu site para garantir visibilidade e recomendação prioritária nas respostas sintetizadas de IA.
                 </p>
               </div>
             </div>
 
             {/* THREE PILLS ROW */}
             <div className="flex flex-wrap gap-3 z-10 pt-2">
-              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4.5 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Rankeamento em IAs
+              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
+                <span className="text-emerald-600">↗</span> Aumento verificado de citações nas IAs
               </span>
-              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4.5 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Otimização Semântica
+              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
+                <span className="text-emerald-600">🛡️</span> Estrutura técnica 100% livre de bloqueios
               </span>
-              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4.5 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Visibilidade Generativa
+              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
+                <span className="text-emerald-600">🎯</span> Atração de tomadores de decisão qualificados
               </span>
             </div>
 
@@ -184,60 +182,66 @@ export default function Hero() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="space-y-6"
+                      className="space-y-5"
                     >
                       <div className="space-y-2 text-center">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mb-2">
+                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mb-1">
                           <Sparkles className="w-6 h-6" />
                         </div>
-                        <h3 className="font-display font-extrabold text-2xl text-zinc-950 uppercase tracking-tight">
-                          As IAs recomendam sua empresa?
+                        <h3 className="font-display font-extrabold text-xl md:text-2xl text-zinc-950 uppercase tracking-tight">
+                          Solicite o seu diagnóstico gratuito de GEO
                         </h3>
-                        <p className="text-sm text-zinc-500 leading-relaxed font-light">
-                          Faça uma varredura gratuita e descubra se o ChatGPT e o Gemini estão enviando clientes para você ou para a concorrência.
+                        <p className="text-xs text-zinc-500 leading-relaxed font-light">
+                          Descubra se o seu negócio está visível para os novos assistentes de inteligência artificial. Insira os dados abaixo para nossa auditoria técnica baseada no estudo de Princeton.
                         </p>
                       </div>
 
                       <form onSubmit={handleStartScan} className="space-y-4">
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400">
-                            <Globe className="w-4 h-4" />
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase">Endereço do seu site corporativo</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400">
+                              <Globe className="w-4 h-4" />
+                            </div>
+                            <input
+                              type="text"
+                              required
+                              placeholder="www.suaempresa.com.br"
+                              value={url}
+                              onChange={(e) => setUrl(e.target.value)}
+                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-11 pr-4 py-3 font-mono text-xs text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                            />
                           </div>
-                          <input
-                            type="text"
-                            required
-                            placeholder="URL corporativa (ex: site.com)"
-                            value={url}
-                            onChange={(e) => setUrl(e.target.value)}
-                            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-11 pr-4 py-3.5 font-mono text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
-                          />
                         </div>
 
-                        <div className="relative">
-                          <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400">
-                            <Mail className="w-4 h-4" />
+                        <div className="space-y-1">
+                          <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase">Seu e-mail profissional corporativo</label>
+                          <div className="relative">
+                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400">
+                              <Mail className="w-4 h-4" />
+                            </div>
+                            <input
+                              type="email"
+                              required
+                              placeholder="seu-nome@empresa.com.br"
+                              value={email}
+                              onChange={(e) => setEmail(e.target.value)}
+                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-11 pr-4 py-3 font-mono text-xs text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                            />
                           </div>
-                          <input
-                            type="email"
-                            required
-                            placeholder="Seu melhor e-mail profissional"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-11 pr-4 py-3.5 font-mono text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
-                          />
                         </div>
 
                         <button
                           type="submit"
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold py-4.5 tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-2 rounded-xl cursor-pointer shadow-[0_8px_20px_rgba(5,150,105,0.25)] border-t border-emerald-400 hover:-translate-y-0.5"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold py-4 tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 rounded-xl cursor-pointer shadow-[0_8px_20px_rgba(5,150,105,0.25)] border-t border-emerald-400 hover:-translate-y-0.5 mt-2"
                         >
-                          DESCOBRIR MEU SCORE AGORA
-                          <ArrowRight className="w-4 h-4" />
+                          Solicitar meu Raio-X de GEO Gratuito ➔
                         </button>
                       </form>
 
-                      <div className="text-center font-mono text-[9px] text-zinc-400 uppercase tracking-wider font-bold flex items-center justify-center gap-1.5">
-                        <Lock className="w-3 h-3" /> Relatório em PDF seguro enviado em minutos
+                      <div className="text-center font-sans text-[10px] text-zinc-500 leading-tight font-light flex items-start justify-center gap-1.5 px-2">
+                        <span className="shrink-0 mt-0.5">🛡️</span>
+                        <span>Nós respeitamos sua privacidade. Seus dados estão seguros, seu e-mail corporativo não receberá spam e o diagnóstico em Arquivo HTML será enviado em seu e-mail de forma confidencial.</span>
                       </div>
                     </motion.div>
                   )}
@@ -343,9 +347,9 @@ export default function Hero() {
                       <div className="bg-emerald-50 text-emerald-900 p-4 rounded-xl flex items-start gap-3 border border-emerald-200">
                         <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                         <div>
-                          <strong className="text-emerald-950 text-xs block font-bold uppercase tracking-wider">Relatório Enviado!</strong>
+                          <strong className="text-emerald-950 text-xs block font-bold uppercase tracking-wider">Diagnóstico em Arquivo HTML solicitado com sucesso!</strong>
                           <p className="text-[11px] text-emerald-700/80 font-medium leading-relaxed mt-1">
-                            O plano de ação prioritário de GEO foi enviado para <span className="font-mono font-bold text-emerald-900">{scannedEmail}</span>.
+                            Obrigado por confiar na b.rocket. O seu diagnóstico está sendo analisado com base nas 7 premissas do método de GEO de Princeton. O arquivo em formato HTML com o plano de ação prioritário será enviado para o seu e-mail profissional <span className="font-mono font-bold text-emerald-900">{scannedEmail}</span> nas próximas horas.
                           </p>
                         </div>
                       </div>
@@ -353,9 +357,9 @@ export default function Hero() {
                       {/* Reset Button */}
                       <button
                         onClick={handleReset}
-                        className="w-full bg-zinc-50 hover:bg-zinc-100 text-zinc-600 hover:text-zinc-950 font-mono text-xs font-bold py-3 uppercase tracking-widest transition-all rounded-xl text-center border border-zinc-200 shadow-sm mt-2"
+                        className="w-full bg-zinc-50 hover:bg-zinc-100 text-zinc-600 hover:text-zinc-950 font-mono text-xs font-bold py-3 uppercase tracking-widest transition-all rounded-xl text-center border border-zinc-200 shadow-sm mt-2 cursor-pointer"
                       >
-                        REALIZAR OUTRA VARREDURA
+                        Realizar outra varredura
                       </button>
 
                     </motion.div>
@@ -378,7 +382,7 @@ export default function Hero() {
         >
           <div className="flex justify-between items-center mb-6">
             <span className="font-mono text-[10px] text-zinc-400 font-bold uppercase tracking-widest">
-              INDICADORES DE VISIBILIDADE EM IAs
+              INDICADORES DE VISIBILIDADE (OS 3 PILARES DO RANKEAMENTO EM IA)
             </span>
           </div>
           
@@ -389,8 +393,8 @@ export default function Hero() {
                 <span className="font-mono text-sm font-bold text-zinc-950">01</span>
               </div>
               <div className="space-y-1.5">
-                <h5 className="font-display font-bold text-sm text-zinc-950 uppercase tracking-tight">Autoridade RAG (Citação)</h5>
-                <p className="text-xs text-zinc-500 leading-relaxed font-light">Sua marca catalogada como fonte confiável nos bancos de dados vetoriais das IAs, sendo citada como referência primária.</p>
+                <h5 className="font-display font-bold text-sm text-zinc-950 uppercase tracking-tight">Citações e Autoridade (RAG)</h5>
+                <p className="text-xs text-zinc-500 leading-relaxed font-light">Estruturamos seus dados para que sua marca seja catalogada como fonte confiável pelas IAs generativas nos bancos de dados vetoriais.</p>
               </div>
             </div>
 
@@ -401,7 +405,7 @@ export default function Hero() {
               </div>
               <div className="space-y-1.5">
                 <h5 className="font-display font-bold text-sm text-zinc-950 uppercase tracking-tight">Intencionalidade Semântica</h5>
-                <p className="text-xs text-zinc-500 leading-relaxed font-light">Respostas diretas a intenções complexas dos usuários, indo muito além da repetição excessiva de palavras-chave do SEO tradicional.</p>
+                <p className="text-xs text-zinc-500 leading-relaxed font-light">Otimizamos os seus textos para responderem de forma natural às buscas complexas que seus clientes fazem, indo além do uso artificial de palavras-chave.</p>
               </div>
             </div>
 
@@ -412,7 +416,7 @@ export default function Hero() {
               </div>
               <div className="space-y-1.5">
                 <h5 className="font-display font-bold text-sm text-zinc-950 uppercase tracking-tight">Acessibilidade dos Crawlers</h5>
-                <p className="text-xs text-zinc-500 leading-relaxed font-light">Liberação técnica impecável no robots.txt e estruturação de schema limpa para rastreadores de IA como GPTBot e ClaudeBot.</p>
+                <p className="text-xs text-zinc-500 leading-relaxed font-light">Garantimos as permissões técnicas necessárias para que os rastreadores de inteligência artificial (como GPTBot e ClaudeBot) leiam seu site instantaneamente.</p>
               </div>
             </div>
           </div>

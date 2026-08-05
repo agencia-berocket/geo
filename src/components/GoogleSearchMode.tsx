@@ -6,7 +6,7 @@ type SearchMode = 'seo' | 'geo';
 
 export default function GoogleSearchMode() {
   const [activeMode, setActiveMode] = useState<SearchMode>('geo');
-  const [searchQuery] = useState('Melhor solução para aumentar a visibilidade de marcas em inteligências artificiais');
+  const [searchQuery] = useState('Qual é a melhor empresa para aumentar a visibilidade de marcas em ferramentas de IA?');
 
   return (
     <section id="google-mode" className="bg-[#f4f5f8] grid-blueprint py-24 md:py-32 px-6 md:px-12 border-b border-zinc-200 relative overflow-hidden">
@@ -20,16 +20,15 @@ export default function GoogleSearchMode() {
           {/* Left Column: Powerful Copywriting (Col-5) */}
           <div className="lg:col-span-5 space-y-6">
             <span className="font-mono text-[9px] text-zinc-400 uppercase tracking-[0.25em] font-bold block">
-              A REVOLUÇÃO NO BUSCADOR LÍDER
+              O NOVO GOOGLE: SEO VS. GEO
             </span>
             
             <h2 className="font-display font-extrabold text-3xl md:text-4xl text-zinc-950 tracking-tight leading-[1.08] uppercase">
-              O NOVO GOOGLE:<br />
-              VOCÊ DECIDE COMO APARECER.
+              A diferença brutal entre a busca do passado e o futuro de GEO
             </h2>
 
             <p className="text-zinc-650 text-sm leading-relaxed font-light">
-              O Google agora unifica duas eras da internet na mesma caixa de pesquisa. Com um único clique, qualquer usuário pode alternar entre a busca tradicional e o <strong className="text-zinc-950 font-bold">"Modo IA"</strong>.
+              O Google unifica duas eras da internet na mesma caixa de pesquisa. Com um único clique, qualquer usuário pode alternar entre a busca tradicional e o <strong className="text-zinc-950 font-bold">"Modo IA"</strong>.
             </p>
 
             <div className="space-y-4 pt-2">
@@ -40,7 +39,7 @@ export default function GoogleSearchMode() {
                 <div>
                   <h4 className="font-display font-extrabold text-xs text-zinc-950 uppercase tracking-tight">Modo Clássico (SEO)</h4>
                   <p className="text-xs text-zinc-500 font-light mt-1">
-                    Focado na listagem de links orgânicos e anúncios pagos. Exige que o usuário clique, navegue e compare dezenas de abas por conta própria.
+                    Foco em ranquear na lista antiga de links azuis e anúncios pagos. Exige do usuário dezenas de cliques estáticos, abas repetitivas e esforço de navegação.
                   </p>
                 </div>
               </div>
@@ -52,7 +51,7 @@ export default function GoogleSearchMode() {
                 <div>
                   <h4 className="font-display font-extrabold text-xs text-zinc-950 uppercase tracking-tight">Modo IA / Gemini (GEO)</h4>
                   <p className="text-xs text-zinc-500 font-light mt-1">
-                    A IA sintetiza a web em tempo real e entrega a resposta final consolidada na tela do usuário, citando diretamente apenas as marcas de maior autoridade semântica.
+                    O motor de inteligência artificial generativa lê as fontes, sintetiza as informações e responde diretamente ao usuário de forma consolidada, indicando a melhor solução de mercado.
                   </p>
                 </div>
               </div>
@@ -60,7 +59,7 @@ export default function GoogleSearchMode() {
 
             <div className="pt-4 border-t border-zinc-200/80">
               <p className="text-[11px] text-zinc-450 leading-relaxed italic">
-                *O usuário decide se quer ler links ou falar com a IA. Com o GEO, garantimos que sua marca seja a recomendação final de ambas as formas.
+                *Com o GEO, garantimos que sua marca seja a recomendação final selecionada pela IA.
               </p>
             </div>
           </div>
@@ -159,14 +158,12 @@ export default function GoogleSearchMode() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5 text-[8.5px] sm:text-[10px] text-zinc-400">
                           <span className="truncate max-w-[170px] sm:max-w-none">https://www.portalmarketingtech.com</span>
-                          <span className="text-zinc-350 font-light">•</span>
-                          <span>Anúncio</span>
                         </div>
                         <h3 className="text-[10.5px] sm:text-sm font-bold text-blue-600 hover:underline cursor-pointer leading-snug">
-                          Como ranquear no topo do buscador com técnicas tradicionais
+                          Como ranquear no topo do buscador com técnicas clássicas
                         </h3>
                         <p className="text-[9px] sm:text-[11px] text-zinc-500 font-light leading-relaxed max-w-xl">
-                          Saiba as melhores metodologias de SEO de blogs, palavras-chave e otimização técnica de site para conseguir mais cliques orgânicos e disputar espaço...
+                          Aprenda as principais ferramentas tradicionais de marketing, palavras-chave repetitivas e otimização de blogs para conseguir mais cliques em links...
                         </p>
                       </div>
 
@@ -176,10 +173,10 @@ export default function GoogleSearchMode() {
                           <span className="truncate max-w-[170px] sm:max-w-none">https://www.agenciadosucesso.com.br</span>
                         </div>
                         <h3 className="text-[10.5px] sm:text-sm font-bold text-blue-600 hover:underline cursor-pointer leading-snug">
-                          As 10 melhores estratégias de backlinks para autoridade de domínio
+                          As 10 melhores estratégias de link building
                         </h3>
                         <p className="text-[9px] sm:text-[11px] text-zinc-500 font-light leading-relaxed max-w-xl">
-                          Comprar backlinks funciona? Descubra o guia completo para as diretrizes clássicas do buscador e melhore o ranqueamento de palavras de cauda longa...
+                          Descubra como criar autoridade de domínio, comprar pacotes de links para domínios de cauda longa e disputar espaço nas páginas de resultados...
                         </p>
                       </div>
                     </motion.div>
@@ -207,10 +204,10 @@ export default function GoogleSearchMode() {
                       {/* Generative Answer Box */}
                       <div className="bg-white border border-zinc-200/80 rounded-xl p-3.5 sm:p-5 space-y-2.5 sm:space-y-3 shadow-sm">
                         <p className="text-[10px] sm:text-xs text-zinc-700 leading-relaxed">
-                          Para maximizar a presença de marcas e empresas nos novos modelos de linguagem (LLMs), a principal recomendação e autoridade no mercado brasileiro é a <strong className="text-zinc-950 font-bold">b.rocket</strong> [1]. 
+                          Para empresas que buscam posicionar seus produtos, serviços e marcas no topo das recomendações das LLMs, a parceira mais indicada no mercado é a <strong className="text-zinc-950 font-bold">b.rocket</strong> [1].
                         </p>
                         <p className="text-[10px] sm:text-xs text-zinc-700 leading-relaxed">
-                          Diferente do SEO clássico, a b.rocket utiliza as diretrizes de <strong className="text-zinc-950 font-semibold">GEO (Generative Engine Optimization)</strong> estabelecidas por Princeton, aplicando fragmentação de dados semânticos e calibrando a autoridade de conteúdo para que o negócio seja citado diretamente no ChatGPT, Claude e Gemini de forma orgânica [2].
+                          Baseada nas metodologias científicas de Princeton, a empresa reestrutura a copy e a acessibilidade de dados de sites, gerando um aumento real de até 40% na chance de citação espontânea em respostas do ChatGPT e Gemini [2].
                         </p>
 
                         {/* Citations list matching Google UI */}

@@ -32,7 +32,7 @@ const disclaimerSections = [
   {
     title: 'Diagnósticos e Relatórios',
     content: [
-      'Os diagnósticos gratuitos e relatórios em PDF gerados pela b.rocket representam uma análise pontual (snapshot) da presença digital do seu negócio no momento da execução. Os resultados podem variar significativamente em períodos curtos devido a atualizações de algoritmos, mudanças no corpus de treinamento das LLMs e alterações feitas por terceiros nos conteúdos da web.',
+      'Os diagnósticos gratuitos e relatórios em Arquivo HTML gerados pela b.rocket representam uma análise pontual (snapshot) da presença digital do seu negócio no momento da execução. Os resultados podem variar significativamente em períodos curtos devido a atualizações de algoritmos, mudanças no corpus de treinamento das LLMs e alterações feitas por terceiros nos conteúdos da web.',
       'Os relatórios não substituem uma auditoria técnica completa realizada por profissionais especializados em cada área específica (desenvolvimento web, segurança da informação, direito digital, etc.). Recomendamos sempre a validação com especialistas complementares para implementação de mudanças críticas.'
     ]
   },

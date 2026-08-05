@@ -49,11 +49,11 @@ export default function Footer() {
           <div className="lg:col-span-5 space-y-6">
             <div className="tactile-raised p-8 rounded-3xl bg-white border border-zinc-200 space-y-6">
               <div className="space-y-2">
-                <h3 className="font-display font-extrabold text-2xl text-zinc-950 tracking-tight uppercase">
-                  Newsletter
+                <h3 className="font-display font-extrabold text-xl md:text-2xl text-zinc-950 tracking-tight uppercase">
+                  Assine a Newsletter de Inteligência Semântica
                 </h3>
                 <p className="text-xs text-zinc-500 font-light max-w-sm leading-relaxed">
-                  Fique atualizado sobre as nossas novas descobertas científicas de GEO, updates de algoritmos e análises de mercado.
+                  Receba atualizações semanais diretas sobre novos robôs, mudanças no algoritmo do Gemini Engine e metodologias científicas de GEO para sua equipe técnica.
                 </p>
               </div>
 
@@ -72,7 +72,7 @@ export default function Footer() {
                       <input
                         type="text"
                         required
-                        placeholder="Seu Nome"
+                        placeholder="Seu Nome Completo"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="w-full bg-[#f1f2f5] shadow-[inset_3px_3px_6px_rgba(0,0,0,0.06),inset_-3px_-3px_6px_#fff] border border-zinc-200 rounded-xl px-4 py-3.5 text-zinc-950 font-mono text-xs placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors"
@@ -82,7 +82,7 @@ export default function Footer() {
                       <input
                         type="email"
                         required
-                        placeholder="Seu E-mail"
+                        placeholder="Digite seu e-mail corporativo"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         className="w-full bg-[#f1f2f5] shadow-[inset_3px_3px_6px_rgba(0,0,0,0.06),inset_-3px_-3px_6px_#fff] border border-zinc-200 rounded-xl px-4 py-3.5 text-zinc-950 font-mono text-xs placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors"
@@ -93,7 +93,7 @@ export default function Footer() {
                       type="submit"
                       className="inline-flex items-center gap-3 text-zinc-950 hover:text-zinc-700 font-mono text-xs font-bold uppercase tracking-widest pt-4 transition-colors group cursor-pointer"
                     >
-                      INSCREVER-SE 
+                      Assinar ➔ 
                       <motion.span
                         animate={{ x: [0, 4, 0] }}
                         transition={{ repeat: Infinity, duration: 1.5 }}
@@ -119,7 +119,7 @@ export default function Footer() {
                     <div>
                       <h4 className="font-display font-extrabold text-zinc-950 text-base uppercase tracking-tight">Inscrição Confirmada!</h4>
                       <p className="text-xs text-zinc-500 mt-1 font-light leading-relaxed">
-                        Obrigado, {name}! Seu e-mail foi cadastrado com segurança em nossa base.
+                        Obrigado, {name}! Seu e-mail corporativo foi cadastrado com segurança.
                       </p>
                     </div>
                   </motion.div>
@@ -138,11 +138,11 @@ export default function Footer() {
               </h4>
               <ul className="space-y-2.5 font-display text-sm text-zinc-600 font-medium">
                 <li><a href="#hero" className="hover:text-zinc-950 transition-colors">Início</a></li>
-                <li><a href="#projects" className="hover:text-zinc-950 transition-colors">Portfólio</a></li>
-                <li><a href="#services" className="hover:text-zinc-950 transition-colors">Serviços</a></li>
-                <li><a href="#expertise" className="hover:text-zinc-950 transition-colors">Simulador</a></li>
-                <li><a href="#pricing" className="hover:text-zinc-950 transition-colors">Preços</a></li>
-                <li><a href="#team" className="hover:text-zinc-950 transition-colors">Sobre</a></li>
+                <li><a href="#projects" className="hover:text-zinc-950 transition-colors">Diagnósticos</a></li>
+                <li><a href="#services" className="hover:text-zinc-950 transition-colors">Serviços Técnicos</a></li>
+                <li><a href="#expertise" className="hover:text-zinc-950 transition-colors">Pilares GEO</a></li>
+                <li><a href="#pricing" className="hover:text-zinc-950 transition-colors">Planos e Preços</a></li>
+                <li><a href="#faq" className="hover:text-zinc-950 transition-colors">Perguntas Frequentes</a></li>
               </ul>
             </div>
 
@@ -152,9 +152,9 @@ export default function Footer() {
                 Legal
               </h4>
               <ul className="space-y-2.5 font-display text-sm text-zinc-600 font-medium">
-                <li><a href="#/privacidade" className="hover:text-zinc-950 transition-colors">Políticas de Privacidade</a></li>
+                <li><a href="#/privacidade" className="hover:text-zinc-950 transition-colors">Política de Privacidade</a></li>
                 <li><a href="#/termos" className="hover:text-zinc-950 transition-colors">Termos de Uso</a></li>
-                <li><a href="#/isencao" className="hover:text-zinc-950 transition-colors">Isenção de Responsabilidade</a></li>
+                <li><a href="#/isencao" className="hover:text-zinc-950 transition-colors">Política de Cookies</a></li>
               </ul>
             </div>
 
@@ -184,7 +184,7 @@ export default function Footer() {
           {/* Agency definition (Col-4) */}
           <div className="md:col-span-4 space-y-2">
             <span className="text-zinc-950 font-display font-extrabold block uppercase tracking-wider">
-              b.rocket Agency
+              b.rocket — Otimizando o futuro da busca para mentes brilhantes.
             </span>
             <p className="font-light leading-relaxed max-w-xs text-zinc-500">
               b.rocket é pioneira em Generative Engine Optimization (GEO). Engenharia semântica de alta performance para a nova era da internet.
@@ -198,7 +198,7 @@ export default function Footer() {
             <span className="block font-mono text-[10px]">CNPJ: 37.375.164/0001-03</span>
             <a href="mailto:berocket@berocket.com.br" className="hover:text-zinc-950 transition-colors block font-mono">berocket@berocket.com.br</a>
             <span className="block font-mono">(11) 94059-5792</span>
-            <span className="text-[10px] text-zinc-450 block mt-2 font-bold">© 2026 b.rocket. Todos os direitos reservados.</span>
+            <span className="text-[10px] text-zinc-450 block mt-2 font-bold">b.rocket © 2026 // ALL SYSTEM PARAMETERS NOMINAL</span>
           </div>
 
           {/* Credits and templates info (Col-4) */}

@@ -59,7 +59,7 @@ export default function Team() {
               <div className="relative w-60 h-60 sm:w-64 sm:h-64 rounded-3xl overflow-hidden bg-zinc-50">
                 <img
                   src={founder.image}
-                  alt={founder.name}
+                  alt="Foto de Guilherme Rossi sorrindo, fundador e especialista em GEO da b.rocket, segurando papéis com relatórios de visibilidade."
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover grayscale brightness-95"
                 />
@@ -80,7 +80,7 @@ export default function Team() {
             {/* Bio Title Block */}
             <div className="space-y-4">
               <span className="font-mono text-[9px] text-zinc-400 font-bold uppercase tracking-[0.25em]">
-                SOBRE O ESPECIALISTA
+                FUNDADOR & ESPECIALISTA EM GEO
               </span>
               <h3 className="font-display font-black text-2xl sm:text-3xl text-zinc-950 tracking-tight leading-none uppercase mt-2">
                 {founder.name}
@@ -93,13 +93,7 @@ export default function Team() {
             {/* Deep Biography Content */}
             <div className="font-sans font-light text-zinc-600 text-sm md:text-[14.5px] space-y-5 leading-relaxed">
               <p>
-                Ao longo da minha trajetória, desenvolvi experiência sólida em <span className="font-semibold text-zinc-950">SEO, marketing digital, produção de conteúdo, estratégia de posicionamento e otimização de presença online</span>. 
-              </p>
-              <p>
-                Hoje, aplico esse conhecimento em <span className="font-semibold text-zinc-950">GEO (Generative Engine Optimization)</span>, criando estratégias cirúrgicas para aumentar as chances de marcas, produtos e serviços serem encontrados, compreendidos e recomendados de forma orgânica e legítima por plataformas de IA generativa líderes como <span className="font-medium text-zinc-950">ChatGPT, Claude, Gemini e Perplexity</span>.
-              </p>
-              <p>
-                Meu objetivo principal é preparar empresas para um cenário de mercado dinâmico, em que as respostas estruturadas geradas por inteligência artificial influenciam e ditam cada vez mais as decisões de compra e a descoberta de marcas. Mais do que simplesmente melhorar rankings, eu trabalho para <span className="font-semibold text-zinc-950">construir autoridade, relevância e presença</span> onde o futuro das buscas já está acontecendo hoje.
+                {founder.description}
               </p>
             </div>
 

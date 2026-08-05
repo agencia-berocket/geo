@@ -202,26 +202,38 @@ export default function CTA() {
             {/* Left Column: CTA Texts */}
             <div className="lg:col-span-7 flex flex-col items-start space-y-5 max-w-2xl">
               <span className="font-mono text-[9px] md:text-[10px] text-zinc-400 uppercase tracking-[0.25em] font-bold block">
-                QUER DIRECIONAR SUAS METAS?
+                CHAMADA DE AÇÃO PRINCIPAL
               </span>
               
               <h2 className="font-display font-extrabold text-2xl md:text-3xl lg:text-[2.35rem] text-zinc-950 tracking-tight leading-[1.08] uppercase">
-                REALIZE UM DIAGNÓSTICO SEMÂNTICO DE RAG E GEO PARA ENCONTRAR E CORRIGIR OS GARGALOS DA SUA IA.
+                Garanta que o seu site seja a escolha da inteligência artificial
               </h2>
               
-              <button
-                id="btn-trigger-diagnostic"
-                onClick={handleOpenModal}
-                className="inline-flex items-center gap-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white font-mono text-[10px] md:text-[11px] font-bold px-7 py-4.5 tracking-widest uppercase transition-all duration-300 rounded-xl cursor-pointer shadow-md border-t border-zinc-750 group mt-4"
-              >
-                REALIZAR DIAGNÓSTICO COMPLETO
-                <motion.span
-                  animate={{ x: [0, 5, 0] }}
-                  transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+              <div className="flex flex-wrap gap-4 mt-4">
+                <button
+                  id="btn-trigger-diagnostic"
+                  onClick={handleOpenModal}
+                  className="inline-flex items-center gap-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white font-mono text-[10px] md:text-[11px] font-bold px-7 py-4.5 tracking-widest uppercase transition-all duration-300 rounded-xl cursor-pointer shadow-md border-t border-zinc-750 group"
                 >
-                  <ArrowRight className="w-4 h-4 text-white" />
-                </motion.span>
-              </button>
+                  REALIZAR DIAGNÓSTICO COMPLETO
+                  <motion.span
+                    animate={{ x: [0, 5, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+                  >
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </motion.span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const text = encodeURIComponent('Olá Guilherme! Gostaria de entender mais sobre como posicionar meu site nas respostas de IA com a b.rocket.');
+                    window.open(`https://wa.me/5511940595792?text=${text}`, '_blank');
+                  }}
+                  className="inline-flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-mono text-[10px] md:text-[11px] font-bold px-7 py-4.5 tracking-widest uppercase transition-all duration-300 rounded-xl cursor-pointer shadow-md border-t border-emerald-400"
+                >
+                  Falar com Guilherme Rossi no WhatsApp ➔
+                </button>
+              </div>
             </div>
 
             {/* Right Column: Abstract, gorgeous, context-rich "RAG Retrieval Mapper" */}
@@ -504,8 +516,8 @@ export default function CTA() {
                                 onChange={(e) => setScale(e.target.value)}
                                 className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-3.5 font-mono text-xs text-zinc-950 focus:outline-none focus:border-zinc-950 focus:ring-1 focus:ring-zinc-950 transition-all cursor-pointer shadow-inner"
                               >
-                                <option value="small">Pequena (Até 100 PDFs, artigos ou documentos internos)</option>
-                                <option value="medium">Média (100 a 1.000 PDFs, artigos ou documentos corporativos)</option>
+                                <option value="small">Pequena (Até 100 páginas, artigos ou documentos internos)</option>
+                                <option value="medium">Média (100 a 1.000 páginas, artigos ou documentos corporativos)</option>
                                 <option value="large">Grande (Mais de 1.000 arquivos complexos ou base heterogênea)</option>
                                 <option value="unmeasured">Ainda não mapeado ou não mensurado</option>
                               </select>

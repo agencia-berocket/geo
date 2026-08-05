@@ -14,21 +14,21 @@ export default function BentoExpertise() {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-zinc-200/60 pb-8 mb-16 gap-4">
           <div className="flex items-center gap-3">
             <span className="w-1.5 h-1.5 bg-zinc-950 rounded-full" />
-            <span className="font-mono text-xs uppercase tracking-widest text-zinc-500">EXPERTISING b.rocket</span>
+            <span className="font-mono text-xs uppercase tracking-widest text-zinc-500">MÉTODO CIENTÍFICO</span>
           </div>
           <div className="font-mono text-xs text-zinc-500">
-            <span>METODOLOGIA ATUALIZADA // ACADEMIC RESEARCH</span>
+            <span>METODOLOGIA ATUALIZADA // PRINCETON RESEARCH</span>
           </div>
         </div>
 
         {/* Large Bento Heading */}
         <div className="max-w-4xl mb-16">
-          <h2 className="font-display font-black text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-zinc-950 leading-[1.08] tracking-tight uppercase">
-            OS PILARES CIENTÍFICOS DO <br className="hidden md:inline" />
-            <span className="text-zinc-500/80">POSICIONAMENTO EM IA (GEO)</span>
+          <h2 className="font-display font-black text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-zinc-950 leading-[1.08] tracking-tight uppercase [text-wrap:balance]">
+            As bases científicas por trás de <br className="hidden lg:block" />
+            <span className="text-zinc-500/80">Generative Engine Optimization (GEO)</span>
           </h2>
           <p className="text-zinc-500 font-sans text-sm md:text-base mt-4 border-l-2 border-zinc-950 pl-4 max-w-3xl leading-relaxed font-light">
-            Não se trata de enganar algoritmos, mas de dominar a engenharia semântica. A metodologia da <strong className="text-zinc-950 font-semibold">b.rocket</strong> baseia-se em ciência da computação pura para calibrar como as inteligências artificiais interpretam, indexam e recomendam a sua marca.
+            Não se trata de enganar algoritmos, mas de dominar a engenharia semântica. A metodologia da <strong className="text-zinc-950 font-semibold">b.rocket</strong> baseia-se no estudo de Princeton para calibrar como as inteligências artificiais interpretam, indexam e recomendam a sua marca.
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export default function BentoExpertise() {
                 <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-200/80 flex items-center justify-center group-hover:bg-zinc-950 group-hover:text-white transition-colors duration-300">
                   <Database className="w-5 h-5 text-zinc-950 group-hover:text-white transition-colors duration-300" />
                 </div>
-                <span className="font-mono text-[9px] text-zinc-400 tracking-wider uppercase font-bold">PILLAR // 01</span>
+                <span className="font-mono text-[9px] text-zinc-400 tracking-wider uppercase font-bold">PILAR // 01</span>
               </div>
               
               <div className="space-y-3">
@@ -58,7 +58,7 @@ export default function BentoExpertise() {
                   Alinhamento de RAG
                 </h3>
                 <p className="text-zinc-500 text-xs md:text-[13px] font-light leading-relaxed">
-                  As inteligências artificiais usam RAG (Geração de Conteúdo com Recuperação) para buscar informações na web antes de responder ao usuário. Nós reestruturamos seus dados em fragmentos otimizados para que as LLMs encontrem e selecionem o seu negócio de forma direta e sem ruídos.
+                  As inteligências artificiais gerativas buscam e recuperam dados na web para criar respostas aos usuários. Nós organizamos toda a estrutura de copy do seu site em fragmentos inteligentes de informação para que as LLMs leiam, compreendam e usem sua marca de forma direta e sem desvios semânticos.
                 </p>
               </div>
             </div>
@@ -84,7 +84,7 @@ export default function BentoExpertise() {
                 <div className="w-12 h-12 rounded-2xl bg-zinc-950 flex items-center justify-center shadow-md">
                   <TrendingUp className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-mono text-[9px] text-zinc-400 tracking-wider uppercase font-bold">PILLAR // 02</span>
+                <span className="font-mono text-[9px] text-zinc-400 tracking-wider uppercase font-bold">PILAR // 02</span>
               </div>
               
               <div className="space-y-3">
@@ -93,10 +93,10 @@ export default function BentoExpertise() {
                   <span className="font-mono text-[9px] text-zinc-400 uppercase tracking-widest font-bold">Citação</span>
                 </div>
                 <h3 className="font-display font-black text-lg text-zinc-950 uppercase tracking-tight mt-1">
-                  Metodologia Princeton
+                  Metodologia de Princeton
                 </h3>
                 <p className="text-zinc-500 text-xs md:text-[13px] font-light leading-relaxed">
-                  Baseado no estudo seminal de Princeton, Cornell e Georgia Tech. Provamos na prática que a adição de termos técnicos relevantes e dados estruturados semânticos gera um aumento médio real de 40% na probabilidade de escolha e menção do seu produto nos buscadores generativos.
+                  A nossa metodologia é amparada no estudo científico seminal conduzido em conjunto por pesquisadores de Princeton, Cornell e Georgia Tech. Provamos na prática que a inserção de dados numéricos estruturados e termos correlacionados aumenta a chance de citação em 40%.
                 </p>
               </div>
             </div>
@@ -122,7 +122,7 @@ export default function BentoExpertise() {
                 <div className="w-12 h-12 rounded-2xl bg-zinc-50 border border-zinc-200/80 flex items-center justify-center group-hover:bg-zinc-950 group-hover:text-white transition-colors duration-300">
                   <Cpu className="w-5 h-5 text-zinc-950 group-hover:text-white transition-colors duration-300" />
                 </div>
-                <span className="font-mono text-[9px] text-zinc-400 tracking-wider uppercase font-bold">PILLAR // 03</span>
+                <span className="font-mono text-[9px] text-zinc-400 tracking-wider uppercase font-bold">PILAR // 03</span>
               </div>
               
               <div className="space-y-3">
@@ -130,7 +130,7 @@ export default function BentoExpertise() {
                   Proximidade Vetorial
                 </h3>
                 <p className="text-zinc-500 text-xs md:text-[13px] font-light leading-relaxed">
-                  As IAs modernas não realizam buscas por palavras-chave exatas. Elas convertem dados textuais em vetores matemáticos multidimensionais (embeddings). Calibramos o conteúdo das suas páginas para alinhar esses vetores à exata intenção de busca semântica dos tomadores de decisão.
+                  As IAs modernas não leem apenas palavras soltas: elas transformam as frases em coordenadas matemáticas em um mapa vetorial complexo (embeddings). Calibramos cada seção do seu site para alinhar semanticamente os seus textos aos termos e problemas buscados pelo seu comprador ideal.
                 </p>
               </div>
             </div>
