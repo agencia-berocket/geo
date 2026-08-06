@@ -16,7 +16,6 @@ const {
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
-  generateClientHtmlReport,
   generateRobotsTxt,
   generateJsonLdSchema,
   generateLlmsTxtContent,
@@ -463,11 +462,12 @@ app.post('/api/calendar/book', async (req, res) => {
           console.log(`🚀 Iniciando diagnóstico automático para lead de agendamento (${domain})...`);
           
           const baseUrl = normalizedUrl;
-          const htmlContent = await fetchUrl(baseUrl);
+          const htmlContent = (await fetchUrl(baseUrl)).body;
           const openrouterKey = process.env.OPENROUTER_API_KEY || '';
-          
+          const pageSpeedKey = process.env.GOOGLE_API_KEY || '';
+
           const [gk, md, ct, sem, off, seo] = await Promise.all([
-            runGatekeeperAgent(baseUrl, htmlContent),
+            runGatekeeperAgent(baseUrl, htmlContent, pageSpeedKey),
             runMetadataAgent(htmlContent, domain),
             runContentAgent(htmlContent),
             runSemanticExplorerAgent(baseUrl, htmlContent, openrouterKey),
@@ -963,10 +963,11 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
       const baseUrl = lead.url.startsWith('http') ? lead.url : `https://${lead.url}`;
       const domain = baseUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
       const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+      const pageSpeedKey = process.env.GOOGLE_API_KEY || '';
 
       // Run 6 specialist agents in parallel
       const [gatekeeper, metadata, content, semantic, offpage, seo] = await Promise.all([
-        runGatekeeperAgent(baseUrl, htmlContent),
+        runGatekeeperAgent(baseUrl, htmlContent, pageSpeedKey),
         runMetadataAgent(htmlContent, domain),
         runContentAgent(htmlContent),
         runSemanticExplorerAgent(baseUrl, htmlContent, openrouterKey),
@@ -1936,17 +1937,36 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
         };
 
         switch (agentName) {
-          case 'gatekeeper':
-            result = await runGatekeeperAgent(baseUrl, htmlContent);
+          case 'gatekeeper': {
+            const pageSpeedKey = process.env.GOOGLE_API_KEY || '';
+            result = await runGatekeeperAgent(baseUrl, htmlContent, pageSpeedKey);
             result.recommendedRobotsTxt = generateRobotsTxt(domain, result.robotsTxtAllowAiBots);
             await saveAgentResultToFirestore({ gatekeeperStatus: result });
             break;
-          case 'metadata':
+          }
+          case 'metadata': {
             result = await runMetadataAgent(htmlContent, domain);
-            result.llmsTxt = generateLlmsTxtContent(clientInfo, { overallGeoScore: 75 }, htmlContent);
+            let existingScore = null;
+            try {
+              const accessToken = await getGoogleAccessToken();
+              const diagsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
+              const diagsRes = await fetch(diagsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+              const diagsData = await diagsRes.json();
+              for (const doc of (diagsData.documents || [])) {
+                const f = doc.fields || {};
+                if (f.clientId?.stringValue === clientId || doc.name.split('/').pop() === clientId) {
+                  existingScore = f.overallGeoScore?.integerValue !== undefined
+                    ? parseInt(f.overallGeoScore.integerValue, 10)
+                    : (f.overallGeoScore?.doubleValue ?? null);
+                  break;
+                }
+              }
+            } catch (e) {}
+            result.llmsTxt = generateLlmsTxtContent(clientInfo, { overallGeoScore: existingScore }, htmlContent);
             result.generatedJsonLd = generateJsonLdSchema(clientInfo, domain, htmlContent);
             await saveAgentResultToFirestore({ metadataAnalysis: result });
             break;
+          }
           case 'content':
             result = await runContentAgent(htmlContent);
             result.aeoTemplates = generateAeoContentTemplate(domain, htmlContent);
@@ -1976,8 +1996,9 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
           }
           case 'checklist_architect': {
             const key = process.env.OPENROUTER_API_KEY || '';
+            const pageSpeedKey = process.env.GOOGLE_API_KEY || '';
             const [gk, md, ct, sem, off, seo] = await Promise.all([
-              runGatekeeperAgent(baseUrl, htmlContent),
+              runGatekeeperAgent(baseUrl, htmlContent, pageSpeedKey),
               runMetadataAgent(htmlContent, domain),
               runContentAgent(htmlContent),
               runSemanticExplorerAgent(baseUrl, htmlContent, key),
@@ -1990,8 +2011,9 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
           }
           case 'orchestrator': {
             const key = process.env.OPENROUTER_API_KEY || '';
+            const pageSpeedKey = process.env.GOOGLE_API_KEY || '';
             const [gk, md, ct, sem, off, seo] = await Promise.all([
-              runGatekeeperAgent(baseUrl, htmlContent),
+              runGatekeeperAgent(baseUrl, htmlContent, pageSpeedKey),
               runMetadataAgent(htmlContent, domain),
               runContentAgent(htmlContent),
               runSemanticExplorerAgent(baseUrl, htmlContent, key),
@@ -2898,13 +2920,12 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           const primaryRole = rawRoles[0] || 'CEO';
           const cleanNiche = (niche || 'SaaS').replace(/[/,;|]+/g, ' ').trim();
 
-          // Tenta combinações progressivas de busca para garantir que retorne perfis reais no LinkedIn
+          // Tenta combinações progressivas de busca para garantir que retorne perfis reais no LinkedIn.
+          // Limitado a 2 tentativas: cada chamada ao actor é cobrada (pay-per-event), então mais
+          // variações = mais custo por clique de mineração sem ganho proporcional de acerto.
           const searchQueries = [
-            `${cleanNiche}`.trim(),
             `${primaryRole} ${cleanNiche}`.trim(),
-            `Sócio ${cleanNiche}`.trim(),
-            `Founder ${cleanNiche}`.trim(),
-            `${primaryRole}`.trim()
+            `${cleanNiche}`.trim()
           ].filter((q, idx, arr) => q && arr.indexOf(q) === idx);
 
           // Normaliza localização sem acentos para compatibilidade com os filtros do LinkedIn (ex: "São Paulo" -> "Sao Paulo")
@@ -3097,10 +3118,11 @@ app.post('/api/admin/lead-hunter/audit', verifyAdminToken, async (req, res) => {
     }
 
     const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+    const pageSpeedKey = process.env.GOOGLE_API_KEY || '';
 
     // Executa os 6 agentes especialistas em paralelo
     const [gk, md, ct, sem, off, seo] = await Promise.all([
-      runGatekeeperAgent(normalizedUrl, htmlContent),
+      runGatekeeperAgent(normalizedUrl, htmlContent, pageSpeedKey),
       runMetadataAgent(htmlContent, cleanDomain),
       runContentAgent(htmlContent),
       runSemanticExplorerAgent(normalizedUrl, htmlContent, openrouterKey),
@@ -3341,12 +3363,16 @@ app.get('/api/admin/lead-hunter/html/:leadId', verifyAdminToken, async (req, res
       }
     }
 
-    const leadObj = { 
-      company: diagnostic?.clientUrl || leadId, 
-      url: diagnostic?.clientUrl || `https://${leadId}` 
+    if (!diagnostic) {
+      return res.status(404).json({ error: 'Diagnóstico não encontrado para este lead. Execute o diagnóstico real antes de gerar o relatório.' });
+    }
+
+    const leadObj = {
+      company: diagnostic?.clientUrl || leadId,
+      url: diagnostic?.clientUrl || `https://${leadId}`
     };
 
-    const clientHtml = generateClientHtmlReport(leadObj, diagnostic || { overallGeoScore: 35 });
+    const clientHtml = generateHtmlReport(leadObj, diagnostic);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(clientHtml);
@@ -3373,12 +3399,16 @@ app.get('/api/admin/lead-hunter/pdf/:leadId', verifyAdminToken, async (req, res)
       }
     }
 
-    const leadObj = { 
-      company: diagnostic?.clientUrl || leadId, 
-      url: diagnostic?.clientUrl || `https://${leadId}` 
+    if (!diagnostic) {
+      return res.status(404).json({ error: 'Diagnóstico não encontrado para este lead. Execute o diagnóstico real antes de gerar o relatório.' });
+    }
+
+    const leadObj = {
+      company: diagnostic?.clientUrl || leadId,
+      url: diagnostic?.clientUrl || `https://${leadId}`
     };
 
-    const htmlContent = generateClientHtmlReport(leadObj, diagnostic || { overallGeoScore: 35 });
+    const htmlContent = generateHtmlReport(leadObj, diagnostic);
     const domain = (diagnostic?.clientUrl || leadId).replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -3480,34 +3510,34 @@ app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res)
       attachments: []
     };
 
-    // Se solicitado anexo do relatório HTML
+    // Se solicitado anexo do relatório HTML — NUNCA anexar um relatório fabricado.
     if (attachPdf && leadId) {
-      try {
-        const accessToken = await getGoogleAccessToken();
-        const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
+      const accessToken = await getGoogleAccessToken();
+      const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
 
-        let diagnostic = null;
-        for (const doc of (diagData.documents || [])) {
-          const f = parseFirestoreDoc(doc);
-          if (f.leadId === leadId || f.id.includes(leadId)) {
-            diagnostic = f;
-            break;
-          }
+      let diagnostic = null;
+      for (const doc of (diagData.documents || [])) {
+        const f = parseFirestoreDoc(doc);
+        if (f.leadId === leadId || f.id.includes(leadId)) {
+          diagnostic = f;
+          break;
         }
-
-        const leadObj = { company: recipientEmail.split('@')[1] || 'Cliente', url: `https://${recipientEmail.split('@')[1] || 'site.com'}` };
-        const htmlReportContent = generateClientHtmlReport(leadObj, diagnostic || { overallGeoScore: 35 });
-
-        mailOptions.attachments.push({
-          filename: `Relatorio_GEO_${recipientEmail.split('@')[1] || 'b.rocket'}.html`,
-          content: htmlReportContent,
-          contentType: 'text/html'
-        });
-      } catch (attachErr) {
-        console.warn('Warning generating HTML attachment for email:', attachErr.message);
       }
+
+      if (!diagnostic) {
+        return res.status(404).json({ error: 'Diagnóstico não encontrado para este lead. Execute o diagnóstico real antes de enviar o relatório por e-mail.' });
+      }
+
+      const leadObj = { company: recipientEmail.split('@')[1] || 'Cliente', url: `https://${recipientEmail.split('@')[1] || 'site.com'}` };
+      const htmlReportContent = generateHtmlReport(leadObj, diagnostic);
+
+      mailOptions.attachments.push({
+        filename: `Relatorio_GEO_${recipientEmail.split('@')[1] || 'b.rocket'}.html`,
+        content: htmlReportContent,
+        contentType: 'text/html'
+      });
     }
 
     await transporter.sendMail(mailOptions);
@@ -3567,6 +3597,27 @@ app.post('/api/admin/lead-hunter/push-to-main', verifyAdminToken, async (req, re
   }
 });
 
+
+// ─── GET AGENTS HEALTH (status real baseado em credenciais configuradas) ──
+app.get('/api/admin/agents/health', verifyAdminToken, async (req, res) => {
+  const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+  const hasPageSpeed = !!process.env.GOOGLE_API_KEY;
+  const hasFirestore = !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+
+  const agents = [
+    { id: 'orchestrator', name: 'Orquestrador', status: hasFirestore ? 'online' : 'degraded', requiredEnv: ['GOOGLE_SERVICE_ACCOUNT_JSON'] },
+    { id: 'gatekeeper', name: 'Technical Gatekeeper', status: 'online', requiredEnv: [], note: hasPageSpeed ? 'Core Web Vitals habilitados (PageSpeed)' : 'Core Web Vitals indisponíveis — configure GOOGLE_API_KEY' },
+    { id: 'metadata', name: 'Metadata Entity', status: 'online', requiredEnv: [] },
+    { id: 'content', name: 'Content Absorption', status: 'online', requiredEnv: [] },
+    { id: 'seo_optimizer', name: 'SEO Optimizer', status: 'online', requiredEnv: [] },
+    { id: 'semantic_explorer', name: 'Semantic Explorer', status: hasOpenRouter ? 'online' : 'unavailable', requiredEnv: ['OPENROUTER_API_KEY'] },
+    { id: 'offpage', name: 'Off-Page Entity Monitor', status: 'online', requiredEnv: [], note: 'Verificação de perfis externos via HTTP direto — não depende de chave.' },
+    { id: 'intent', name: 'Intent Prompt (OpenRouter)', status: hasOpenRouter ? 'online' : 'unavailable', requiredEnv: ['OPENROUTER_API_KEY'] },
+    { id: 'checklist_architect', name: 'Checklist Architect', status: 'online', requiredEnv: [] },
+  ];
+
+  res.json({ success: true, agents, checkedAt: new Date().toISOString() });
+});
 
 // ─── GET AGENT CONFIGS ────────────────────────────────────────────────────
 app.get('/api/admin/agents/configs', verifyAdminToken, async (req, res) => {

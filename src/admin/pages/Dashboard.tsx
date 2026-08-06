@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useLeads, useClients } from '../hooks/useFirestore';
+import { useLeads, useClients, useAgentsHealth } from '../hooks/useFirestore';
 import StatusBadge from '../components/StatusBadge';
 import { IconClipboard, IconActivity, IconRocket } from '../components/icons';
 
@@ -10,10 +10,12 @@ interface DashboardProps {
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const { leads, loading: leadsLoading, fetchLeads } = useLeads();
   const { clients, fetchClients } = useClients();
+  const { agents, fetchHealth } = useAgentsHealth();
 
   useEffect(() => {
     fetchLeads();
     fetchClients();
+    fetchHealth();
   }, []);
 
   const newLeads = leads.filter(l => l.status === 'new');
@@ -130,21 +132,27 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           <div className="tactile-raised p-6 bg-white/60">
             <h2 className="font-display font-bold text-zinc-900 text-sm mb-4">Agentes GEO</h2>
             <div className="space-y-3">
-              {[
-                { name: 'Orquestrador', status: 'online' },
-                { name: 'Gatekeeper', status: 'online' },
-                { name: 'Metadata', status: 'online' },
-                { name: 'Content', status: 'online' },
-                { name: 'Intent (OpenRouter)', status: 'online' },
-              ].map(agent => (
-                <div key={agent.name} className="flex items-center justify-between text-xs font-medium">
-                  <span className="text-zinc-600">{agent.name}</span>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                    <span className="text-emerald-600 font-bold">online</span>
+              {agents.length === 0 ? (
+                <p className="text-zinc-400 text-xs font-mono">Verificando status...</p>
+              ) : (
+                agents.map(agent => (
+                  <div key={agent.id} className="flex items-center justify-between text-xs font-medium" title={agent.note}>
+                    <span className="text-zinc-600">{agent.name}</span>
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-1.5 h-1.5 rounded-full ${
+                        agent.status === 'online' ? 'bg-emerald-500 animate-pulse'
+                        : agent.status === 'degraded' ? 'bg-amber-500'
+                        : 'bg-red-500'
+                      }`} />
+                      <span className={
+                        agent.status === 'online' ? 'text-emerald-600 font-bold'
+                        : agent.status === 'degraded' ? 'text-amber-600 font-bold'
+                        : 'text-red-600 font-bold'
+                      }>{agent.status}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
         </div>

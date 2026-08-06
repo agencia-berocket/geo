@@ -310,3 +310,32 @@ export function useClients() {
 
   return { clients, loading, error, fetchClients, editClient, deleteClient, runAgentForClient, fetchClientHistory };
 }
+
+export interface AgentHealth {
+  id: string;
+  name: string;
+  status: 'online' | 'degraded' | 'unavailable';
+  requiredEnv: string[];
+  note?: string;
+}
+
+export function useAgentsHealth() {
+  const [agents, setAgents] = useState<AgentHealth[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchHealth = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiFetch<{ agents: AgentHealth[] }>('/admin/agents/health');
+      setAgents(data.agents);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erro ao verificar status dos agentes');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { agents, loading, error, fetchHealth };
+}
