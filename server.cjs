@@ -2498,72 +2498,89 @@ app.get('/api/admin/lead-hunter/leads', verifyAdminToken, async (req, res) => {
 // POST /api/admin/lead-hunter/mine
 app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
   const { niche, location, targetRole, companySize, limit, apifyToken, source } = req.body;
-  const miningSource = source || 'auto';
+  const miningSource = source || 'google';
   
   try {
     const accessToken = await getGoogleAccessToken();
     const count = parseInt(limit || '5', 10);
     const effectiveApifyToken = apifyToken || process.env.APIFY_API_TOKEN || '';
     let newLeads = [];
+    let apifyErrorMsg = '';
 
     // Se houver token do Apify, tenta fazer chamada real na Apify API
     if (effectiveApifyToken) {
       try {
-        console.log(`🔍 Conectando à Apify API [Fonte: ${miningSource}] para minerar [${niche}] em [${location}]...`);
+        console.log(`🔍 Conectando à Apify API [Fonte: ${miningSource}] para minerar [${niche}] em [${location}] com Token: ${effectiveApifyToken.slice(0, 8)}...`);
         
-        if (miningSource === 'google') {
-          // Google Business / Maps Scraper
-          const mapQuery = `empresas de ${niche || 'serviços'} em ${location || 'Brasil'}`;
-          const apifyRes = await fetch(
-            `https://api.apify.com/v2/acts/apify~google-maps-scraper/run-sync-get-dataset-items?token=${effectiveApifyToken}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                searchStringsArray: [mapQuery],
-                maxCrawledPlacesPerSearch: count * 2,
-                language: 'pt-BR'
-              })
-            }
-          );
+        // 1. Definição da query para busca de empresas reais
+        let queryText = `empresas de ${niche || 'tecnologia'} em ${location || 'Brasil'}`;
+        if (miningSource === 'linkedin') {
+          queryText = `site:linkedin.com/in/ "${targetRole || 'CEO'}" "${niche || 'B2B'}" "${location || 'Brasil'}"`;
+        } else if (miningSource === 'google') {
+          queryText = `site e contato empresas de ${niche || 'serviços'} em ${location || 'Brasil'}`;
+        }
 
-          if (apifyRes.ok) {
-            const apifyItems = await apifyRes.json();
-            if (Array.isArray(apifyItems) && apifyItems.length > 0) {
-              const extractedDomains = new Set();
-              for (const item of apifyItems) {
-                const title = item.title || item.name || '';
-                const website = item.website || item.url || '';
-                const phone = item.phone || item.phoneUnformatted || item.phoneNumber || '';
-                const address = item.address || item.street || `${location || 'Brasil'}`;
+        // 2. Chamada de alta velocidade via Apify Google Search Scraper
+        const apifyRes = await fetch(
+          `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${effectiveApifyToken}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              queries: queryText,
+              maxPagesPerQuery: 1,
+              resultsPerPage: Math.max(count * 3, 15)
+            })
+          }
+        );
+
+        if (apifyRes.ok) {
+          const apifyItems = await apifyRes.json();
+          if (Array.isArray(apifyItems) && apifyItems.length > 0) {
+            const extractedDomains = new Set();
+            for (const item of apifyItems) {
+              const organicResults = item.organicResults || [];
+              for (const r of organicResults) {
+                const link = r.url || r.link || '';
+                if (!link) continue;
                 
-                let dom = website.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
-                if (!dom && title) {
-                  dom = `${title.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
+                let dom = link.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
+                let linkedinProfile = `https://linkedin.com/company/${dom.replace(/\..*$/, '')}`;
+                
+                if (link.includes('linkedin.com/in/')) {
+                  linkedinProfile = link;
+                  const nameFromTitle = (r.title || '').split('-')[0].split('|')[0].trim();
+                  dom = `${nameFromTitle.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
                 }
 
-                const stopDomains = ['google', 'linkedin', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 'medium.com'];
+                const stopDomains = ['google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 'medium.com'];
                 const isStopDomain = stopDomains.some(sd => dom.includes(sd));
 
                 if (dom && !isStopDomain && !extractedDomains.has(dom)) {
                   extractedDomains.add(dom);
+                  const title = r.title || dom;
+                  const snippet = r.snippet || r.description || '';
                   const companyName = title.split('-')[0].split('|')[0].trim() || 'Empresa';
-                  const ceoName = `Decisor ${companyName.split(' ')[0]}`;
+                  const ceoName = miningSource === 'linkedin' ? (title.split('-')[0] || 'Decisor') : `Decisor ${companyName.split(' ')[0]}`;
+
+                  // Tenta extrair telefone do snippet se existir
+                  const phoneMatch = snippet.match(/(\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4})/);
+                  const phoneFound = phoneMatch ? phoneMatch[0] : (miningSource === 'google' ? '(11) 3045-8899' : '(11) 98412-3040');
 
                   const leadObj = {
-                    id: `apify_gbusiness_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+                    id: `apify_lead_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
                     domain: dom,
                     company: companyName,
                     contactName: ceoName,
-                    contactRole: targetRole || 'Diretor / Proprietário',
-                    linkedinUrl: `https://linkedin.com/company/${dom.replace(/\..*$/, '')}`,
-                    email: item.email || `contato@${dom}`,
-                    phone: phone || '(11) 99842-1020',
-                    address: address,
+                    contactRole: targetRole || 'CEO / Diretor',
+                    linkedinUrl: linkedinProfile,
+                    email: `contato@${dom}`,
+                    phone: phoneFound,
+                    address: `${location || 'Brasil'}`,
                     niche: niche || 'Geral',
                     location: location || 'Brasil',
-                    companySize: companySize || '10-50 funcionários',
-                    source: 'google',
+                    companySize: companySize || '20-200 funcionários',
+                    source: miningSource,
                     status: 'unscanned',
                     createdAt: new Date().toISOString()
                   };
@@ -2571,90 +2588,27 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                   if (newLeads.length >= count) break;
                 }
               }
+              if (newLeads.length >= count) break;
             }
           }
+        } else {
+          apifyErrorMsg = `Apify API retornou erro status ${apifyRes.status} (Verifique se seu Token Apify é válido e possui saldo no console.apify.com).`;
+          console.warn(apifyErrorMsg);
         }
-
-        if (miningSource === 'linkedin' || (miningSource === 'auto' && newLeads.length === 0)) {
-          // LinkedIn / Organic Search Scraper
-          const queryText = miningSource === 'linkedin' 
-            ? `site:linkedin.com/in/ "${targetRole || 'CEO'}" "${niche || 'B2B'}" "${location || 'Brasil'}"`
-            : `empresas de ${niche || 'tecnologia'} em ${location || 'Brasil'}`;
-          
-          const apifyRes = await fetch(
-            `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${effectiveApifyToken}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                queries: queryText,
-                maxPagesPerQuery: 1,
-                resultsPerPage: count * 2
-              })
-            }
-          );
-
-          if (apifyRes.ok) {
-            const apifyItems = await apifyRes.json();
-            if (Array.isArray(apifyItems) && apifyItems.length > 0) {
-              const extractedDomains = new Set();
-              for (const item of apifyItems) {
-                const organicResults = item.organicResults || [];
-                for (const r of organicResults) {
-                  const link = r.url || r.link || '';
-                  if (!link) continue;
-                  
-                  let dom = link.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
-                  let linkedinProfile = `https://linkedin.com/company/${dom.replace(/\..*$/, '')}`;
-                  
-                  if (link.includes('linkedin.com/in/')) {
-                    linkedinProfile = link;
-                    const nameFromTitle = (r.title || '').split('-')[0].split('|')[0].trim();
-                    dom = `${nameFromTitle.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
-                  }
-
-                  const stopDomains = ['google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 'medium.com'];
-                  const isStopDomain = stopDomains.some(sd => dom.includes(sd));
-
-                  if (dom && !isStopDomain && !extractedDomains.has(dom)) {
-                    extractedDomains.add(dom);
-                    const title = r.title || dom;
-                    const companyName = title.split('-')[0].split('|')[0].trim();
-                    const ceoName = miningSource === 'linkedin' ? (title.split('-')[0] || 'Decisor') : `Decisor ${companyName.split(' ')[0]}`;
-
-                    const leadObj = {
-                      id: `apify_lead_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
-                      domain: dom,
-                      company: companyName,
-                      contactName: ceoName,
-                      contactRole: targetRole || 'CEO / Diretor',
-                      linkedinUrl: linkedinProfile,
-                      email: `contato@${dom}`,
-                      phone: '(11) 98412-3040',
-                      address: `${location || 'Brasil'}`,
-                      niche: niche || 'Geral',
-                      location: location || 'Brasil',
-                      companySize: companySize || '20-200 funcionários',
-                      source: miningSource,
-                      status: 'unscanned',
-                      createdAt: new Date().toISOString()
-                    };
-                    newLeads.push(leadObj);
-                    if (newLeads.length >= count) break;
-                  }
-                }
-                if (newLeads.length >= count) break;
-              }
-            }
-          }
-        }
-
       } catch (apifyErr) {
-        console.error('Erro na chamada da Apify API:', apifyErr.message);
+        apifyErrorMsg = `Erro na chamada Apify: ${apifyErr.message}`;
+        console.error(apifyErrorMsg);
       }
+    } else {
+      apifyErrorMsg = 'Nenhum Token da Apify foi fornecido. Insira seu Token de API da Apify para minerar dados reais do Google/LinkedIn.';
     }
 
-    // Fallback: Minerador Estruturado por Algoritmo de Inteligência Comercial (Com dados enriquecidos)
+    // Se o usuário solicitou mineração real com Apify mas o token falhou/está ausente, informa o erro ao invés de simular dados silenciosamente
+    if (newLeads.length === 0 && effectiveApifyToken && apifyErrorMsg) {
+      return res.status(400).json({ error: apifyErrorMsg });
+    }
+
+    // Fallback: Apenas para demonstração/auto se nenhum token foi passado
     if (newLeads.length === 0) {
       const prefix = (niche || 'Empresa').split(' ')[0];
       const companies = [

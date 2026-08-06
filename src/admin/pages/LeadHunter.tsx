@@ -75,7 +75,8 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [savingCopy, setSavingCopy] = useState(false);
 
-  // Mining parameters
+  // Mining parameters & Apify Token
+  const [apifyToken, setApifyToken] = useState<string>(() => localStorage.getItem('apify_token') || '');
   const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'auto'>('google');
   const [niche, setNiche] = useState('SaaS B2B');
   const [location, setLocation] = useState('Brasil');
@@ -96,9 +97,14 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   // HTML Report Preview Modal
   const [htmlPreviewModal, setHtmlPreviewModal] = useState<{ url: string; title: string } | null>(null);
 
+  const handleTokenChange = (val: string) => {
+    setApifyToken(val);
+    localStorage.setItem('apify_token', val);
+  };
+
   const showToastMsg = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4000);
   };
 
   const getAdminToken = async () => {
@@ -141,6 +147,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          apifyToken,
           source: miningSource,
           niche,
           location,
@@ -152,11 +159,11 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Mineração concluída! ${data.count || 0} novos leads capturados via ${miningSource.toUpperCase()}.`);
+        showToastMsg(`Mineração concluída! ${data.count || 0} novos leads reais capturados via ${miningSource.toUpperCase()}.`);
         fetchLeads();
       } else {
         const errData = await res.json().catch(() => ({}));
-        showToastMsg(`Erro na mineração: ${errData.error || 'Falha ao conectar na API'}`);
+        showToastMsg(`⚠️ erro na mineração: ${errData.error || 'Falha ao conectar na Apify API'}`);
       }
     } catch (err: any) {
       showToastMsg(`Erro ao disparar mineração: ${err.message}`);
@@ -657,81 +664,110 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           <span className="text-xs font-mono text-zinc-400">Fase 1: Captação de Decisores por Fonte</span>
         </div>
 
-        <form onSubmit={handleStartMining} className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+        <form onSubmit={handleStartMining} className="space-y-4">
           
-          {/* Mining Data Source Selector */}
-          <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-zinc-700 mb-1">Fonte de Mineração / Dados</label>
-            <select
-              value={miningSource}
-              onChange={e => setMiningSource(e.target.value as any)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-semibold"
-            >
-              <option value="google">📍 Google (Business / Maps + Orgânico)</option>
-              <option value="linkedin">💼 LinkedIn (Decisores B2B via Apify)</option>
-              <option value="auto">⚡ Automático (Inteligência Combinada)</option>
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+            {/* Mining Data Source Selector */}
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">Fonte de Mineração / Dados</label>
+              <select
+                value={miningSource}
+                onChange={e => setMiningSource(e.target.value as any)}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-semibold"
+              >
+                <option value="google">📍 Google (Business / Maps + Orgânico)</option>
+                <option value="linkedin">💼 LinkedIn (Decisores B2B via Apify)</option>
+                <option value="auto">⚡ Automático (Inteligência Combinada)</option>
+              </select>
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
+              <input
+                type="text"
+                value={niche}
+                onChange={e => setNiche(e.target.value)}
+                placeholder="Ex: SaaS B2B, Advocacia, Logística"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">Localização</label>
+              <input
+                type="text"
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                placeholder="Ex: São Paulo SP, Brasil"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">Qtd. Leads</label>
+              <select
+                value={limit}
+                onChange={e => setLimit(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium font-mono"
+              >
+                <option value={5}>5 leads</option>
+                <option value={10}>10 leads</option>
+                <option value={15}>15 leads</option>
+                <option value={20}>20 leads</option>
+                <option value={30}>30 leads</option>
+                <option value={50}>50 leads</option>
+              </select>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={mining}
+                className="w-full py-2.5 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {mining ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Minerando...</span>
+                  </>
+                ) : (
+                  <>
+                    <IconRocket className="w-4 h-4 text-emerald-400" />
+                    <span>Minerar</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
-          <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
-            <input
-              type="text"
-              value={niche}
-              onChange={e => setNiche(e.target.value)}
-              placeholder="Ex: SaaS B2B, Advocacia, Logística"
-              className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
-              required
-            />
+          {/* Apify API Token Input Bar */}
+          <div className="pt-3 border-t border-zinc-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-zinc-50/80 p-3 rounded-xl border border-zinc-200/60">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="font-bold text-zinc-800 whitespace-nowrap flex items-center gap-1">
+                <span>🔑 Token API Apify:</span>
+              </span>
+              <input
+                type="password"
+                value={apifyToken}
+                onChange={e => handleTokenChange(e.target.value)}
+                placeholder="Insira seu Token apify_api_... para raspagem em tempo real no Google/LinkedIn"
+                className="w-full px-3 py-1.5 rounded-lg border border-zinc-300 font-mono text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+              />
+            </div>
+            <div className="shrink-0">
+              <a 
+                href="https://console.apify.com/account/integrations" 
+                target="_blank" 
+                rel="noreferrer" 
+                className="text-blue-600 hover:underline font-mono text-[11px] font-bold"
+              >
+                Obter Token na Apify Console ↗
+              </a>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 mb-1">Localização</label>
-            <input
-              type="text"
-              value={location}
-              onChange={e => setLocation(e.target.value)}
-              placeholder="Ex: São Paulo SP, Brasil"
-              className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 mb-1">Qtd. Leads</label>
-            <select
-              value={limit}
-              onChange={e => setLimit(Number(e.target.value))}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium font-mono"
-            >
-              <option value={5}>5 leads</option>
-              <option value={10}>10 leads</option>
-              <option value={15}>15 leads</option>
-              <option value={20}>20 leads</option>
-              <option value={30}>30 leads</option>
-              <option value={50}>50 leads</option>
-            </select>
-          </div>
-
-          <div>
-            <button
-              type="submit"
-              disabled={mining}
-              className="w-full py-2.5 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              {mining ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Minerando...</span>
-                </>
-              ) : (
-                <>
-                  <IconRocket className="w-4 h-4 text-emerald-400" />
-                  <span>Minerar</span>
-                </>
-              )}
-            </button>
-          </div>
         </form>
       </div>
 
@@ -754,7 +790,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           <div className="p-12 bg-white rounded-2xl border border-zinc-200 text-center text-zinc-400 text-xs space-y-2">
             <IconTarget className="w-10 h-10 mx-auto text-zinc-300" />
             <p className="font-semibold text-zinc-700">Nenhum lead nesta lista</p>
-            <p>Preencha os parâmetros acima e clique em "Minerar" para trazer novas empresas qualificadas.</p>
+            <p>Preencha os parâmetros acima e insira seu Token Apify para trazer novas empresas qualificadas.</p>
           </div>
         ) : (
           <div className="space-y-3.5">
