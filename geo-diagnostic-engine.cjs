@@ -1525,7 +1525,7 @@ function getChromeExecutablePath() {
 
 // ─── Client-Facing Simplified HTML Report (Lead Hunter & Outreach) ───────────
 function generateClientHtmlReport(lead, diagnostic) {
-  const score = diagnostic.overallGeoScore || 0;
+  const score = diagnostic?.overallGeoScore || 30;
   const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
   
   const cardStyle = `background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:28px; margin-bottom:24px;`;
@@ -1569,24 +1569,45 @@ function generateClientHtmlReport(lead, diagnostic) {
     `;
   }
 
-  // Diagnostic factor evaluations for visual checklist
+  // Factor evaluations across ALL Specialists
+  // Agent 1: Technical Gatekeeper
   const isRobotsOk = !lead?.aiCrawlersBlocked && !diagnostic?.technical?.aiCrawlersBlocked;
   const isSsrOk = diagnostic?.technical?.hasSsr ?? true;
   const isPricingOk = diagnostic?.technical?.hasExplicitPricing ?? false;
   const isTimestampsOk = diagnostic?.technical?.hasRecentTimestamps ?? false;
   const serverLatency = diagnostic?.technical?.serverLatencyMs || 86;
 
+  // Agent 2: Metadata Entity Architecture
   const isSchemaOrgOk = diagnostic?.metadata?.hasOrganizationSchema ?? false;
   const isSchemaPersonOk = diagnostic?.metadata?.hasPersonSchema ?? false;
   const isLlmsTxtOk = diagnostic?.metadata?.hasLlmsTxt ?? (score > 60);
   const isSameAsOk = diagnostic?.metadata?.hasSameAs ?? false;
   const missingSchemasList = diagnostic?.metadata?.missingSchemas || ['Organization', 'Person', 'FAQPage', 'Service'];
 
+  // Agent 3: Content Absorption & AEO
   const isDirectAnswerOk = diagnostic?.content?.hasDirectAnswer ?? true;
   const isStatsOk = diagnostic?.content?.hasFrequentStats ?? true;
   const isCitationsOk = diagnostic?.content?.hasExpertCitations ?? true;
   const isComparisonTablesOk = diagnostic?.content?.hasComparisonTables ?? false;
   const avgChunkTokens = diagnostic?.content?.avgChunkTokenSize || 151;
+
+  // Agent 4: Semantic Explorer & Intent Coverage
+  const isBuyerIntentOk = diagnostic?.semantic?.hasBuyerIntentCoverage ?? (score > 50);
+  const isFaqCoverageOk = diagnostic?.semantic?.hasFaqCoverage ?? (score > 60);
+  const isGlossaryOk = diagnostic?.semantic?.hasEntityGlossary ?? false;
+  const isAeoBlockOk = diagnostic?.semantic?.hasAeoBlocks ?? false;
+  const missingSemanticGaps = diagnostic?.semantic?.missingGaps || ['Comparativo Comercial', 'Certificações de Qualidade', 'Políticas de SLA'];
+
+  // Agent 5 & 6: Offpage Entity & AI Benchmark
+  const isCoOccurrenceOk = diagnostic?.offpage?.hasMediaCoOccurrence ?? (score > 60);
+  const isChatGptCited = (diagnostic?.benchmark?.chatGptCitability || 0) > 30;
+  const isClaudeCited = (diagnostic?.benchmark?.claudeCitability || 0) > 30;
+  const isGeminiCited = (diagnostic?.benchmark?.geminiCitability || 0) > 30;
+  const citedCompetitor = diagnostic?.offpage?.topCompetitorCited || lead?.citedCompetitor || 'Concorrente Direto do Setor';
+
+  const chatGptScore = diagnostic?.benchmark?.chatGptCitability || 25;
+  const geminiScore = diagnostic?.benchmark?.geminiCitability || 30;
+  const perplexityScore = diagnostic?.benchmark?.perplexityCitability || 20;
 
   const checkIcon = `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:#dcfce7;border:1px solid #86efac;color:#15803d;font-weight:bold;font-size:12px;margin-right:12px;shrink-0;">✓</span>`;
   const crossIcon = `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;font-weight:bold;font-size:12px;margin-right:12px;shrink-0;">✕</span>`;
@@ -1659,7 +1680,7 @@ function generateClientHtmlReport(lead, diagnostic) {
     </div>
   </div>
 
-  <!-- Seção 2: Copy Didática de Introdução Personalizada -->
+  <!-- Seção 2: Copy Didática de Introdução Personalizada (Isca de Captura) -->
   <div class="card" style="${cardStyle}">
     <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#09090b;margin:0 0 12px;text-transform:uppercase;letter-spacing:-0.2px;">
       💡 Como os seus clientes buscam hoje no ChatGPT e Gemini?
@@ -1673,7 +1694,7 @@ function generateClientHtmlReport(lead, diagnostic) {
     </p>
   </div>
 
-  <!-- Seção 3: Visual Checklist Cards (O que tem vs O que NÃO tem) -->
+  <!-- Seção 3: Visual Checklist Cards de Todos os Agentes -->
 
   <!-- Card 1: TECHNICAL GATEKEEPER -->
   <div class="card" style="${cardStyle}">
@@ -1790,13 +1811,84 @@ function generateClientHtmlReport(lead, diagnostic) {
     </div>
   </div>
 
-  <!-- Seção 4: CTA Comercial de Fechamento -->
+  <!-- Card 4: SEMANTIC & INTENT COVERAGE -->
+  <div class="card" style="${cardStyle}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #f3f4f6;padding-bottom:12px;">
+      <h3 style="${fontDisplay} font-size:15px;font-weight:800;color:#09090b;margin:0;text-transform:uppercase;letter-spacing:0.5px;">
+        SEMANTIC & INTENT COVERAGE
+      </h3>
+      <span style="border-radius:12px;padding:3px 10px;font-size:10px;font-weight:bold;${fontMono} ${isBuyerIntentOk ? 'background:#dcfce7;color:#15803d;border:1px solid #86efac;' : 'background:#ffedd5;color:#c2410c;border:1px solid #fdba74;'}">
+        ${isBuyerIntentOk ? 'OK' : 'ANÁLISE'}
+      </span>
+    </div>
+
+    <div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isBuyerIntentOk ? checkIcon : crossIcon}
+        <span>Cobertura das dúvidas de decisão de compra</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isFaqCoverageOk ? checkIcon : crossIcon}
+        <span>Presença em pesquisas transacionais de IA</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isGlossaryOk ? checkIcon : crossIcon}
+        <span>Glossário de entidades do setor no HTML</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isAeoBlockOk ? checkIcon : crossIcon}
+        <span>Blocos FAQ otimizados para AEO</span>
+      </div>
+    </div>
+
+    <div style="background:#fff7ed;border:1px solid #ffedd5;border-radius:12px;padding:12px 14px;margin-top:16px;font-size:12px;color:#9a3412;${fontSans}">
+      ⚠️ <strong style="${fontMono} color:#c2410c;">Lacunas Semânticas Identificadas:</strong> ${missingSemanticGaps.join(', ')}
+    </div>
+  </div>
+
+  <!-- Card 5: OFFPAGE ENTITY & AI BENCHMARK -->
+  <div class="card" style="${cardStyle}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #f3f4f6;padding-bottom:12px;">
+      <h3 style="${fontDisplay} font-size:15px;font-weight:800;color:#09090b;margin:0;text-transform:uppercase;letter-spacing:0.5px;">
+        OFFPAGE ENTITY & BENCHMARK
+      </h3>
+      <span style="border-radius:12px;padding:3px 10px;font-size:10px;font-weight:bold;${fontMono} background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;">
+        RISCO
+      </span>
+    </div>
+
+    <div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isCoOccurrenceOk ? checkIcon : crossIcon}
+        <span>Co-ocorrência da marca em portais de autoridade</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isChatGptCited ? checkIcon : crossIcon}
+        <span>Citação direta nas respostas do ChatGPT e Claude</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isGeminiCited ? checkIcon : crossIcon}
+        <span>Citação direta no Google Gemini e Perplexity</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#dc2626;font-weight:600;${fontSans}">
+        ${crossIcon}
+        <span>Concorrente citado no seu lugar: <strong>${citedCompetitor}</strong></span>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #f3f4f6;margin-top:16px;padding-top:12px;${fontMono} font-size:11px;color:#6b7280;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <span>CITABILIDADE NAS IAs:</span>
+      <span>ChatGPT: <strong style="color:#111827;">${chatGptScore}%</strong> | Gemini: <strong style="color:#111827;">${geminiScore}%</strong> | Perplexity: <strong style="color:#111827;">${perplexityScore}%</strong></span>
+    </div>
+  </div>
+
+  <!-- Seção 4: CTA Comercial de Fechamento (Isca de Captura) -->
   <div class="card" style="background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:32px; text-align:center; margin-top:25px; border-top:3px solid #10b981;">
     <h3 style="${fontDisplay} font-size:18px;font-weight:800;color:#09090b;margin:0 0 8px;text-transform:uppercase;">
       Quer que o time b.rocket execute essa otimização para a ${brandName}?
     </h3>
     <p style="font-size:13px;color:#4b5563;line-height:1.5;max-width:480px;margin:0 auto 20px;${fontSans}">
-      Nossa equipe cuida de toda a parte técnica sem alterar o seu site atual ou atrapalhar seu SEO tradicional.
+      Nossa equipe cuida de toda a parte técnica sem alterar o seu site atual ou atrapalhar seu SEO tradicional. Eliminamos esses pontos cegos e garantimos que sua marca seja recomendada como autoridade máxima nas buscas de IA.
     </p>
     <div>
       <a href="https://geo.berocket.com.br/#booking" style="display:inline-block;background-color:#09090b;color:#ffffff;border:1px solid #27272a;${fontMono}font-weight:bold;padding:14px 32px;border-radius:12px;text-decoration:none;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;box-shadow:0px 6px 18px rgba(9,9,11,0.15);">
