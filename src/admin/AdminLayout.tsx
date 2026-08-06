@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { logout } from '../lib/firebase';
 import { User } from 'firebase/auth';
-import { IconDashboard, IconLeads, IconClients, IconMail, IconSettings, IconChevron, IconX } from './components/icons';
+import { IconDashboard, IconLeads, IconClients, IconMail, IconSettings, IconChevron, IconX, IconTarget } from './components/icons';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -12,6 +12,7 @@ interface AdminLayoutProps {
 
 const navItems = [
   { id: 'dashboard', icon: IconDashboard, label: 'Dashboard' },
+  { id: 'lead_hunter', icon: IconTarget, label: 'Lead Hunter' },
   { id: 'leads', icon: IconLeads, label: 'Leads' },
   { id: 'clients', icon: IconClients, label: 'Clientes' },
   { id: 'newsletter', icon: IconMail, label: 'Newsletter' },

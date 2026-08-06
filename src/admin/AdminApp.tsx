@@ -7,9 +7,10 @@ import LeadsList from './pages/LeadsList';
 import ClientsList from './pages/ClientsList';
 import Newsletter from './pages/Newsletter';
 import AgentConfig from './pages/AgentConfig';
+import LeadHunter from './pages/LeadHunter';
 import { useAuth } from './hooks/useAuth';
 
-type Page = 'dashboard' | 'leads' | 'clients' | 'newsletter' | 'configs';
+type Page = 'dashboard' | 'lead_hunter' | 'leads' | 'clients' | 'newsletter' | 'configs';
 
 export default function AdminApp() {
   const { user, authState } = useAuth();
@@ -19,7 +20,7 @@ export default function AdminApp() {
   // Set browser tab title dynamically
   useEffect(() => {
     if (authState === 'authorized') {
-      const pageTitle = currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
+      const pageTitle = currentPage === 'lead_hunter' ? 'Lead Hunter' : currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
       document.title = `Admin GEO | b.rocket - ${pageTitle}`;
     } else {
       document.title = 'Admin GEO | b.rocket - Restrito';
@@ -75,6 +76,7 @@ export default function AdminApp() {
   // Authorized admin
   const renderPage = () => {
     switch (currentPage) {
+      case 'lead_hunter': return <LeadHunter onNavigate={handleNavigate} />;
       case 'leads': return <LeadsList onNavigate={handleNavigate} selectedLeadId={selectedId} />;
       case 'clients': return <ClientsList onNavigate={handleNavigate} />;
       case 'newsletter': return <Newsletter />;

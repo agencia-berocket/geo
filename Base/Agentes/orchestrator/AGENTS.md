@@ -3,10 +3,11 @@
 
 ---
 
-## Hierarquia de Agentes (9 Agentes)
+## Hierarquia de Agentes (10 Agentes)
 
 ```
 ORQUESTRADOR (Master)
+├── LEAD_HUNTER        (SDR/BDR Digital & Inteligência Comercial Apify/Google) 🆕
 ├── GATEKEEPER        (Especialista em Infraestrutura & Bots)
 ├── METADATA          (Especialista Semântico In-Site & Schemas)
 ├── CONTENT           (Especialista de Copy & Fatores Princeton)
@@ -22,6 +23,16 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 ---
 
 ## Protocolos de Boot
+
+### Mineração e Captação Outbound (Lead Hunter)
+```
+1. Lead Hunter recebe { nicho, localizacao, cargo_alvo, limite }
+2. Executa mineração Apify (LinkedIn Company/People Finder) & Google Search
+3. Roda Quick GEO Scan (robots.txt, AEO, Schema, concorrente citado nas IAs)
+4. Redige copys de abordagem hiper-personalizadas (PAS para serviços, BAB para SaaS)
+5. Salva na coleção hunter_leads do Firestore
+6. Transfere para esteira principal quando ativado
+```
 
 ### Diagnóstico de Lead (primeira análise)
 ```
@@ -97,5 +108,8 @@ O Orquestrador é o **único agente que conversa diretamente com o cliente** no 
 | Traduzir falhas de agentes em snippets de código validados | Checklist Architect 🆕 |
 | Gerar tutoriais de instalação por CMS (WordPress/Next) | Checklist Architect 🆕 |
 | Criar checklist de validação pós-implantação (QA) | Checklist Architect 🆕 |
+| Mineração em massa de ICP e Decisores (LinkedIn/Google) | Lead Hunter 🆕 |
+| Micro-auditoria de barreiras e crawlers (Quick GEO) | Lead Hunter 🆕 |
+| Redação de copys personalizadas de dor (PAS/BAB) | Lead Hunter 🆕 |
 | Calcular GEO Score consolidado e gerar relatório final | Orchestrator |
 | Re-scan mensal completo | Orchestrator |

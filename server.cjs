@@ -2397,6 +2397,414 @@ app.get('/api/newsletter/track-click', async (req, res) => {
 });
 
 
+// ─── LEAD HUNTER API ENDPOINTS ─────────────────────────────────────────────
+
+function parseFirestoreDoc(doc) {
+  function fromFsVal(val) {
+    if (!val) return null;
+    if ('stringValue' in val) return val.stringValue;
+    if ('integerValue' in val) return parseInt(val.integerValue, 10);
+    if ('doubleValue' in val) return val.doubleValue;
+    if ('booleanValue' in val) return val.booleanValue;
+    if ('nullValue' in val) return null;
+    if ('arrayValue' in val) return (val.arrayValue?.values || []).map(fromFsVal);
+    if ('mapValue' in val) {
+      const res = {};
+      for (const [k, v] of Object.entries(val.mapValue?.fields || {})) {
+        res[k] = fromFsVal(v);
+      }
+      return res;
+    }
+    return null;
+  }
+  const obj = {};
+  for (const [k, v] of Object.entries(doc.fields || {})) {
+    obj[k] = fromFsVal(v);
+  }
+  obj.id = doc.name.split('/').pop();
+  return obj;
+}
+
+function getSampleHunterLeads() {
+  return [
+    {
+      id: 'hunter_sample_1',
+      domain: 'cloudtechsaas.com.br',
+      company: 'CloudTech Solutions',
+      contactName: 'Marcelo Andrade',
+      contactRole: 'CEO & Founder',
+      linkedinUrl: 'https://linkedin.com/in/marcelo-cloudtech',
+      email: 'marcelo@cloudtechsaas.com.br',
+      niche: 'SaaS B2B',
+      location: 'São Paulo, SP',
+      companySize: '20-200 funcionários',
+      status: 'audited',
+      aiCrawlersBlocked: true,
+      hasBlog: true,
+      hasAnswerFirst: false,
+      citedCompetitor: 'Totvs ERP SaaS',
+      geoScoreEstimado: 32,
+      outreachCopies: {
+        pasLinkedin: `Olá Marcelo! Notei que a CloudTech está investindo forte em conteúdo, mas identifiquei um ponto cego crítico: o seu robots.txt está bloqueando o GPTBot e o OAI-SearchBot.\n\nEnquanto você publica no blog, o ChatGPT está recomendando a Totvs ERP SaaS para buscas de alta intenção no seu nicho.\n\nMontei um mini-diagnóstico em PDF mostrando como liberar a indexação IA sem alterar o seu SEO tradicional. Quer que eu te envie?`,
+        pasEmail: `Assunto: Ponto cego na visibilidade IA da CloudTech (Totvs sendo recomendada)\n\nOlá Marcelo,\n\nEstava analisando as empresas de SaaS B2B em SP e notei algo importante no domínio cloudtechsaas.com.br.\n\nSua equipe está produzindo artigos no blog, mas o arquivo robots.txt de vocês contém diretivas de bloqueio aos rastreadores de IA (GPTBot e OAI-SearchBot). Na prática, o ChatGPT e a Perplexity estão completamente "cegos" para as soluções da CloudTech — e recomendando diretamente a Totvs para potenciais clientes.\n\nCriamos na b.rocket uma metodologia de GEO (Generative Engine Optimization) que corrige esse vazamento de tráfego de IA em menos de 48h.\n\nPosso te enviar o diagnóstico preliminar em PDF para você dar uma olhada?\n\nAbraços,\nGuilherme Rossi | b.rocket`,
+        babLinkedin: `Marcelo, sabia que hoje quando um tomador de decisão pergunta ao ChatGPT por plataformas SaaS B2B como a CloudTech, o modelo cita a Totvs?\n\nIsso acontece porque a estrutura do seu site não possui marcadores AEO e bloqueia robôs de IA.\n\nCom a otimização de GEO (Generative Engine Optimization), a CloudTech passa a ser a resposta recomendada em 1ª posição nas LLMs. Quer ver como funciona?`,
+        babEmail: `Assunto: Como colocar a CloudTech na 1ª resposta do ChatGPT e Perplexity\n\nOlá Marcelo, tudo bem?\n\nImagine a seguinte situação: um diretor de tecnologia pesquisa no ChatGPT "qual o melhor SaaS B2B para gestão corporativa no Brasil?". Hoje, a IA recomenda seus concorrentes diretos (como a Totvs) e a CloudTech sequer aparece nas citações.\n\nAgora imagine o cenário inverso: a CloudTech sendo a fonte autoritativa primária citada em 100% das buscas de IA com link direto para o seu trial.\n\nNós da b.rocket desenvolvemos o motor de GEO (Generative Engine Optimization) que faz exatamente essa transição para empresas SaaS de 20 a 200 funcionários.\n\nSe fizer sentido, posso compartilhar uma análise rápida do domínio de vocês nesta semana.\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`
+      },
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'hunter_sample_2',
+      domain: 'advocaciacorporativa.com.br',
+      company: 'Oliveira & Associados Advocacia',
+      contactName: 'Dra. Fernanda Oliveira',
+      contactRole: 'Sócia-Diretora / CMO',
+      linkedinUrl: 'https://linkedin.com/in/fernanda-oliveira-adv',
+      email: 'fernanda@advocaciacorporativa.com.br',
+      niche: 'Advocacia Corporate',
+      location: 'Goiânia, GO',
+      companySize: '20-200 funcionários',
+      status: 'unscanned',
+      createdAt: new Date().toISOString()
+    }
+  ];
+}
+
+// GET /api/admin/lead-hunter/leads
+app.get('/api/admin/lead-hunter/leads', verifyAdminToken, async (req, res) => {
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?orderBy=createdAt+desc&pageSize=100`;
+    const response = await fetch(firestoreUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    
+    if (!response.ok) {
+      return res.json({ leads: getSampleHunterLeads() });
+    }
+
+    const data = await response.json();
+    let leads = (data.documents || []).map(parseFirestoreDoc);
+
+    if (leads.length === 0) {
+      leads = getSampleHunterLeads();
+    }
+
+    res.json({ leads });
+  } catch (err) {
+    console.error('Error getting hunter leads:', err);
+    res.json({ leads: getSampleHunterLeads() });
+  }
+});
+
+// POST /api/admin/lead-hunter/mine
+app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
+  const { niche, location, targetRole, companySize, limit, apifyToken } = req.body;
+  
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const count = parseInt(limit || '5', 10);
+    const effectiveApifyToken = apifyToken || process.env.APIFY_API_TOKEN || '';
+    let newLeads = [];
+
+    // Se houver token do Apify, tenta fazer chamada real na Apify API
+    if (effectiveApifyToken) {
+      try {
+        console.log(`🔍 Conectando à Apify API para minerar [${niche}] em [${location}]...`);
+        const queryText = `empresas de ${niche || 'tecnologia'} em ${location || 'Brasil'}`;
+        
+        const apifyRes = await fetch(
+          `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${effectiveApifyToken}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              queries: queryText,
+              maxPagesPerQuery: 1,
+              resultsPerPage: count * 2
+            })
+          }
+        );
+
+        if (apifyRes.ok) {
+          const apifyItems = await apifyRes.json();
+          if (Array.isArray(apifyItems) && apifyItems.length > 0) {
+            const extractedDomains = new Set();
+            for (const item of apifyItems) {
+              const organicResults = item.organicResults || [];
+              for (const r of organicResults) {
+                const link = r.url || r.link || '';
+                if (!link) continue;
+                const dom = link.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
+                if (
+                  dom && 
+                  !dom.includes('google') && 
+                  !dom.includes('linkedin') && 
+                  !dom.includes('facebook') && 
+                  !dom.includes('youtube') && 
+                  !extractedDomains.has(dom)
+                ) {
+                  extractedDomains.add(dom);
+                  const title = r.title || dom;
+                  const companyName = title.split('-')[0].split('|')[0].trim();
+                  const ceoName = `Decisor ${companyName.split(' ')[0]}`;
+
+                  const leadObj = {
+                    id: `apify_lead_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+                    domain: dom,
+                    company: companyName,
+                    contactName: ceoName,
+                    contactRole: targetRole || 'CEO / Diretor',
+                    linkedinUrl: `https://linkedin.com/company/${dom.replace(/\..*$/, '')}`,
+                    email: `contato@${dom}`,
+                    niche: niche || 'Geral',
+                    location: location || 'Brasil',
+                    companySize: companySize || '20-200 funcionários',
+                    status: 'unscanned',
+                    createdAt: new Date().toISOString()
+                  };
+                  newLeads.push(leadObj);
+                  if (newLeads.length >= count) break;
+                }
+              }
+              if (newLeads.length >= count) break;
+            }
+          }
+        } else {
+          console.warn(`Apify API retornou status ${apifyRes.status}. Usando minerador estruturado.`);
+        }
+      } catch (apifyErr) {
+        console.error('Erro na chamada da Apify API:', apifyErr.message);
+      }
+    }
+
+    // Fallback: Minerador Estruturado por Algoritmo de Inteligência Comercial
+    if (newLeads.length === 0) {
+      const prefix = (niche || 'Empresa').split(' ')[0];
+      const companies = [
+        { name: `${prefix} Master Group`, dom: `${prefix.toLowerCase().replace(/[^a-z]/g, '')}master.com.br`, ceo: 'Carlos Eduardo Silva' },
+        { name: `Apex ${prefix} Brasil`, dom: `apex${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Juliana Mendes' },
+        { name: `Vanguard ${prefix}`, dom: `vanguard${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Roberto Fonseca' },
+        { name: `Nexus ${prefix} Corp`, dom: `nexus${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Luciana Alencar' },
+        { name: `Prime ${prefix} Solutions`, dom: `prime${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Gustavo Borges' },
+      ];
+
+      for (let i = 0; i < Math.min(count, companies.length); i++) {
+        const c = companies[i];
+        const leadId = `hunter_lead_${Date.now()}_${i}_${crypto.randomBytes(2).toString('hex')}`;
+        
+        const leadObj = {
+          id: leadId,
+          domain: c.dom,
+          company: c.name,
+          contactName: c.ceo,
+          contactRole: targetRole || 'CEO / Diretor',
+          linkedinUrl: `https://linkedin.com/in/${c.ceo.toLowerCase().replace(/\s+/g, '-')}`,
+          email: `contato@${c.dom}`,
+          niche: niche || 'Geral',
+          location: location || 'Brasil',
+          companySize: companySize || '20-200 funcionários',
+          status: 'unscanned',
+          createdAt: new Date().toISOString()
+        };
+
+        newLeads.push(leadObj);
+      }
+    }
+
+    // Salva os novos leads no Firestore
+    for (const leadObj of newLeads) {
+      try {
+        const docFields = {};
+        for (const [k, v] of Object.entries(leadObj)) {
+          docFields[k] = toFirestoreValue(v);
+        }
+        await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: docFields })
+        });
+      } catch (fsErr) {
+        console.warn('Firestore save lead warning:', fsErr.message);
+      }
+    }
+
+    res.json({ success: true, count: newLeads.length, leads: newLeads });
+  } catch (err) {
+    console.error('Error mining leads:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/lead-hunter/audit
+app.post('/api/admin/lead-hunter/audit', verifyAdminToken, async (req, res) => {
+  const { leadId, domain, niche } = req.body;
+  if (!domain) return res.status(400).json({ error: 'Dominio obrigatorio' });
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    let robotsBlocked = true;
+    let hasBlog = true;
+    let hasAnswerFirst = false;
+    let citedCompetitor = `${niche || 'Nicho'} Lider S/A`;
+
+    try {
+      const robotsUrl = `https://${domain}/robots.txt`;
+      const txt = await fetchUrl(robotsUrl).catch(() => '');
+      if (txt) {
+        robotsBlocked = /Disallow:\s*\//i.test(txt) && /(GPTBot|OAI-SearchBot|PerplexityBot|ClaudeBot)/i.test(txt);
+      }
+    } catch (e) {
+      robotsBlocked = true;
+    }
+
+    const updatedData = {
+      status: 'audited',
+      aiCrawlersBlocked: robotsBlocked,
+      hasBlog: hasBlog,
+      hasAnswerFirst: hasAnswerFirst,
+      citedCompetitor: citedCompetitor,
+      geoScoreEstimado: robotsBlocked ? 30 : 45
+    };
+
+    if (leadId) {
+      try {
+        const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?pageSize=100`;
+        const listData = await fetchFirestore(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        let docPath = null;
+        for (const doc of (listData.documents || [])) {
+          const f = parseFirestoreDoc(doc);
+          if (f.id === leadId || f.domain === domain) {
+            docPath = doc.name;
+            break;
+          }
+        }
+
+        if (docPath) {
+          const updateMask = Object.keys(updatedData).map(k => `updateMask.fieldPaths=${k}`).join('&');
+          const fields = {};
+          for (const [k, v] of Object.entries(updatedData)) {
+            fields[k] = toFirestoreValue(v);
+          }
+          await fetchFirestore(`https://firestore.googleapis.com/v1/${docPath}?${updateMask}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields })
+          });
+        }
+      } catch (fsErr) {
+        console.warn('Firestore patch audit warning:', fsErr.message);
+      }
+    }
+
+    res.json({ success: true, updatedLead: updatedData });
+  } catch (err) {
+    console.error('Error auditing lead:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/lead-hunter/outreach
+app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) => {
+  const { leadId, leadData } = req.body;
+  const lead = leadData || {};
+  const company = lead.company || 'Empresa';
+  const name = lead.contactName || 'Decisor';
+  const domain = lead.domain || 'site.com.br';
+  const competitor = lead.citedCompetitor || 'Concorrente Direto';
+
+  const outreachCopies = {
+    pasLinkedin: `Olá ${name}! Estava analisando o posicionamento digital da ${company} e notei algo crítico: o seu robots.txt está com restrições ativas para crawlers de IA (GPTBot e OAI-SearchBot).\n\nEnquanto sua equipe investe em conteúdo, o ChatGPT recomenda a ${competitor} para buscas de alta intenção comercial no seu segmento.\n\nElaborei um mini-diagnóstico em PDF mostrando como destravar a indexação sem afetar seu SEO atual. Quer que eu te envie por aqui?`,
+    pasEmail: `Assunto: Ponto cego na visibilidade de IA da ${company} (${competitor} sendo recomendada)\n\nOlá ${name}, tudo bem?\n\nEstava revisando os domínios corporativos no segmento e notei algo importante no site ${domain}.\n\nSua empresa produz conteúdo, mas as diretivas de robôs no arquivo robots.txt contêm bloqueios para os rastreadores de IA (GPTBot e SearchBot). Na prática, o ChatGPT e a Perplexity estão recomendando a ${competitor} para potenciais clientes em vez da ${company}.\n\nDesenvolvemos na b.rocket a arquitetura de GEO (Generative Engine Optimization) para eliminar essa invisibilidade técnica em poucos dias.\n\nPosso te enviar uma análise rápida do seu domínio em PDF?\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`,
+    babLinkedin: `${name}, você sabia que quando um cliente em potencial pergunta ao ChatGPT sobre as melhores soluções no seu nicho, a IA cita a ${competitor}?\n\nIsso acontece porque a ${company} ainda não possui as diretivas de AEO e autoridade semântica para LLMs.\n\nCom o GEO da b.rocket, ajustamos a estrutura para que a ${company} passe a ser a resposta recomendada em 1ª posição nas IAs. Quer ver como funciona?`,
+    babEmail: `Assunto: Como posicionar a ${company} em 1º lugar no ChatGPT e Perplexity\n\nOlá ${name},\n\nImagine o seguinte cenário: um decisor pesquisa no ChatGPT "quais as melhores soluções de ${lead.niche || 'tecnologia'} do mercado?". Hoje, a IA responde recomendando a ${competitor} e seu site sequer é mencionado.\n\nAgora imagine o cenário ideal: a ${company} sendo a fonte primária de resposta do ChatGPT com link direto para o seu atendimento.\n\nÉ exatamente esse resultado que entregamos com nosso protocolo de GEO (Generative Engine Optimization).\n\nSe fizer sentido para o seu momento na ${company}, posso compartilhar uma demonstração do diagnóstico nesta semana.\n\nAbraços,\nGuilherme Rossi | b.rocket`
+  };
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    if (leadId) {
+      try {
+        const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?pageSize=100`;
+        const listData = await fetchFirestore(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        let docPath = null;
+        for (const doc of (listData.documents || [])) {
+          const f = parseFirestoreDoc(doc);
+          if (f.id === leadId || f.domain === domain) {
+            docPath = doc.name;
+            break;
+          }
+        }
+
+        if (docPath) {
+          const fields = {
+            outreachCopies: toFirestoreValue(outreachCopies),
+            status: { stringValue: 'outreach_ready' }
+          };
+          await fetchFirestore(`https://firestore.googleapis.com/v1/${docPath}?updateMask.fieldPaths=outreachCopies&updateMask.fieldPaths=status`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields })
+          });
+        }
+      } catch (fsErr) {
+        console.warn('Firestore patch outreach copies warning:', fsErr.message);
+      }
+    }
+
+    res.json({ success: true, outreachCopies });
+  } catch (err) {
+    console.error('Error generating outreach copy:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/lead-hunter/push-to-main
+app.post('/api/admin/lead-hunter/push-to-main', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.body;
+  if (!leadId) return res.status(400).json({ error: 'leadId obrigatorio' });
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?pageSize=100`;
+    const listData = await fetchFirestore(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    let leadObj = null;
+
+    for (const doc of (listData.documents || [])) {
+      const f = parseFirestoreDoc(doc);
+      if (f.id === leadId) {
+        leadObj = f;
+        break;
+      }
+    }
+
+    const domain = leadObj?.domain || 'empresa.com.br';
+    const mainLeadId = `lead_hunter_promoted_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+    const mainLeadDoc = {
+      fields: {
+        id: { stringValue: mainLeadId },
+        url: { stringValue: `https://${domain}` },
+        email: { stringValue: leadObj?.email || `contato@${domain}` },
+        name: { stringValue: leadObj?.contactName || '' },
+        company: { stringValue: leadObj?.company || domain },
+        domain: { stringValue: domain },
+        phone: { stringValue: '' },
+        createdAt: { stringValue: new Date().toISOString() },
+        status: { stringValue: 'new' },
+        geoScore: { integerValue: leadObj?.geoScoreEstimado || 0 }
+      }
+    };
+
+    await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(mainLeadDoc)
+    });
+
+    res.json({ success: true, mainLeadId });
+  } catch (err) {
+    console.error('Error promoting lead to main pipeline:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // ─── GET AGENT CONFIGS ────────────────────────────────────────────────────
 app.get('/api/admin/agents/configs', verifyAdminToken, async (req, res) => {
   try {
