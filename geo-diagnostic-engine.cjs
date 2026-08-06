@@ -353,19 +353,39 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   let sentimentTotal = 0;
   let sentimentCount = 0;
 
+  // ─── Trilha de auditoria — registra cada chamada às LLMs ─────────────────
+  const agentAuditLog = [];
+
   for (const model of models) {
     const modelKey = model.split('/')[1].replace(/-\d.*/, '');
     citationsByModel[modelKey] = 0;
 
     for (const prompt of prompts) {
+      const auditEntry = {
+        model: model,
+        modelLabel: modelKey,
+        systemPrompt: systemPrompt,
+        userPrompt: prompt,
+        response: '',
+        citedBrand: false,
+        error: null,
+        timestamp: new Date().toISOString(),
+      };
+
       try {
         const response = await callOpenRouter(model, systemPrompt, prompt, apiKey);
         const responseLC = response.toLowerCase();
         const brandLC = brandName.toLowerCase();
         const domainLC = domain.toLowerCase();
 
+        // Armazenar resposta truncada para auditoria (máx 400 chars para economizar espaço no Firestore)
+        auditEntry.response = response.slice(0, 400);
+
         // Check if brand was mentioned
-        if (responseLC.includes(brandLC) || responseLC.includes(domainLC)) {
+        const cited = responseLC.includes(brandLC) || responseLC.includes(domainLC);
+        auditEntry.citedBrand = cited;
+
+        if (cited) {
           citationsByModel[modelKey]++;
           totalCitations++;
         }
@@ -390,8 +410,10 @@ async function runIntentAgent(url, htmlContent, apiKey) {
           sentimentCount++;
         }
       } catch (e) {
-        // Silently skip failed requests
+        auditEntry.error = e.message || 'Falha na chamada';
       }
+
+      agentAuditLog.push(auditEntry);
     }
   }
 
@@ -411,6 +433,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     brandSentimentScore,
     topMentionedCompetitors,
     citationsByModel,
+    agentAuditLog,
   };
 }
 
@@ -1441,6 +1464,47 @@ ${item.codeSnippet.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
       </a>
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       SEÇÃO INTERNA — TRILHA DE AUDITORIA DOS AGENTES (USO EXCLUSIVO b.rocket)
+       ═══════════════════════════════════════════════════════════════════════ -->
+  ${(diagnostic.visibilityBenchmarking && diagnostic.visibilityBenchmarking.agentAuditLog && diagnostic.visibilityBenchmarking.agentAuditLog.length > 0) ? `
+  <div style="background:#1a1a2e;border:2px dashed #3b3b5c;border-radius:20px;padding:28px;margin-top:32px;">
+    <div style="margin-bottom:20px;">
+      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#dc2626;color:#fff;padding:4px 10px;border-radius:5px;margin-right:10px;">USO INTERNO</span>
+      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#6b7280;">b.rocket confidencial</span>
+      <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#e5e7eb;margin:12px 0 4px;letter-spacing:-0.2px;">🔬 Trilha de Auditoria — Intent Prompt Agent</h3>
+      <p style="${fontSans} font-size:11.5px;color:#9ca3af;margin:0;">Registro completo das ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas às LLMs externas. Documento as perguntas exatas e respostas obtidas para verificar se a marca foi citada.</p>
+    </div>
+
+    ${diagnostic.visibilityBenchmarking.agentAuditLog.map((entry, idx) => `
+    <div style="background:#0f0f1a;border:1px solid ${entry.citedBrand ? '#16a34a' : entry.error ? '#dc2626' : '#27272a'};border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="display:table;width:100%;margin-bottom:8px;">
+        <div style="display:table-cell;vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;color:#6b7280;text-transform:uppercase;">#${idx + 1} &nbsp;·&nbsp; ${entry.model}</span>
+        </div>
+        <div style="display:table-cell;vertical-align:middle;text-align:right;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:3px 8px;border-radius:5px;${entry.citedBrand ? 'background:#14532d;color:#4ade80;' : entry.error ? 'background:#7f1d1d;color:#fca5a5;' : 'background:#18181b;color:#71717a;'}">
+            ${entry.citedBrand ? '✓ MARCA CITADA' : entry.error ? '⚠ ERRO' : '✗ NÃO CITADA'}
+          </span>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="${fontMono} font-size:9px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:4px;">PERGUNTA ENVIADA:</div>
+        <div style="${fontSans} font-size:12px;color:#d1d5db;background:#1f1f30;border-radius:6px;padding:8px 10px;line-height:1.5;">${entry.userPrompt}</div>
+      </div>
+      <div>
+        <div style="${fontMono} font-size:9px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:4px;">RESPOSTA DA IA${entry.response && entry.response.length >= 400 ? ' (truncada em 400 chars)' : ''}:</div>
+        <div style="${fontSans} font-size:11.5px;color:#9ca3af;background:#1f1f30;border-radius:6px;padding:8px 10px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${entry.error ? '<span style="color:#fca5a5;">Erro: ' + entry.error + '</span>' : (entry.response || '—')}</div>
+      </div>
+    </div>
+    `).join('')}
+
+    <div style="text-align:center;margin-top:16px;">
+      <span style="${fontMono} font-size:9px;color:#4b5563;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">b.rocket Intent Prompt Agent · ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas · Gerado em ${new Date(diagnostic.generatedAt || Date.now()).toLocaleDateString('pt-BR')}</span>
+    </div>
+  </div>
+  ` : ''}
 
   <!-- Footer -->
   <div style="text-align:center;padding:24px 0 10px;${fontMono} font-size:9px;color:#9ca3af;font-weight:bold;">

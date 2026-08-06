@@ -213,6 +213,27 @@ export function useLeads() {
     window.URL.revokeObjectURL(url);
   }, []);
 
+  const downloadHtmlReport = useCallback(async (leadId: string, companyOrDomain?: string) => {
+    const token = await auth.currentUser?.getIdToken(false);
+    const res = await fetch(`${API_BASE}/admin/diagnostic/html/${leadId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Falha ao baixar relatório HTML.' }));
+      throw new Error(err.error || 'Falha ao baixar relatório HTML.');
+    }
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const label = (companyOrDomain || leadId).replace(/[^a-z0-9_-]/gi, '_');
+    a.download = `Relatorio_GEO_Completo_${label}.html`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  }, []);
+
   const updateDiagnostic = useCallback(async (leadId: string, patch: Record<string, unknown>) => {
     return apiFetch<{ success: boolean }>(`/admin/diagnostic/${leadId}`, {
       method: 'PATCH',
@@ -220,7 +241,7 @@ export function useLeads() {
     });
   }, []);
 
-  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadPdfReport };
+  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadPdfReport, downloadHtmlReport };
 }
 
 export function useDiagnostic(leadId: string | null) {

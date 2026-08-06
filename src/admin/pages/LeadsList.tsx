@@ -9,6 +9,17 @@ import {
   IconSend, IconChevron, IconNote, IconRefresh,
 } from '../components/icons';
 
+// ─── Download icon ──────────────────────────────────────────────────────
+function IconDownload({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
+
 interface LeadsListProps {
   onNavigate: (page: string, id?: string) => void;
   selectedLeadId?: string;
@@ -340,10 +351,11 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   lead: Lead; onBack: () => void; onNavigate: (page: string, id?: string) => void; onLeadUpdated: () => void;
 }) {
   const { diagnostic, loading: diagLoading, fetchDiagnostic } = useDiagnostic(lead.id);
-  const { runDiagnostic, sendReport, sendFollowup, convertToClient, editLead, deleteLead } = useLeads();
+  const { runDiagnostic, sendReport, sendFollowup, convertToClient, editLead, deleteLead, downloadHtmlReport } = useLeads();
   const [running, setRunning] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingFollowup, setSendingFollowup] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [showDiagEditor, setShowDiagEditor] = useState(false);
 
@@ -418,6 +430,19 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
       setMessage(`Erro no follow-up: ${e.message}`);
     } finally {
       setSendingFollowup(false);
+    }
+  };
+
+  const handleDownloadHtml = async () => {
+    setDownloading(true);
+    setMessage(null);
+    try {
+      await downloadHtmlReport(lead.id, lead.company || lead.url);
+      setMessage('Relatório HTML baixado com sucesso!');
+    } catch (e: any) {
+      setMessage(`Erro ao baixar: ${e.message}`);
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -538,6 +563,19 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
                       <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Enviando...</span>
                     ) : (
                       <span className="flex items-center gap-1.5"><IconSend className="w-3.5 h-3.5" /> Enviar HTML</span>
+                    )}
+                  </button>
+                  <button
+                    id={`download-html-${lead.id}`}
+                    onClick={handleDownloadHtml}
+                    disabled={downloading}
+                    className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                    title="Baixar relatório HTML completo com trilha de auditoria dos agentes"
+                  >
+                    {downloading ? (
+                      <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Baixando...</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5"><IconDownload className="w-3.5 h-3.5" /> Baixar HTML</span>
                     )}
                   </button>
                   <button

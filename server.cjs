@@ -1126,6 +1126,81 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
   }
 });
 
+// ─── DOWNLOAD HTML DIAGNOSTIC ───────────────────────────────────────────────
+// Retorna o relatório HTML completo para download direto (inclui trilha de auditoria)
+app.get('/api/admin/diagnostic/html/:leadId', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+
+    // Fetch lead
+    const leadsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    function fromFsHtml(val) {
+      if (!val) return null;
+      if ('stringValue' in val) return val.stringValue;
+      if ('integerValue' in val) return parseInt(val.integerValue);
+      if ('doubleValue' in val) return val.doubleValue;
+      if ('booleanValue' in val) return val.booleanValue;
+      if ('nullValue' in val) return null;
+      if ('arrayValue' in val) return (val.arrayValue?.values || []).map(fromFsHtml);
+      if ('mapValue' in val) {
+        const result = {};
+        for (const [k, v] of Object.entries(val.mapValue?.fields || {})) {
+          result[k] = fromFsHtml(v);
+        }
+        return result;
+      }
+      return null;
+    }
+
+    let lead = null;
+    for (const doc of (leadsData.documents || [])) {
+      const f = doc.fields || {};
+      if (f.id?.stringValue === leadId) {
+        lead = { url: f.url?.stringValue, email: f.email?.stringValue, name: f.name?.stringValue, company: f.company?.stringValue };
+        break;
+      }
+    }
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    // Fetch diagnostic
+    const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    let diagnostic = null;
+    for (const doc of (diagData.documents || [])) {
+      const diag = {};
+      for (const [k, v] of Object.entries(doc.fields || {})) {
+        // Pular o htmlReportContent (campo grande desnecessário aqui)
+        if (k === 'htmlReportContent') continue;
+        diag[k] = fromFsHtml(v);
+      }
+      if (diag.leadId === leadId) {
+        diagnostic = diag;
+        break;
+      }
+    }
+    if (!diagnostic) return res.status(404).json({ error: 'Diagnóstico não encontrado' });
+
+    // Gerar o HTML completo (inclui seção de auditoria se agentAuditLog estiver presente)
+    const htmlReport = generateHtmlReport(lead, diagnostic);
+
+    const domainClean = (lead.url || 'diagnostico').replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/[^a-z0-9_-]/gi, '_');
+    const filename = `Relatorio_GEO_Completo_${domainClean}.html`;
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(htmlReport);
+  } catch (err) {
+    console.error('HTML download error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── DOWNLOAD PDF DIAGNOSTIC ────────────────────────────────────────────────
 app.get('/api/admin/diagnostic/pdf/:leadId', verifyAdminToken, async (req, res) => {
   const { leadId } = req.params;
