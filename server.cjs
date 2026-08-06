@@ -2581,79 +2581,98 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
     if (miningSource === 'linkedin' || (miningSource === 'auto' && newLeads.length === 0)) {
       if (effectiveApifyToken) {
         try {
-          console.log(`💼 Conectando ao Apify actor harvestapi/linkedin-profile-search [Token: ${effectiveApifyToken.slice(0, 8)}...]`);
+          // Trata cargo e nicho para evitar falhas por caracteres especiais tipo "/" ou múltiplos cargos
+          const rawRoles = (targetRole || 'CEO').split(/[/,;|]+/).map(r => r.trim()).filter(Boolean);
+          const primaryRole = rawRoles[0] || 'CEO';
+          const cleanNiche = (niche || 'SaaS').replace(/[/,;|]+/g, ' ').trim();
 
-          // Actor oficial: https://apify.com/harvestapi/linkedin-profile-search
-          // Parâmetros: keywords (cargo), location (cidade/país), limit (máx. resultados)
-          // Retorna: fullName, headline, currentCompany, profileUrl, location, photoUrl
-          const apifyRes = await fetch(
-            `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                // Campo principal de busca: cargo + nicho
-                keywords: `${targetRole || 'CEO'} ${niche || ''}`.trim(),
-                // Localização: cidade, estado ou país
-                location: location || 'Brazil',
-                // Quantidade máxima de perfis a retornar
-                limit: Math.min(count * 2, 50),
-                // Proxy — usa o pool do Apify (residencial)
-                proxyConfiguration: { useApifyProxy: true }
-              })
-            }
-          );
+          // Tenta combinações progressivas de busca para garantir que retorne perfis reais
+          const searchQueries = [
+            `${primaryRole} ${cleanNiche}`.trim(),
+            rawRoles[1] ? `${rawRoles[1]} ${cleanNiche}`.trim() : null,
+            `${cleanNiche}`.trim(),
+            `${primaryRole}`.trim()
+          ].filter(Boolean);
 
-          if (apifyRes.ok) {
-            const profiles = await apifyRes.json();
-            const extractedLinks = new Set();
+          let profiles = [];
+          let lastApifyStatus = 200;
+          let lastErrText = '';
 
-            if (Array.isArray(profiles) && profiles.length > 0) {
-              for (const p of profiles) {
-                // Campos retornados pelo harvestapi/linkedin-profile-search:
-                const realPersonName = p.fullName || p.name || '';
-                const realRole = p.headline || p.title || targetRole || 'CEO';
-                const realCompany = p.currentCompany?.name || p.company || '';
-                const linkedinUrl = p.profileUrl || p.linkedinUrl || p.url || '';
+          for (const queryKw of searchQueries) {
+            console.log(`💼 Conectando ao Apify harvestapi/linkedin-profile-search [Query: "${queryKw}"] [Local: "${location}"]...`);
 
-                if (!linkedinUrl || extractedLinks.has(linkedinUrl)) continue;
-                extractedLinks.add(linkedinUrl);
+            const apifyRes = await fetch(
+              `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  keywords: queryKw,
+                  location: location || 'Brazil',
+                  limit: Math.min(count * 2, 50),
+                  proxyConfiguration: { useApifyProxy: true }
+                })
+              }
+            );
 
-                // Domínio inferido (sem inventar — será completado pelo Audit real)
-                const domBase = realCompany.toLowerCase().replace(/[^a-z0-9]/g, '');
-                const dom = domBase ? `${domBase}.com.br` : '';
-
-                const leadObj = {
-                  id: `apify_linkedin_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
-                  domain: dom,
-                  company: realCompany,
-                  contactName: realPersonName,
-                  contactRole: realRole,
-                  linkedinUrl: linkedinUrl, // ✅ URL real do perfil LinkedIn
-                  photoUrl: p.photoUrl || p.profilePicture || '',
-                  email: '',   // ⬅️ Nunca inventamos — preenchido via Audit ou manualmente
-                  phone: '',
-                  address: p.location || location || 'Brasil',
-                  niche: niche || 'Geral',
-                  location: location || 'Brasil',
-                  companySize: companySize || '20-200 funcionários',
-                  source: 'linkedin',
-                  status: 'unscanned',
-                  createdAt: new Date().toISOString()
-                };
-                newLeads.push(leadObj);
-                if (newLeads.length >= count) break;
+            if (apifyRes.ok) {
+              const resData = await apifyRes.json();
+              if (Array.isArray(resData) && resData.length > 0) {
+                profiles = resData;
+                break; // Encontrou perfis reais!
               }
             } else {
-              apifyErrorMsg = `Nenhum perfil encontrado para "${targetRole}" + "${niche}" em "${location}". Tente ajustar os filtros.`;
+              lastApifyStatus = apifyRes.status;
+              lastErrText = await apifyRes.text().catch(() => '');
+              console.warn(`Apify erro HTTP ${apifyRes.status}: ${lastErrText.slice(0, 150)}`);
+              break; // Se deu erro de token/autenticação/status HTTP, interrompe para reportar o erro real
+            }
+          }
+
+          const extractedLinks = new Set();
+          if (Array.isArray(profiles) && profiles.length > 0) {
+            for (const p of profiles) {
+              const realPersonName = p.fullName || p.name || p.title?.split('-')[0] || '';
+              const realRole = p.headline || p.title || targetRole || 'CEO';
+              const realCompany = p.currentCompany?.name || p.company || p.companyName || '';
+              const linkedinUrl = p.profileUrl || p.linkedinUrl || p.url || '';
+
+              if (!linkedinUrl || extractedLinks.has(linkedinUrl)) continue;
+              extractedLinks.add(linkedinUrl);
+
+              const domBase = realCompany.toLowerCase().replace(/[^a-z0-9]/g, '');
+              const dom = domBase ? `${domBase}.com.br` : '';
+
+              const leadObj = {
+                id: `apify_linkedin_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+                domain: dom,
+                company: realCompany || 'Empresa LinkedIn',
+                contactName: realPersonName || 'Decisor',
+                contactRole: realRole,
+                linkedinUrl: linkedinUrl,
+                photoUrl: p.photoUrl || p.profilePicture || '',
+                email: '',
+                phone: '',
+                address: p.location || location || 'Brasil',
+                niche: niche || 'Geral',
+                location: location || 'Brasil',
+                companySize: companySize || '20-200 funcionários',
+                source: 'linkedin',
+                status: 'unscanned',
+                createdAt: new Date().toISOString()
+              };
+              newLeads.push(leadObj);
+              if (newLeads.length >= count) break;
             }
           } else {
-            const errText = await apifyRes.text().catch(() => '');
-            apifyErrorMsg = `Apify API erro ${apifyRes.status}: ${errText.slice(0, 200)}. Verifique as configurações da APIFY_API_TOKEN no servidor.`;
-            console.warn(apifyErrorMsg);
+            if (lastApifyStatus !== 200) {
+              apifyErrorMsg = `Apify API erro ${lastApifyStatus}: ${lastErrText.slice(0, 200)}. Verifique a chave APIFY_API_TOKEN no servidor.`;
+            } else {
+              apifyErrorMsg = `Nenhum perfil encontrado no LinkedIn para "${targetRole}" + "${niche}" em "${location}". Tente simplificar os termos.`;
+            }
           }
         } catch (apifyErr) {
-          apifyErrorMsg = `Erro ao chamar Apify: ${apifyErr.message}`;
+          apifyErrorMsg = `Erro ao conectar na Apify API: ${apifyErr.message}`;
           console.error(apifyErrorMsg);
         }
       } else {
