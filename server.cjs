@@ -17,7 +17,6 @@ const {
   buildActionList,
   generateHtmlReport,
   generateClientHtmlReport,
-  generatePdfReport,
   generateRobotsTxt,
   generateJsonLdSchema,
   generateLlmsTxtContent,
@@ -1267,65 +1266,9 @@ app.get('/api/admin/diagnostic/html/:leadId', verifyAdminToken, async (req, res)
   }
 });
 
-// ─── DOWNLOAD PDF DIAGNOSTIC ────────────────────────────────────────────────
-app.get('/api/admin/diagnostic/pdf/:leadId', verifyAdminToken, async (req, res) => {
-  const { leadId } = req.params;
-  try {
-    const accessToken = await getGoogleAccessToken();
-    const leadsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-
-    function fromFs(val) {
-      if (!val) return null;
-      if ('stringValue' in val) return val.stringValue;
-      if ('integerValue' in val) return parseInt(val.integerValue);
-      if ('doubleValue' in val) return val.doubleValue;
-      if ('booleanValue' in val) return val.booleanValue;
-      if ('nullValue' in val) return null;
-      if ('arrayValue' in val) return (val.arrayValue?.values || []).map(fromFs);
-      if ('mapValue' in val) {
-        const res = {};
-        for (const [k, v] of Object.entries(val.mapValue?.fields || {})) { res[k] = fromFs(v); }
-        return res;
-      }
-      return null;
-    }
-
-    let lead = null;
-    for (const doc of (leadsData.documents || [])) {
-      const f = doc.fields || {};
-      if (f.id?.stringValue === leadId || doc.name.split('/').pop() === leadId) {
-        lead = { url: f.url?.stringValue, email: f.email?.stringValue, name: f.name?.stringValue, company: f.company?.stringValue };
-        break;
-      }
-    }
-    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
-
-    const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-
-    let diagnostic = null;
-    for (const doc of (diagData.documents || [])) {
-      const diag = {};
-      for (const [k, v] of Object.entries(doc.fields || {})) { diag[k] = fromFs(v); }
-      if (diag.leadId === leadId || diag.clientId === leadId) {
-        diagnostic = diag;
-        break;
-      }
-    }
-    if (!diagnostic) return res.status(404).json({ error: 'Diagnóstico não encontrado' });
-
-    const pdfBuffer = await generatePdfReport(lead, diagnostic);
-    const domain = (lead.url || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.pdf"`);
-    res.send(pdfBuffer);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+// ─── REDIRECIONAMENTO LEGADO DE PDF PARA HTML ─────────────────────────────
+app.get('/api/admin/diagnostic/pdf/:leadId', verifyAdminToken, (req, res) => {
+  res.redirect(`/api/admin/diagnostic/html/${req.params.leadId}`);
 });
 
 // ─── AUDIT FILES & SCREENSHOTS API ──────────────────────────────────────────
@@ -2757,6 +2700,8 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 extractedPlaceKeys.add(placeKey);
 
                 const rawWebsite = place.website || place.url || '';
+                // fullUrl preserva o path completo (ex: instagram.com/setebarbasbarber); dom fica só com o hostname
+                const fullUrl = rawWebsite && !/^https?:\/\//i.test(rawWebsite) ? `https://${rawWebsite}` : rawWebsite;
                 let dom = rawWebsite
                   ? rawWebsite.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '').toLowerCase()
                   : '';
@@ -2785,7 +2730,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 const leadObj = {
                   id: `google_maps_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
                   domain: dom,
-                  website: rawWebsite || '',
+                  website: fullUrl || '',
                   isSocialOnly,
                   company: placeTitle,
                   contactName: '',
@@ -3294,17 +3239,17 @@ app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) =
   const babEmail = `Assunto: Como posicionar a ${company} em 1º lugar no ChatGPT, Gemini, Claude e Perplexity\n\nOlá ${name},\n\nImagine o seguinte cenário: um tomador de decisão pesquisa nas principais IAs "quais as melhores soluções de ${niche} do mercado?". Hoje, as IAs respondem recomendando a ${competitor} e o site ${domain} fica de fora.\n\nAgora imagine o cenário ideal: a ${company} sendo a fonte primária citada em 100% das buscas de IA com link direto para o seu atendimento.\n\nÉ exatamente esse resultado que entregamos com nosso protocolo de GEO (Generative Engine Optimization).\n\nCompartilho em anexo a análise técnica detalhada do seu domínio.\n\nAbraços,\nGuilherme Rossi | b.rocket`;
 
   // 3. Framework PASTOR (Problema, Amplificação, Solução, Transformação, Oferta, Resposta)
-  const pastorLinkedin = `Olá ${name}! [P] A ${company} está enfrentando o problema da invisibilidade nas IAs: quando pesquisam por ${niche}, a recomendação vai para a ${competitor}.\n\n[A] Com a migração das buscas para assistentes generativos, depender de links azuis no SEO antigo é um risco comercial grave.\n\n[S/T] Nossa metodologia de GEO (Generative Engine Optimization) de Princeton aumenta em até 40% a citabilidade de marcas.\n\n[O/R] Elaborei o relatório completo com os ajustes do seu domínio. Quer que eu te envie em PDF?`;
+  const pastorLinkedin = `Olá ${name}! [P] A ${company} está enfrentando o problema da invisibilidade nas IAs: quando pesquisam por ${niche}, a recomendação vai para a ${competitor}.\n\n[A] Com a migração das buscas para assistentes generativos, depender de links azuis no SEO antigo é um risco comercial grave.\n\n[S/T] Nossa metodologia de GEO (Generative Engine Optimization) de Princeton aumenta em até 40% a citabilidade de marcas.\n\n[O/R] Elaborei o relatório completo com os ajustes do seu domínio. Quer que eu te envie em Arquivo HTML?`;
 
   const pastorEmail = `Assunto: Diagnóstico PASTOR — Como a ${company} pode assumir a liderança nas IAs generativas\n\nOlá ${name},\n\n[PROBLEMA] Se um cliente em potencial perguntar ao ChatGPT ou Gemini agora qual a melhor empresa de ${niche}, a ${company} não é citada.\n\n[AMPLIFICAÇÃO] Com a explosão do tráfego resolvida sem cliques dentro das IAs (Cenário Zero-Click), manter o site ${domain} com Score GEO de ${score}% significa perder clientes diariamente para a ${competitor}.\n\n[SOLUÇÃO] A b.rocket aplica o protocolo de Generative Engine Optimization (GEO) desenvolvido em pesquisas de Princeton, Cornell e Georgia Tech.\n\n[TRANSFORMAÇÃO] Nossos clientes atingem até +40% de citabilidade direta no ChatGPT, Gemini, Claude e Perplexity em poucas semanas.\n\n[OFERTA] Concluímos uma auditoria completa do seu site incluindo correções de robots.txt, Schemas JSON-LD e blocos AEO.\n\n[RESPOSTA] Responda este e-mail para agendar uma reunião rápida de 15 minutos de alinhamento estratégico.\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`;
 
   // 4. Framework QUEST (Qualificar, Compreender, Educar, Estimular, Transição)
-  const questLinkedin = `Olá ${name}! Este diagnóstico é exclusivo para lideranças da ${company}.\n\nCompreendemos a frustração de investir em conteúdo e ver as IAs indicando a ${competitor}.\n\nEducamos sobre a busca vetorial: as LLMs leem o site em chunks e exigem marcação AEO.\n\nEstimulamos o cenário onde a ${company} é recomendada em 100% dos testes. Posso enviar o PDF completo?`;
+  const questLinkedin = `Olá ${name}! Este diagnóstico é exclusivo para lideranças da ${company}.\n\nCompreendemos a frustração de investir em conteúdo e ver as IAs indicando a ${competitor}.\n\nEducamos sobre a busca vetorial: as LLMs leem o site em chunks e exigem marcação AEO.\n\nEstimulamos o cenário onde a ${company} é recomendada em 100% dos testes. Posso enviar o relatório HTML completo?`;
 
   const questEmail = `Assunto: Análise Exclusiva QUEST para a liderança da ${company}\n\nOlá ${name},\n\n[QUALIFICAR] Este e-mail é destinado exclusivamente ao time de liderança da ${company}.\n\n[COMPREENDER] Sabemos como é frustrante investir em marketing e autoridade, enquanto as plataformas generativas (ChatGPT, Gemini, Claude e Perplexity) continuam recomendando a ${competitor}.\n\n[EDUCAR] Diferente do Google tradicional, as LLMs não buscam por palavras-chave isoladas. Elas absorvem seu site em "chunks vetoriais". ${robotsBlocked ? `Hoje o seu robots.txt bloqueia essa leitura.` : `Seu site permite o robô, mas falta sintaxe AEO (Answer-First).`}\n\n[ESTIMULAR] Imagine a ${company} com infraestrutura pronta, aparecendo como indicação #1 quando qualquer decisor pedir recomendação de ${niche}.\n\n[TRANSIÇÃO] Disponibilizamos em anexo a auditoria técnica da b.rocket. Vamos conversar nesta quinta-feira?\n\nAbraços,\nGuilherme Rossi | b.rocket`;
 
   // 5. Framework 4Ps (Picture, Promessa, Prova, Push)
-  const ps4Linkedin = `${name}, imagine o ChatGPT e o Gemini gerando respostas sobre ${niche} e citando a ${company} como a opção #1 do mercado!\n\nPrometemos preparar sua infraestrutura técnica para dominar a citabilidade nas IAs em 30 dias.\n\nProvado pelos estudos científicos de Princeton e Georgia Tech.\n\nClique para receber a auditoria gratuita em PDF!`;
+  const ps4Linkedin = `${name}, imagine o ChatGPT e o Gemini gerando respostas sobre ${niche} e citando a ${company} como a opção #1 do mercado!\n\nPrometemos preparar sua infraestrutura técnica para dominar a citabilidade nas IAs em 30 dias.\n\nProvado pelos estudos científicos de Princeton e Georgia Tech.\n\nClique para receber a auditoria gratuita em Arquivo HTML!`;
 
   const ps4Email = `Assunto: Dominando as recomendações de IA: Relatório 4Ps da ${company}\n\nOlá ${name},\n\n[PICTURE] Imagine o Gemini, ChatGPT, Claude e Perplexity gerando relatórios comparativos sobre o seu segmento e posicionando a ${company} como a indicação de autoridade máxima no Brasil.\n\n[PROMESSA] O protocolo de GEO da b.rocket ajusta sua arquitetura técnica para que sua empresa alcance a liderança orgânica nas LLMs em até 30 dias.\n\n[PROVA] Nossa metodologia é respaldada pelo estudo científico seminal de Princeton, Cornell e Georgia Tech, comprovando o ganho de até 40% em visibilidade de IA.\n\n[PUSH] Confira o diagnóstico em anexo do site ${domain} e agende uma conversa com nosso time estratégico.\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`;
 
@@ -3319,7 +3264,7 @@ app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) =
   const accaEmail = `Assunto: ALERTA GEO — A revolução do tráfego Zero-Click na ${company}\n\nOlá ${name},\n\n[ALERTA] O tráfego de busca tradicional baseado em cliques está despencando devido ao avanço das respostas resolvidas dentro das IAs (Cenário Zero-Click).\n\n[COMPREENSÃO] As inteligências artificiais utilizam o pipeline RAG. Se o site ${domain} ${robotsBlocked ? 'bloqueia os robôs no robots.txt' : 'não tem blocos AEO e Schemas'}, a ${company} torna-se invisível.\n\n[CONVICÇÃO] Obter a auditoria e aplicar o protocolo GEO da b.rocket é o único caminho seguro para garantir a citabilidade da sua marca no ChatGPT, Gemini, Claude e Perplexity.\n\n[AÇÃO] Baixe a análise em anexo e agende um horário para implementação.\n\nAbraços,\nGuilherme Rossi | b.rocket`;
 
   // 8. Framework 4Us (Útil, Urgente, Único, Ultra-específico)
-  const us4Linkedin = `Sua marca invisível nas IAs? Score GEO da ${company} está em ${score}% (${robotsBlocked ? 'bloqueia robôs de IA' : 'falta marcação AEO'}).\n\nEnquanto isso, a ${competitor} é recomendada no ChatGPT e Gemini.\n\nVeja como liberar em segundos a visibilidade de 12 robôs no nosso PDF exclusivo. Quer receber?`;
+  const us4Linkedin = `Sua marca invisível nas IAs? Score GEO da ${company} está em ${score}% (${robotsBlocked ? 'bloqueia robôs de IA' : 'falta marcação AEO'}).\n\nEnquanto isso, a ${competitor} é recomendada no ChatGPT e Gemini.\n\nVeja como liberar em segundos a visibilidade de 12 robôs no nosso relatório HTML exclusivo. Quer receber?`;
 
   const us4Email = `Assunto: [ÚLTIMOS DIAS] Score GEO da ${company} em ${score}% — ${competitor} lidera nas IAs\n\nOlá ${name},\n\n[ÚTIL] Como resolver a invisibilidade da ${company} nas inteligências artificiais.\n\n[URGENTE] A ${competitor} está capturando os leads de alta intenção comercial no ChatGPT, Gemini, Claude e Perplexity hoje.\n\n[ÚNICO] Metodologia exclusiva de Generative Engine Optimization (GEO) desenvolvida pela b.rocket.\n\n[ULTRA-ESPECÍFICO] O diagnóstico do site ${domain} revelou GEO Score de ${score}%, ${robotsBlocked ? 'com restrição ativa para 4 crawlers de IA no robots.txt' : 'ausência de blocos AEO Answer-First'}.\n\nLeia a análise técnica completa em anexo.\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`;
 
@@ -3410,7 +3355,7 @@ app.get('/api/admin/lead-hunter/html/:leadId', verifyAdminToken, async (req, res
   }
 });
 
-// GET /api/admin/lead-hunter/pdf/:leadId (Baixar Relatório PDF de Página Única 100% Idêntico)
+// GET /api/admin/lead-hunter/pdf/:leadId (Entregar Relatório HTML)
 app.get('/api/admin/lead-hunter/pdf/:leadId', verifyAdminToken, async (req, res) => {
   const { leadId } = req.params;
   try {
@@ -3433,23 +3378,14 @@ app.get('/api/admin/lead-hunter/pdf/:leadId', verifyAdminToken, async (req, res)
       url: diagnostic?.clientUrl || `https://${leadId}` 
     };
 
-    const pdfBuffer = await generatePdfReport(leadObj, diagnostic || { overallGeoScore: 35 }, true);
+    const htmlContent = generateClientHtmlReport(leadObj, diagnostic || { overallGeoScore: 35 });
     const domain = (diagnostic?.clientUrl || leadId).replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
 
-    // Detecta se é um PDF real (inicia com %PDF) ou HTML fallback
-    const isRealPdf = pdfBuffer.slice(0, 4).toString() === '%PDF';
-
-    if (isRealPdf) {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.pdf"`);
-    } else {
-      // Fallback: HTML visualmente idêntico — entregar como .html para o usuário imprimir via browser
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.html"`);
-    }
-    res.send(pdfBuffer);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.html"`);
+    res.send(htmlContent);
   } catch (err) {
-    console.error('PDF download error:', err);
+    console.error('HTML report download error:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -3544,7 +3480,7 @@ app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res)
       attachments: []
     };
 
-    // If PDF attachment is requested
+    // Se solicitado anexo do relatório HTML
     if (attachPdf && leadId) {
       try {
         const accessToken = await getGoogleAccessToken();
@@ -3562,15 +3498,15 @@ app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res)
         }
 
         const leadObj = { company: recipientEmail.split('@')[1] || 'Cliente', url: `https://${recipientEmail.split('@')[1] || 'site.com'}` };
-        const pdfBuffer = await generatePdfReport(leadObj, diagnostic || { overallGeoScore: 35 }, true);
+        const htmlReportContent = generateClientHtmlReport(leadObj, diagnostic || { overallGeoScore: 35 });
 
         mailOptions.attachments.push({
-          filename: `Relatorio_GEO_${recipientEmail.split('@')[1] || 'b.rocket'}.pdf`,
-          content: pdfBuffer,
-          contentType: 'application/pdf'
+          filename: `Relatorio_GEO_${recipientEmail.split('@')[1] || 'b.rocket'}.html`,
+          content: htmlReportContent,
+          contentType: 'text/html'
         });
       } catch (attachErr) {
-        console.warn('Warning generating PDF attachment for email:', attachErr.message);
+        console.warn('Warning generating HTML attachment for email:', attachErr.message);
       }
     }
 

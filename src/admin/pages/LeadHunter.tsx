@@ -31,6 +31,8 @@ export interface SentHistoryItem {
 export interface HunterLead {
   id: string;
   domain: string;
+  website?: string;
+  isSocialOnly?: boolean;
   company: string;
   contactName: string;
   contactRole: string;
@@ -72,7 +74,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [generatingCopyId, setGeneratingCopyId] = useState<string | null>(null);
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
   const [savingCopy, setSavingCopy] = useState(false);
 
@@ -91,7 +92,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [editedEmailText, setEditedEmailText] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [attachReportLink, setAttachReportLink] = useState(true);
-  const [attachPdfReport, setAttachPdfReport] = useState(true);
+  const [attachHtmlReport, setAttachHtmlReport] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
   // HTML Report Preview Modal & Lead Editing State
@@ -334,35 +335,31 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     }
   };
 
-  // Download PDF Report (Single Page)
-  const handleDownloadPdfReport = async (lead: HunterLead) => {
-    setDownloadingPdfId(lead.id);
-    showToastMsg(`Gerando PDF oficial para ${lead.domain}...`);
+  // Download HTML Report
+  const handleDownloadHtmlReport = async (lead: HunterLead) => {
+    showToastMsg(`Baixando relatório HTML para ${lead.domain}...`);
     try {
       const token = await getAdminToken();
-      const res = await fetch(`/api/admin/lead-hunter/pdf/${lead.id}`, {
+      const res = await fetch(`/api/admin/lead-hunter/html/${lead.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        const contentType = res.headers.get('content-type') || '';
-        const isPdf = contentType.includes('application/pdf');
-
-        const blob = await res.blob();
+        const text = await res.text();
+        const blob = new Blob([text], { type: 'text/html;charset=utf-8' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Relatorio_GEO_${lead.domain}.${isPdf ? 'pdf' : 'html'}`;
+        a.download = `Relatorio_GEO_${lead.domain}.html`;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        showToastMsg('Download do PDF concluído!');
+        window.URL.revokeObjectURL(url);
+        showToastMsg('Download do Relatório HTML concluído!');
       } else {
-        showToastMsg('Erro ao gerar PDF do relatório. Execute o Audit primeiro.');
+        showToastMsg('Erro ao gerar relatório HTML. Execute o Audit primeiro.');
       }
     } catch (err: any) {
-      showToastMsg(`Erro no download PDF: ${err.message}`);
-    } finally {
-      setDownloadingPdfId(null);
+      showToastMsg(`Erro no download do relatório: ${err.message}`);
     }
   };
 
@@ -491,7 +488,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           recipientEmail,
           subject,
           emailBody: body,
-          attachPdf: attachPdfReport
+          attachPdf: attachHtmlReport
         })
       });
 
@@ -504,7 +501,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           sentAt: new Date().toISOString(),
           channel: 'email',
           subject,
-          attachPdf: attachPdfReport
+          attachPdf: attachHtmlReport
         };
 
         const updatedHistory = [...(selectedLeadForCopy.sentHistory || []), newHistoryItem];
@@ -785,13 +782,13 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                           {lead.source === 'google' ? '📍 Google Business' : '💼 LinkedIn'}
                         </span>
                         <h3 className="font-bold text-base text-zinc-950 font-display">{lead.company}</h3>
-                        <a 
-                          href={`https://${lead.domain}`} 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href={lead.website || `https://${lead.domain}`}
+                          target="_blank"
+                          rel="noreferrer"
                           className="text-xs text-blue-600 hover:underline font-mono"
                         >
-                          {lead.domain} ↗
+                          {lead.isSocialOnly ? (lead.website || lead.domain) : lead.domain} ↗
                         </a>
                         {lead.niche && (
                           <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded text-[10px] font-mono">
@@ -937,11 +934,10 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                         <span>👁️ Ver HTML</span>
                       </button>
                       <button
-                        onClick={() => handleDownloadPdfReport(lead)}
-                        disabled={downloadingPdfId === lead.id}
-                        className="h-9 px-3.5 bg-white hover:bg-red-50 text-red-700 border border-zinc-300 hover:border-red-200 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                        onClick={() => handleDownloadHtmlReport(lead)}
+                        className="h-9 px-3.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-zinc-300 hover:border-emerald-300 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
                       >
-                        {downloadingPdfId === lead.id ? 'Baixando...' : '📕 Baixar PDF'}
+                        <span>🌐 Baixar HTML</span>
                       </button>
                     </div>
 
@@ -1139,11 +1135,11 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                   <label className="font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
                     <input 
                       type="checkbox" 
-                      checked={attachPdfReport} 
-                      onChange={e => setAttachPdfReport(e.target.checked)} 
+                      checked={attachHtmlReport} 
+                      onChange={e => setAttachHtmlReport(e.target.checked)} 
                       className="rounded text-emerald-600 focus:ring-emerald-500"
                     />
-                    <span>Anexar Relatório PDF no E-mail</span>
+                    <span>Anexar Relatório HTML no E-mail</span>
                   </label>
                   <label className="font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
                     <input 

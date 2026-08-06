@@ -196,23 +196,6 @@ export function useLeads() {
     });
   }, []);
 
-  const downloadPdfReport = useCallback(async (leadId: string, filename?: string) => {
-    const token = await auth.currentUser?.getIdToken(false);
-    const res = await fetch(`${API_BASE}/admin/diagnostic/pdf/${leadId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error('Falha ao baixar PDF.');
-    const blob = await res.blob();
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || `Relatorio_GEO_${leadId}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-  }, []);
-
   const downloadHtmlReport = useCallback(async (leadId: string, companyOrDomain?: string) => {
     const token = await auth.currentUser?.getIdToken(false);
     const res = await fetch(`${API_BASE}/admin/diagnostic/html/${leadId}`, {
@@ -241,7 +224,7 @@ export function useLeads() {
     });
   }, []);
 
-  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadPdfReport, downloadHtmlReport };
+  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadHtmlReport };
 }
 
 export function useDiagnostic(leadId: string | null) {

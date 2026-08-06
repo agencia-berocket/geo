@@ -151,7 +151,7 @@ function DeliverableCard({ title, description, content: initialContent, filename
 // ─── PANEL: HISTORY & EVOLUTION (Antes vs. Depois) ───────────────────────────
 function ClientHistoryPanel({ client }: { client: Client }) {
   const { fetchClientHistory } = useClients();
-  const { downloadPdfReport } = useLeads();
+  const { downloadHtmlReport } = useLeads();
   const [historyData, setHistoryData] = useState<ClientHistory | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -287,10 +287,10 @@ function ClientHistoryPanel({ client }: { client: Client }) {
                   Score: {diag.overallGeoScore}%
                 </span>
                 <button
-                  onClick={() => downloadPdfReport(client.leadId || client.id, `Relatorio_GEO_${client.company || 'Cliente'}_${index + 1}.pdf`)}
+                  onClick={() => downloadHtmlReport(client.leadId || client.id, client.company || 'Cliente')}
                   className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold px-3 py-1.5 rounded-lg transition-all shadow-xs cursor-pointer"
                 >
-                  📄 Download PDF
+                  🌐 Baixar Relatório HTML
                 </button>
               </div>
             </div>

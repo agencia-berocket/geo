@@ -25,7 +25,7 @@ const fileExplanations: Record<string, string> = {
 };
 
 const agentsList = [
-  { id: 'orchestrator', name: 'Orquestrador Principal', desc: 'Gerencia o pipeline, divide tarefas e consolida o b.rocket GEO-Score e relatórios PDF.' },
+  { id: 'orchestrator', name: 'Orquestrador Principal', desc: 'Gerencia o pipeline, divide tarefas e consolida o b.rocket GEO-Score e relatórios HTML.' },
   { id: 'gatekeeper', name: 'Technical Gatekeeper', desc: 'Audita robots.txt, ativação de SSR, latência do servidor e indexabilidade para robôs de IA.' },
   { id: 'metadata', name: 'Metadata Entity', desc: 'Valida Schemas JSON-LD (Organization, Person, FAQ) e cria mapas de RAG em /llms.txt.' },
   { id: 'content', name: 'Content Absorption', desc: 'Revisa modularidade, tamanho de chunks, Answer-First e fatores científicos de Princeton.' },

@@ -126,7 +126,7 @@ export default function Process() {
             <div className="flex items-center justify-between border-b border-zinc-200/60 pb-2 mb-2">
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
-                <span className="font-bold uppercase tracking-wider text-zinc-400">PDF_REPORT_GENERATED</span>
+                <span className="font-bold uppercase tracking-wider text-zinc-400">HTML_REPORT_GENERATED</span>
               </div>
               <span className="text-zinc-400">READY</span>
             </div>
@@ -134,7 +134,7 @@ export default function Process() {
             {/* Document representation */}
             <div className="bg-white border border-zinc-200/80 p-2.5 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] flex-grow flex flex-col justify-between relative overflow-hidden h-[105px] hover:border-zinc-300 transition-colors">
               <div className="absolute top-0 right-0 bg-emerald-500 text-zinc-950 text-[5px] font-black px-2 py-0.5 rounded-bl uppercase tracking-wider">
-                GEO_REPORT.PDF
+                GEO_REPORT.HTML
               </div>
 
               {/* Inner mini grid display */}
@@ -162,7 +162,7 @@ export default function Process() {
                 </div>
               </div>
 
-              {/* Bottom PDF indicator download buttons */}
+              {/* Bottom HTML indicator download buttons */}
               <div className="flex justify-between items-center border-t border-zinc-100 pt-1.5 mt-1">
                 <div className="flex items-center gap-1">
                   <FileText className="w-2.5 h-2.5 text-zinc-500" />
