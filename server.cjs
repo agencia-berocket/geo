@@ -2599,7 +2599,12 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           let lastErrText = '';
 
           for (const queryKw of searchQueries) {
-            console.log(`💼 Conectando ao Apify harvestapi/linkedin-profile-search [Query: "${queryKw}"] [Local: "${location}"]...`);
+            console.log(`💼 Conectando ao Apify harvestapi/linkedin-profile-search [searchQuery: "${queryKw}"] [locations: "${location}"]...`);
+
+            const locArray = location ? [location] : ['Brazil'];
+            if (location && location.toLowerCase() === 'brasil' && !locArray.includes('Brazil')) {
+              locArray.push('Brazil');
+            }
 
             const apifyRes = await fetch(
               `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
@@ -2607,10 +2612,10 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  keywords: queryKw,
-                  location: location || 'Brazil',
-                  limit: Math.min(count * 2, 50),
-                  proxyConfiguration: { useApifyProxy: true }
+                  searchQuery: queryKw,
+                  locations: locArray,
+                  maxItems: Math.min(count * 2, 50),
+                  profileScraperMode: 'Short'
                 })
               }
             );
