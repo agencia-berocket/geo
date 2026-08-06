@@ -41,9 +41,25 @@ interface HunterLead {
     pasEmail?: string;
     babLinkedin?: string;
     babEmail?: string;
+    pastorLinkedin?: string;
+    pastorEmail?: string;
+    questLinkedin?: string;
+    questEmail?: string;
+    ps4Linkedin?: string;
+    ps4Email?: string;
+    fabLinkedin?: string;
+    fabEmail?: string;
+    accaLinkedin?: string;
+    accaEmail?: string;
+    us4Linkedin?: string;
+    us4Email?: string;
+    falsaLogicaLinkedin?: string;
+    falsaLogicaEmail?: string;
   };
   createdAt: string;
 }
+
+type CopyFramework = 'PAS' | 'BAB' | 'PASTOR' | 'QUEST' | '4Ps' | 'FAB' | 'ACCA' | '4Us' | 'Falsa Lógica';
 
 interface LeadHunterProps {
   onNavigate?: (page: string, id?: string) => void;
@@ -69,7 +85,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
   // Copy View Modal
   const [selectedLeadForCopy, setSelectedLeadForCopy] = useState<HunterLead | null>(null);
-  const [copyTab, setCopyTab] = useState<'PAS' | 'BAB'>('PAS');
+  const [copyTab, setCopyTab] = useState<CopyFramework>('PAS');
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [attachReportLink, setAttachReportLink] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
@@ -196,7 +212,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Copys dinâmicas geradas com sucesso para ${lead.company}!`);
+        showToastMsg(`9 Copys de alto impacto geradas com sucesso para ${lead.company}!`);
         const updated = { ...lead, outreachCopies: data.outreachCopies, status: 'outreach_ready' as const };
         setLeads(prev => prev.map(l => l.id === lead.id ? updated : l));
         setSelectedLeadForCopy(updated);
@@ -312,12 +328,43 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     }
   };
 
+  // Resolve copies by framework
+  const getLinkedinCopy = (lead: HunterLead, tab: CopyFramework) => {
+    const c = lead.outreachCopies || {};
+    switch (tab) {
+      case 'PAS': return c.pasLinkedin || 'Gerando copy PAS...';
+      case 'BAB': return c.babLinkedin || 'Gerando copy BAB...';
+      case 'PASTOR': return c.pastorLinkedin || 'Gerando copy PASTOR...';
+      case 'QUEST': return c.questLinkedin || 'Gerando copy QUEST...';
+      case '4Ps': return c.ps4Linkedin || 'Gerando copy 4Ps...';
+      case 'FAB': return c.fabLinkedin || 'Gerando copy FAB...';
+      case 'ACCA': return c.accaLinkedin || 'Gerando copy ACCA...';
+      case '4Us': return c.us4Linkedin || 'Gerando copy 4Us...';
+      case 'Falsa Lógica': return c.falsaLogicaLinkedin || 'Gerando copy Falsa Lógica...';
+      default: return c.pasLinkedin || '';
+    }
+  };
+
+  const getEmailCopy = (lead: HunterLead, tab: CopyFramework) => {
+    const c = lead.outreachCopies || {};
+    switch (tab) {
+      case 'PAS': return c.pasEmail || 'Gerando e-mail PAS...';
+      case 'BAB': return c.babEmail || 'Gerando e-mail BAB...';
+      case 'PASTOR': return c.pastorEmail || 'Gerando e-mail PASTOR...';
+      case 'QUEST': return c.questEmail || 'Gerando e-mail QUEST...';
+      case '4Ps': return c.ps4Email || 'Gerando e-mail 4Ps...';
+      case 'FAB': return c.fabEmail || 'Gerando e-mail FAB...';
+      case 'ACCA': return c.accaEmail || 'Gerando e-mail ACCA...';
+      case '4Us': return c.us4Email || 'Gerando e-mail 4Us...';
+      case 'Falsa Lógica': return c.falsaLogicaEmail || 'Gerando e-mail Falsa Lógica...';
+      default: return c.pasEmail || '';
+    }
+  };
+
   const handleSendDirectEmail = async () => {
     if (!selectedLeadForCopy) return;
     const recipientEmail = selectedLeadForCopy.email;
-    let currentEmailCopy = copyTab === 'PAS' 
-      ? selectedLeadForCopy.outreachCopies?.pasEmail 
-      : selectedLeadForCopy.outreachCopies?.babEmail;
+    let currentEmailCopy = getEmailCopy(selectedLeadForCopy, copyTab);
 
     if (!currentEmailCopy) {
       showToastMsg('Gere primeiro a copy antes de enviar o e-mail');
@@ -383,6 +430,18 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const readyLeads = leads.filter(l => l.status === 'outreach_ready' || l.outreachCopies).length;
   const blockedRobots = leads.filter(l => l.aiCrawlersBlocked).length;
 
+  const frameworksList: { key: CopyFramework; label: string; desc: string }[] = [
+    { key: 'PAS', label: 'PAS', desc: 'Problema-Agitação-Solução' },
+    { key: 'BAB', label: 'BAB', desc: 'Before-After-Bridge' },
+    { key: 'PASTOR', label: 'PASTOR', desc: 'Problema-Amplificação-Transformação' },
+    { key: 'QUEST', label: 'QUEST', desc: 'Qualificar-Educar-Transição' },
+    { key: '4Ps', label: '4Ps', desc: 'Picture-Promessa-Prova-Push' },
+    { key: 'FAB', label: 'FAB', desc: 'Features-Advantages-Benefits' },
+    { key: 'ACCA', label: 'ACCA', desc: 'Alerta-Compreensão-Convicção' },
+    { key: '4Us', label: '4Us', desc: 'Útil-Urgente-Único-Ultraespecífico' },
+    { key: 'Falsa Lógica', label: 'Falsa Lógica', desc: 'Persuasão por Lógica Incontestável' },
+  ];
+
   return (
     <div className="space-y-6">
       
@@ -401,7 +460,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold tracking-wider">
-                AGENTE SDR/BDR DIGITAL // MOTOR UNIFICADO 8 AGENTES
+                AGENTE SDR/BDR DIGITAL // 9 FRAMEWORKS DE COPYWRITING
               </span>
               <span className="text-[10px] font-mono text-zinc-400">lead_hunter_v10</span>
             </div>
@@ -410,7 +469,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               Lead Hunter — Inteligência Comercial Outbound
             </h1>
             <p className="text-zinc-400 text-xs mt-1 max-w-2xl leading-relaxed">
-              Mineração autônoma de ICPs via Apify, diagnóstico unificado com 8 agentes especialistas (ChatGPT, Gemini, Claude e Perplexity) e envio de copys diretas.
+              Mineração autônoma via Apify, diagnóstico de 8 agentes especialistas e gerador avançado com 9 frameworks de copywriting (PAS, BAB, PASTOR, QUEST, 4Ps, FAB, ACCA, 4Us e Falsa Lógica).
             </p>
           </div>
 
@@ -730,7 +789,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                           className="p-2 rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1 shadow-xs"
                         >
                           <IconSend className={`w-3.5 h-3.5 text-emerald-400 ${generatingCopyId === lead.id ? 'animate-bounce' : ''}`} />
-                          <span>{lead.outreachCopies ? 'Ver Copys' : 'Gerar Copy'}</span>
+                          <span>{lead.outreachCopies ? 'Ver Copys (9 Estruturas)' : 'Gerar 9 Copys'}</span>
                         </button>
 
                         {/* Promote to Main Diagnostic */}
@@ -767,12 +826,12 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
       {/* Copy Viewer & Email Dispatcher Modal */}
       {selectedLeadForCopy && (
         <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-zinc-200 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-zinc-200 space-y-4 max-h-[92vh] overflow-y-auto">
             
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
                 <span className="text-[10px] font-mono uppercase bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                  Copys Geradas com Base na Auditoria Real (ChatGPT, Gemini, Claude & Perplexity)
+                  9 Frameworks de Copywriting (ChatGPT, Gemini, Claude & Perplexity)
                 </span>
                 <h3 className="text-lg font-bold text-zinc-900 font-display mt-1">
                   Abordagem para {selectedLeadForCopy.contactName || selectedLeadForCopy.company} ({selectedLeadForCopy.company})
@@ -786,28 +845,27 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               </button>
             </div>
 
-            {/* Framework Switcher Tabs */}
-            <div className="flex gap-2 border-b border-zinc-100 pb-2">
-              <button
-                onClick={() => setCopyTab('PAS')}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  copyTab === 'PAS' 
-                    ? 'bg-zinc-950 text-white shadow-sm' 
-                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                }`}
-              >
-                Modelo PAS (Problema-Agitação-Solução)
-              </button>
-              <button
-                onClick={() => setCopyTab('BAB')}
-                className={`px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                  copyTab === 'BAB' 
-                    ? 'bg-zinc-950 text-white shadow-sm' 
-                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                }`}
-              >
-                Modelo BAB (Before-After-Bridge)
-              </button>
+            {/* Framework Switcher Tabs (9 Options) */}
+            <div className="flex flex-wrap gap-1.5 border-b border-zinc-100 pb-3">
+              {frameworksList.map(fw => (
+                <button
+                  key={fw.key}
+                  onClick={() => setCopyTab(fw.key)}
+                  title={fw.desc}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer font-mono ${
+                    copyTab === fw.key 
+                      ? 'bg-zinc-950 text-white shadow-sm' 
+                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  {fw.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Selected Framework Description Banner */}
+            <div className="px-3 py-2 bg-zinc-100 rounded-xl text-xs font-mono text-zinc-700 border border-zinc-200/80 flex items-center justify-between">
+              <span><strong>Estrutura ativa:</strong> {frameworksList.find(f => f.key === copyTab)?.label} — {frameworksList.find(f => f.key === copyTab)?.desc}</span>
             </div>
 
             {/* Copy Content Sections */}
@@ -817,15 +875,10 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               <div className="tactile-raised p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-zinc-800 font-display flex items-center gap-1.5">
-                    <span>💬 Direct LinkedIn (Curto & Provocador)</span>
+                    <span>💬 Direct LinkedIn ({copyTab})</span>
                   </span>
                   <button
-                    onClick={() => copyToClipboard(
-                      copyTab === 'PAS' 
-                        ? selectedLeadForCopy.outreachCopies?.pasLinkedin || '' 
-                        : selectedLeadForCopy.outreachCopies?.babLinkedin || '',
-                      'linkedin'
-                    )}
+                    onClick={() => copyToClipboard(getLinkedinCopy(selectedLeadForCopy, copyTab), 'linkedin')}
                     className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                   >
                     {copiedField === 'linkedin' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
@@ -833,9 +886,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                   </button>
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-zinc-200 text-xs text-zinc-800 whitespace-pre-wrap font-sans leading-relaxed">
-                  {copyTab === 'PAS' 
-                    ? (selectedLeadForCopy.outreachCopies?.pasLinkedin || 'Gerando modelo PAS...')
-                    : (selectedLeadForCopy.outreachCopies?.babLinkedin || 'Gerando modelo BAB...')}
+                  {getLinkedinCopy(selectedLeadForCopy, copyTab)}
                 </div>
               </div>
 
@@ -847,12 +898,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                   </span>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => copyToClipboard(
-                        copyTab === 'PAS' 
-                          ? selectedLeadForCopy.outreachCopies?.pasEmail || '' 
-                          : selectedLeadForCopy.outreachCopies?.babEmail || '',
-                        'email'
-                      )}
+                      onClick={() => copyToClipboard(getEmailCopy(selectedLeadForCopy, copyTab), 'email')}
                       className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                     >
                       {copiedField === 'email' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
@@ -898,9 +944,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 </div>
 
                 <div className="p-3 bg-white rounded-lg border border-zinc-200 text-xs text-zinc-800 whitespace-pre-wrap font-sans leading-relaxed">
-                  {copyTab === 'PAS' 
-                    ? (selectedLeadForCopy.outreachCopies?.pasEmail || 'Gerando e-mail PAS...')
-                    : (selectedLeadForCopy.outreachCopies?.babEmail || 'Gerando e-mail BAB...')}
+                  {getEmailCopy(selectedLeadForCopy, copyTab)}
                 </div>
               </div>
 
