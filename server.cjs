@@ -2469,68 +2469,165 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
     let newLeads = [];
     let apifyErrorMsg = '';
 
-    // ─── 1. FONTE GOOGLE: Busca Direta Gratuita (R$0 no Apify) ─────────────────
+    // ─── 1. FONTE GOOGLE / MAPS (Locais e Empresas Reais Validadas) ─────────────────
     if (miningSource === 'google') {
-      try {
-        console.log(`🌐 Buscando empresas reais via DuckDuckGo para [${niche}] em [${location}]...`);
-        const queryText = `${niche || 'empresas'} ${location || 'Brasil'} contato`;
-        
-        const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(queryText)}`;
-        const searchRes = await fetch(searchUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-          }
-        });
+      console.log(`🌐 Buscando empresas reais para [${niche}] em [${location}]...`);
 
-        if (searchRes.ok) {
-          const html = await searchRes.text();
-          const extractedDomains = new Set();
-          
-          // Regex para extração de links e títulos dos resultados do DuckDuckGo
-          const titleRegex = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
-          let match;
+      // ── TENTATIVA A: Apify Google Maps Actor (Google Meu Negócio / Places Oficial) ──
+      if (effectiveApifyToken) {
+        try {
+          console.log(`📍 Disparando Apify Google Maps Actor (compass/crawler-google-places)...`);
+          const mapQuery = `${niche || 'Empresas'} ${location || 'Brasil'}`.trim();
 
-          while ((match = titleRegex.exec(html)) !== null && newLeads.length < count) {
-            let rawUrl = match[1] || '';
-            let rawTitle = match[2] || '';
-            
-            // Decodifica URL do redirect do DuckDuckGo se necessário
-            if (rawUrl.includes('uddg=')) {
-              const urlMatch = rawUrl.match(/uddg=([^&]+)/);
-              if (urlMatch) rawUrl = decodeURIComponent(urlMatch[1]);
+          const mapsRes = await fetch(
+            `https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                searchStringsArray: [mapQuery, `${niche} em ${location}`],
+                locationQuery: `${location}, Brasil`,
+                maxCrawledPlacesPerSearch: Math.min(count * 2, 20),
+                language: 'pt-BR'
+              })
             }
+          );
 
-            let dom = rawUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
-            const stopDomains = [
-              'duckduckgo', 'google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 
-              'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 
-              'medium.com', 'linkedin', 'listamais', 'acharesteticas', 'doctoralia', 'telelistas', 'guiamais', 'tripadvisor'
-            ];
-            const isStopDomain = stopDomains.some(sd => dom.toLowerCase().includes(sd));
+          if (mapsRes.ok) {
+            const places = await mapsRes.json();
+            const extractedDomains = new Set();
 
-            if (dom && !isStopDomain && !extractedDomains.has(dom)) {
-              extractedDomains.add(dom);
+            if (Array.isArray(places) && places.length > 0) {
+              for (const place of places) {
+                const rawWebsite = place.website || place.url || '';
+                const placeTitle = place.title || place.name || '';
+                
+                // Valida se o item tem website próprio real (não redes sociais ou links nulos)
+                if (!rawWebsite || !placeTitle) continue;
+
+                let dom = rawWebsite.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '').toLowerCase();
+                
+                const stopDomains = [
+                  'google.com', 'maps.google', 'facebook.com', 'instagram.com', 'youtube.com', 'twitter.com',
+                  'whatsapp.com', 'tripadvisor.com', 'doctoralia.com.br', 'guiamais.com.br', 'telelistas.net',
+                  'listamais.com.br', 'acharesteticas.com.br', 'jusbrasil.com.br', 'reclameaqui.com.br'
+                ];
+                const isStop = stopDomains.some(sd => dom.includes(sd));
+                if (isStop || extractedDomains.has(dom)) continue;
+                extractedDomains.add(dom);
+
+                // Formata endereço e contato real do Google Maps
+                const realPhone = place.phone || place.phoneUnformatted || '';
+                const realAddress = place.address || place.street || `${location}, Brasil`;
+
+                const leadObj = {
+                  id: `google_maps_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+                  domain: dom,
+                  company: placeTitle,
+                  contactName: '',
+                  contactRole: targetRole || 'Diretor / CEO',
+                  linkedinUrl: place.socialMediaProfiles?.linkedIn || '',
+                  email: '',
+                  phone: realPhone,
+                  address: realAddress,
+                  niche: niche || 'Geral',
+                  location: location || 'Brasil',
+                  companySize: companySize || '10-50 funcionários',
+                  source: 'google',
+                  status: 'unscanned',
+                  createdAt: new Date().toISOString()
+                };
+                newLeads.push(leadObj);
+                if (newLeads.length >= count) break;
+              }
+            }
+          }
+        } catch (mapsErr) {
+          console.warn('Google Maps Apify Actor warning:', mapsErr.message);
+        }
+      }
+
+      // ── TENTATIVA B: Filtro Orgânico Estrito (Filtrando agregadores, listas e locais desalinhados) ──
+      if (newLeads.length < count) {
+        try {
+          console.log(`🔎 Complementando via Busca Orgânica Estrita para [${niche}] em [${location}]...`);
+          const queryText = `site oficial "${niche || 'empresa'}" "${location || 'Brasil'}" contato`;
+          
+          const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(queryText)}`;
+          const searchRes = await fetch(searchUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+
+          if (searchRes.ok) {
+            const html = await searchRes.text();
+            const extractedDomains = new Set(newLeads.map(l => l.domain));
+            
+            const titleRegex = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+            let match;
+
+            while ((match = titleRegex.exec(html)) !== null && newLeads.length < count) {
+              let rawUrl = match[1] || '';
+              let rawTitle = match[2] || '';
+              
+              if (rawUrl.includes('uddg=')) {
+                const urlMatch = rawUrl.match(/uddg=([^&]+)/);
+                if (urlMatch) rawUrl = decodeURIComponent(urlMatch[1]);
+              }
+
+              let dom = rawUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '').toLowerCase();
+              
+              // 1. Filtro rigoroso de portais de lista/agregadores/blogs
+              const stopDomains = [
+                'duckduckgo', 'google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 
+                'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 
+                'medium.com', 'linkedin', 'listamais', 'acharesteticas', 'doctoralia', 'telelistas', 
+                'guiamais', 'tripadvisor', 'saasbr', 'catracalivre', 'eblog', 'blog', 'noticias',
+                'g1.globo', 'uol.com', 'terra.com'
+              ];
+              const isStopDomain = stopDomains.some(sd => dom.includes(sd));
+              if (isStopDomain || extractedDomains.has(dom)) continue;
+
+              // 2. Filtro rigoroso no título (rejeita páginas que são coletâneas/listas)
+              const cleanTitleLower = rawTitle.replace(/<[^>]+>/g, '').toLowerCase();
+              const isListicleTitle = [
+                'lista', 'melhores', 'top 10', 'top 5', 'top 20', 'ranking', 'empresas de',
+                'database', 'carreiras', 'vagas', 'descubra', 'guia', 'catalogo', 'encontre',
+                'coletânea', 'opções de', 'diretório'
+              ].some(word => cleanTitleLower.includes(word));
+
+              if (isListicleTitle) continue;
+
               let cleanTitle = rawTitle.replace(/<[^>]+>/g, '').split('-')[0].split('|')[0].split(':')[0].trim();
               if (!cleanTitle || ['home', 'início', 'contato', 'são paulo', 'brasil', 'faça seu agendamento'].includes(cleanTitle.toLowerCase())) {
                 cleanTitle = dom.split('.')[0].replace(/[^a-zA-Z0-9]/g, ' ');
                 cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
               }
-              const companyName = cleanTitle;
 
-              // ── Extrai dados reais do site (telefone, e-mail, linkedin) ──
+              // ── 3. Validação do site e localização real ──
               let realPhone = '';
               let realEmail = '';
               let realLinkedinUrl = '';
+              let hasLocationMatch = false;
 
               try {
                 const siteRes = await fetch(`https://${dom}`, {
                   headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GoogleBot/2.1)' },
-                  signal: AbortSignal.timeout(5000)
+                  signal: AbortSignal.timeout(4000)
                 });
+
                 if (siteRes.ok) {
                   const siteHtml = await siteRes.text();
+                  const siteText = siteHtml.replace(/<[^>]+>/g, ' ').toLowerCase();
 
-                  // Telefone via href="tel:..."
+                  // Valida se o local pesquisado é mencionado no site do lead (ex: "Ilhabela")
+                  const locTerm = (location || '').toLowerCase().trim();
+                  if (!locTerm || locTerm === 'brasil' || locTerm === 'brazil' || siteText.includes(locTerm) || dom.includes(locTerm)) {
+                    hasLocationMatch = true;
+                  }
+
+                  // Telefone via href="tel:..." ou regex
                   const telTagMatch = siteHtml.match(/href="tel:([^"]+)"/i);
                   if (telTagMatch) {
                     realPhone = telTagMatch[1].replace(/\s+/g, '').trim();
@@ -2543,18 +2640,23 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                   const emailMatch = siteHtml.match(/href="mailto:([^"?]+)"/i);
                   if (emailMatch) realEmail = emailMatch[1].toLowerCase().split('?')[0].trim();
 
-                  // LinkedIn via href real no HTML
+                  // LinkedIn via href real
                   const linkedinMatch = siteHtml.match(/href="(https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[^"?#\s]+)"/i);
                   if (linkedinMatch) realLinkedinUrl = linkedinMatch[1];
                 }
               } catch (_siteErr) {
-                // Site pode estar offline ou bloqueado — ignora silenciosamente
+                // Se site offline, permite se o domínio for limpo
+                hasLocationMatch = true;
               }
 
+              // Se a localização não bater ou for portal, descarta
+              if (!hasLocationMatch && location && location.toLowerCase() !== 'brasil') continue;
+
+              extractedDomains.add(dom);
               const leadObj = {
                 id: `google_native_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
                 domain: dom,
-                company: companyName,
+                company: cleanTitle,
                 contactName: '',
                 contactRole: targetRole || 'Diretor / CEO',
                 linkedinUrl: realLinkedinUrl || '',
@@ -2571,9 +2673,9 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
               newLeads.push(leadObj);
             }
           }
+        } catch (gErr) {
+          console.warn('Erro na busca orgânica:', gErr.message);
         }
-      } catch (gErr) {
-        console.warn('Erro na busca via DuckDuckGo:', gErr.message);
       }
     }
 
