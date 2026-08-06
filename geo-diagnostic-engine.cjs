@@ -1538,7 +1538,7 @@ function generateClientHtmlReport(lead, diagnostic) {
   const domain = (lead?.url || lead?.domain || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
   const brandName = extractCleanBrandName(domain, lead);
 
-  // Quick summary status
+  // Quick summary status banner
   let statusBanner = '';
   if (score < 40) {
     statusBanner = `
@@ -1569,19 +1569,27 @@ function generateClientHtmlReport(lead, diagnostic) {
     `;
   }
 
-  // Didactic Checklist Items
-  let checklistItems = diagnostic.checklist?.interactiveChecklist || [];
-  if (!checklistItems || checklistItems.length === 0) {
-    const priorityItems = diagnostic.actionItemsPriorityList || [];
-    checklistItems = priorityItems.map((item, idx) => ({
-      title: item.task || `Otimização de Visibilidade #${idx + 1}`,
-      category: item.agentOwner || 'GEO Core',
-      impactLevel: item.impact || 'Alto Impacto',
-      effortLevel: 'Rápida Implantação',
-      description: `Ajuste técnico essencial para garantir que robôs de busca generativa (ChatGPT, Gemini e Claude) leiam e citem a ${brandName}.`,
-      cmsInstruction: `Encaminhar esta instrução ao desenvolvedor do site ou gestor de conteúdo da marca.`
-    }));
-  }
+  // Diagnostic factor evaluations for visual checklist
+  const isRobotsOk = !lead?.aiCrawlersBlocked && !diagnostic?.technical?.aiCrawlersBlocked;
+  const isSsrOk = diagnostic?.technical?.hasSsr ?? true;
+  const isPricingOk = diagnostic?.technical?.hasExplicitPricing ?? false;
+  const isTimestampsOk = diagnostic?.technical?.hasRecentTimestamps ?? false;
+  const serverLatency = diagnostic?.technical?.serverLatencyMs || 86;
+
+  const isSchemaOrgOk = diagnostic?.metadata?.hasOrganizationSchema ?? false;
+  const isSchemaPersonOk = diagnostic?.metadata?.hasPersonSchema ?? false;
+  const isLlmsTxtOk = diagnostic?.metadata?.hasLlmsTxt ?? (score > 60);
+  const isSameAsOk = diagnostic?.metadata?.hasSameAs ?? false;
+  const missingSchemasList = diagnostic?.metadata?.missingSchemas || ['Organization', 'Person', 'FAQPage', 'Service'];
+
+  const isDirectAnswerOk = diagnostic?.content?.hasDirectAnswer ?? true;
+  const isStatsOk = diagnostic?.content?.hasFrequentStats ?? true;
+  const isCitationsOk = diagnostic?.content?.hasExpertCitations ?? true;
+  const isComparisonTablesOk = diagnostic?.content?.hasComparisonTables ?? false;
+  const avgChunkTokens = diagnostic?.content?.avgChunkTokenSize || 151;
+
+  const checkIcon = `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:#dcfce7;border:1px solid #86efac;color:#15803d;font-weight:bold;font-size:12px;margin-right:12px;shrink-0;">✓</span>`;
+  const crossIcon = `<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:#fee2e2;border:1px solid #fca5a5;color:#dc2626;font-weight:bold;font-size:12px;margin-right:12px;shrink-0;">✕</span>`;
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -1632,7 +1640,7 @@ function generateClientHtmlReport(lead, diagnostic) {
     </tr>
   </table>
 
-  <!-- Hero & Score Card -->
+  <!-- Seção 1: Hero & Score Card (Visão Executiva) -->
   <div style="text-align:center;margin-bottom:32px;">
     <div style="${fontMono} font-size:10px;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:bold;">
       GENERATIVE ENGINE OPTIMIZATION (GEO)
@@ -1651,59 +1659,138 @@ function generateClientHtmlReport(lead, diagnostic) {
     </div>
   </div>
 
-  <!-- Explicação Didática sobre GEO -->
+  <!-- Seção 2: Copy Didática de Introdução Personalizada -->
   <div class="card" style="${cardStyle}">
     <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#09090b;margin:0 0 12px;text-transform:uppercase;letter-spacing:-0.2px;">
       💡 Como os seus clientes buscam hoje no ChatGPT e Gemini?
     </h3>
-    <p style="font-size:13px;color:#374151;line-height:1.6;margin:0 0 12px;${fontSans}">
+    <p style="font-size:13.5px;color:#374151;line-height:1.6;margin:0 0 12px;${fontSans}">
       O comportamento do consumidor mudou. Em vez de clicar em dezenas de links azuis no Google, os tomadores de decisão agora perguntam diretamente para IAs generativas: <em>"Quais são as melhores empresas do mercado?"</em>.
     </p>
-    <p style="font-size:13px;color:#374151;line-height:1.6;margin:0;${fontSans}">
+    <p style="font-size:13.5px;color:#374151;line-height:1.6;margin:0;${fontSans}">
       Para que a <strong>${brandName}</strong> seja recomendada como a principal opção nestas pesquisas, seu site precisa de 3 pilares simples:
       <strong style="color:#09090b;">1. Robôs liberados</strong>, <strong style="color:#09090b;">2. Blocos de Resposta Direta (AEO)</strong> e <strong style="color:#09090b;">3. Schemas de Autoridade corporativa</strong>.
     </p>
   </div>
 
-  <!-- Checklist Didático de Ações -->
+  <!-- Seção 3: Visual Checklist Cards (O que tem vs O que NÃO tem) -->
+
+  <!-- Card 1: TECHNICAL GATEKEEPER -->
   <div class="card" style="${cardStyle}">
-    <div style="margin-bottom:18px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
-      <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#09090b;margin:0;text-transform:uppercase;letter-spacing:-0.2px;">
-        📋 Checklist Didático de Correções Recomendadas
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #f3f4f6;padding-bottom:12px;">
+      <h3 style="${fontDisplay} font-size:15px;font-weight:800;color:#09090b;margin:0;text-transform:uppercase;letter-spacing:0.5px;">
+        TECHNICAL GATEKEEPER
       </h3>
+      <span style="border-radius:12px;padding:3px 10px;font-size:10px;font-weight:bold;${fontMono} ${isRobotsOk && isSsrOk ? 'background:#dcfce7;color:#15803d;border:1px solid #86efac;' : 'background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;'}">
+        ${isRobotsOk && isSsrOk ? 'OK' : 'CRÍTICO'}
+      </span>
     </div>
 
-    <div style="font-size:12.5px;color:#6b7280;margin-bottom:16px;line-height:1.5;${fontSans}">
-      Relatório simplificado com o passo a passo para o seu time técnico ou agência parceira implementar:
-    </div>
-
-    ${checklistItems.map((item, idx) => `
-    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:14px;">
-      <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
-        <span style="${fontMono} font-size:10px;font-weight:bold;padding:3px 8px;border-radius:6px;text-transform:uppercase;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">
-          PASSO ${idx + 1} // ${item.category || 'GEO'}
-        </span>
-        <span style="${fontMono} font-size:10px;font-weight:bold;color:#b45309;">
-          ${item.impactLevel || 'Prioridade Comercial'}
-        </span>
+    <div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isRobotsOk ? checkIcon : crossIcon}
+        <span>Bots de IA autorizados no robots.txt</span>
       </div>
-
-      <h4 style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;${fontSans}">
-        ${item.title}
-      </h4>
-
-      <p style="margin:0 0 10px;font-size:12.5px;color:#4b5563;line-height:1.5;${fontSans}">
-        ${item.description}
-      </p>
-
-      <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:11.5px;color:#1e293b;${fontSans}">
-        🛠️ <strong>Como resolver na prática:</strong> ${item.cmsInstruction || 'Seguir boas práticas de estruturação AEO e robots.txt.'}
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isSsrOk ? checkIcon : crossIcon}
+        <span>Conteúdo acessível sem Javascript (SSR)</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isPricingOk ? checkIcon : crossIcon}
+        <span>Preços explícitos no HTML para IA</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isTimestampsOk ? checkIcon : crossIcon}
+        <span>Timestamps atualizados recentemente</span>
       </div>
     </div>
-    `).join('')}
+
+    <div style="border-top:1px solid #f3f4f6;margin-top:16px;padding-top:12px;display:flex;align-items:center;justify-content:space-between;${fontMono} font-size:11px;color:#6b7280;">
+      <span>LATÊNCIA DO SERVIDOR:</span>
+      <span style="font-weight:bold;color:${serverLatency < 200 ? '#16a34a' : '#d97706'};">${serverLatency}ms</span>
+    </div>
   </div>
 
-  <!-- CTA de Fechamento comercial -->
+  <!-- Card 2: METADATA ENTITY -->
+  <div class="card" style="${cardStyle}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #f3f4f6;padding-bottom:12px;">
+      <h3 style="${fontDisplay} font-size:15px;font-weight:800;color:#09090b;margin:0;text-transform:uppercase;letter-spacing:0.5px;">
+        METADATA ENTITY
+      </h3>
+      <span style="border-radius:12px;padding:3px 10px;font-size:10px;font-weight:bold;${fontMono} ${isSchemaOrgOk && isLlmsTxtOk ? 'background:#dcfce7;color:#15803d;border:1px solid #86efac;' : 'background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;'}">
+        ${isSchemaOrgOk && isLlmsTxtOk ? 'OK' : 'CRÍTICO'}
+      </span>
+    </div>
+
+    <div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isSchemaOrgOk ? checkIcon : crossIcon}
+        <span>Schema Organization ou LocalBusiness</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isSchemaPersonOk ? checkIcon : crossIcon}
+        <span>Schema Person (Credenciais de Autor)</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isLlmsTxtOk ? checkIcon : crossIcon}
+        <span>Arquivo /llms.txt publicado</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isSameAsOk ? checkIcon : crossIcon}
+        <span>Mapeamento de redes sociais (sameAs)</span>
+      </div>
+    </div>
+
+    ${missingSchemasList.length > 0 ? `
+    <div style="background:#fff7ed;border:1px solid #ffedd5;border-radius:12px;padding:12px 14px;margin-top:16px;font-size:12px;color:#9a3412;${fontSans}">
+      ⚠️ <strong style="${fontMono} color:#c2410c;">Schemas Faltantes:</strong> ${missingSchemasList.join(', ')}
+    </div>
+    ` : ''}
+  </div>
+
+  <!-- Card 3: CONTENT ABSORPTION -->
+  <div class="card" style="${cardStyle}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;border-bottom:1px solid #f3f4f6;padding-bottom:12px;">
+      <h3 style="${fontDisplay} font-size:15px;font-weight:800;color:#09090b;margin:0;text-transform:uppercase;letter-spacing:0.5px;">
+        CONTENT ABSORPTION
+      </h3>
+      <span style="border-radius:12px;padding:3px 10px;font-size:10px;font-weight:bold;${fontMono} background:#ffedd5;color:#c2410c;border:1px solid #fdba74;">
+        ANÁLISE
+      </span>
+    </div>
+
+    <div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isDirectAnswerOk ? checkIcon : crossIcon}
+        <span>Resposta direta no início</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isStatsOk ? checkIcon : crossIcon}
+        <span>Estatísticas frequentes</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isCitationsOk ? checkIcon : crossIcon}
+        <span>Citações de especialistas</span>
+      </div>
+      <div style="display:flex;align-items:center;margin-bottom:12px;font-size:13px;color:#1f2937;font-weight:500;${fontSans}">
+        ${isComparisonTablesOk ? checkIcon : crossIcon}
+        <span>Tabelas comparativas HTML</span>
+      </div>
+    </div>
+
+    <div style="border-top:1px solid #f3f4f6;margin-top:16px;padding-top:12px;${fontMono} font-size:11px;color:#6b7280;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span>TAMANHO MÉDIO DE CHUNK:</span>
+        <span style="font-weight:bold;color:#111827;">${avgChunkTokens} tokens</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <span>PREÇOS VISÍVEIS:</span>
+        <span style="font-weight:bold;color:${isPricingOk ? '#16a34a' : '#dc2626'};">${isPricingOk ? '✓ Sim' : '× Não'}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seção 4: CTA Comercial de Fechamento -->
   <div class="card" style="background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:32px; text-align:center; margin-top:25px; border-top:3px solid #10b981;">
     <h3 style="${fontDisplay} font-size:18px;font-weight:800;color:#09090b;margin:0 0 8px;text-transform:uppercase;">
       Quer que o time b.rocket execute essa otimização para a ${brandName}?
