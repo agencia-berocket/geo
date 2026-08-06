@@ -2313,17 +2313,6 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   const nicheInfo = extractNicheAndServices(htmlContent, brandName, domain);
   const niche = nicheInfo.nicheName;
 
-  if (!apiKey) {
-    return {
-      totalPromptsTest: 20,
-      citationSharePercentage: 0.05,
-      brandSentimentScore: 'Neutro',
-      topMentionedCompetitors: ['Empresas do Setor', 'Concorrentes Diretos', 'Líderes de Mercado'],
-      citationsByModel: { 'GPT-4o-mini': 0, 'Claude Haiku': 0, 'Gemini Flash': 1, 'Perplexity Sonar': 0 },
-      note: 'Simulado — configure OPENROUTER_API_KEY para resultados reais',
-    };
-  }
-
   const models = [
     'openai/gpt-4o-mini',
     'anthropic/claude-3.5-haiku',
@@ -2341,24 +2330,80 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     `Qual empresa de ${niche} tem melhor reputação e resultados no mercado brasileiro?`,
   ];
 
+  if (!apiKey) {
+    const simulatedResponses = [
+      `No segmento de ${niche}, destacam-se empresas consolidadas do mercado brasileiro com autoridade no setor. [SIMULADO]`,
+      `Para contratação em ${niche}, recomendamos priorizar marcas com portfólio comprovado e resultados mensuráveis. [SIMULADO]`,
+      `Os principais líderes no setor de ${niche} contam com forte presença digital e reconhecimento corporativo. [SIMULADO]`,
+      `Ao comparar fornecedores de ${niche}, avalie métricas de desempenho, cases públicos e infraestrutura. [SIMULADO]`,
+      `Empresas de destaque em ${niche} possuem alto índice de recomendação e cases de referência nacional. [SIMULADO]`,
+    ];
+    const simulatedAuditLog = [];
+    const simulatedCitationsByModel = {};
+    models.forEach(model => {
+      const modelKey = model.split('/')[1].replace(/-\d.*/, '');
+      simulatedCitationsByModel[modelKey] = 0;
+      prompts.forEach((prompt, i) => {
+        simulatedAuditLog.push({
+          model,
+          modelLabel: modelKey,
+          systemPrompt,
+          userPrompt: prompt,
+          response: simulatedResponses[i],
+          citedBrand: false,
+          error: null,
+          simulated: true,
+          timestamp: new Date().toISOString(),
+        });
+      });
+    });
+    return {
+      totalPromptsTest: 20,
+      citationSharePercentage: 0.05,
+      brandSentimentScore: 'Neutro',
+      topMentionedCompetitors: ['Empresas do Setor', 'Concorrentes Diretos', 'Líderes de Mercado'],
+      citationsByModel: simulatedCitationsByModel,
+      agentAuditLog: simulatedAuditLog,
+      note: 'Simulado — configure OPENROUTER_API_KEY para resultados reais das LLMs',
+    };
+  }
+
   const citationsByModel = {};
   let totalCitations = 0;
   const competitors = new Set();
   let sentimentTotal = 0;
   let sentimentCount = 0;
+  const agentAuditLog = [];
 
   for (const model of models) {
     const modelKey = model.split('/')[1].replace(/-\d.*/, '');
     citationsByModel[modelKey] = 0;
 
     for (const prompt of prompts) {
+      const auditEntry = {
+        model,
+        modelLabel: modelKey,
+        systemPrompt,
+        userPrompt: prompt,
+        response: '',
+        citedBrand: false,
+        error: null,
+        simulated: false,
+        timestamp: new Date().toISOString(),
+      };
+
       try {
         const response = await callOpenRouter(model, systemPrompt, prompt, apiKey);
         const responseLC = response.toLowerCase();
         const brandLC = brandName.toLowerCase();
         const domainLC = domain.toLowerCase();
 
-        if (responseLC.includes(brandLC) || responseLC.includes(domainLC)) {
+        auditEntry.response = response;
+
+        const cited = responseLC.includes(brandLC) || responseLC.includes(domainLC);
+        auditEntry.citedBrand = cited;
+
+        if (cited) {
           citationsByModel[modelKey]++;
           totalCitations++;
         }
@@ -2381,7 +2426,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
           }
         });
 
-        if (responseLC.includes(brandLC)) {
+        if (cited) {
           const idx = responseLC.indexOf(brandLC);
           const context = responseLC.slice(Math.max(0, idx - 100), idx + 100);
           const posWords = ['melhor', 'recomendo', 'excelente', 'líder', 'top', 'destaque', 'qualidade', 'referência'];
@@ -2392,8 +2437,10 @@ async function runIntentAgent(url, htmlContent, apiKey) {
           sentimentCount++;
         }
       } catch (e) {
-        // Ignorar falhas
+        auditEntry.error = e.message || 'Falha na chamada OpenRouter';
       }
+
+      agentAuditLog.push(auditEntry);
     }
   }
 
@@ -2413,6 +2460,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     brandSentimentScore,
     topMentionedCompetitors: topMentionedCompetitors.length > 0 ? topMentionedCompetitors : ['Empresas do Setor', 'Concorrentes Diretos', 'Líderes de Mercado'],
     citationsByModel,
+    agentAuditLog,
   };
 }
 
@@ -2767,6 +2815,7 @@ async function takeReportScreenshots(htmlContent) {
       { id: 'section-score',       label: 'GEO Score — Resultado do Diagnóstico' },
       { id: 'section-citation',    label: 'Citation Share nas IAs — Visibilidade por Modelo' },
       { id: 'section-action-plan', label: 'Plano de Ação Priorizado' },
+      { id: 'section-llm-audit',   label: 'Trilha de Auditoria das LLMs (Perguntas & Respostas)' },
     ];
 
     for (const sec of sections) {
@@ -2822,7 +2871,7 @@ function generateCompleteHtmlReport(lead, diagnostic, screenshots = []) {
   // ── Seção de Auditoria ───────────────────────────────────────────────────────
   const auditSection = auditLog.length > 0 ? `
   <!-- TRILHA DE AUDITORIA -->
-  <div style="background:#1a1a2e;border:2px dashed #3b3b5c;border-radius:20px;padding:28px;margin-top:24px;">
+  <div id="section-llm-audit" style="background:#1a1a2e;border:2px dashed #3b3b5c;border-radius:20px;padding:28px;margin-top:24px;">
     <div style="margin-bottom:20px;">
       <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#dc2626;color:#fff;padding:4px 10px;border-radius:5px;margin-right:10px;">USO INTERNO</span>
       <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#6b7280;">b.rocket confidencial</span>

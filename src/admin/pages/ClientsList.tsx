@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useClients, useLeads, type Client, type ClientHistory } from '../hooks/useFirestore';
 import Modal from '../components/Modal';
 import { LeadChat } from '../components/LeadChat';
+import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
 import { auth } from '../../lib/firebase';
 import {
   IconEdit, IconTrash, IconPlay, IconChat, IconBot, IconShield, IconFolder,
@@ -306,7 +307,7 @@ function ClientWorkspacePage({ client, onBack, onEdit, onDelete }: {
 }) {
   const { runAgentForClient, fetchClientHistory, editClient } = useClients();
   const [activeAgent, setActiveAgent] = useState<AgentName>('orchestrator');
-  const [mainView, setMainView] = useState<'deliverables' | 'stages' | 'history' | 'chat'>('deliverables');
+  const [mainView, setMainView] = useState<'deliverables' | 'stages' | 'history' | 'audit' | 'chat'>('deliverables');
   const [running, setRunning] = useState(false);
   const [url, setUrl] = useState(client.url);
   const [logs, setLogs] = useState<string[]>([]);
@@ -458,6 +459,12 @@ function ClientWorkspacePage({ client, onBack, onEdit, onDelete }: {
           className={`px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${mainView === 'history' ? 'bg-zinc-950 text-white shadow-sm font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
         >
           📊 Histórico & Evolução (Antes vs. Depois)
+        </button>
+        <button
+          onClick={() => setMainView('audit')}
+          className={`px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${mainView === 'audit' ? 'bg-zinc-950 text-white shadow-sm font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
+        >
+          🔬 Auditoria LLM & Prints
         </button>
         <button
           onClick={() => setMainView('chat')}
@@ -791,7 +798,12 @@ function ClientWorkspacePage({ client, onBack, onEdit, onDelete }: {
         <ClientHistoryPanel client={client} />
       )}
 
-      {/* VIEW 4: CHAT 360 */}
+      {/* VIEW 4: AUDITORIA LLM & PRINTS */}
+      {mainView === 'audit' && (
+        <AuditAndScreenshotsPanel entityType="client" entityId={client.id} leadUrl={client.url} />
+      )}
+
+      {/* VIEW 5: CHAT 360 */}
       {mainView === 'chat' && (
         <div className="space-y-4">
           <div className="flex items-center gap-3 bg-white p-4 border border-zinc-200 rounded-2xl text-xs font-semibold text-zinc-700 shadow-xs">

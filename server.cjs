@@ -29,7 +29,66 @@ const {
 } = require('./geo-diagnostic-engine.cjs');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
+app.use('/audits', express.static(path.join(__dirname, 'public', 'audits')));
+
+function getAuditFolder(entityType, entityId) {
+  const cleanType = entityType === 'client' ? 'client' : 'lead';
+  const folderPath = path.join(__dirname, 'public', 'audits', `${cleanType}_${entityId}`);
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
+  return folderPath;
+}
+
+async function saveAuditArtifacts(entityType, entityId, leadObj, diagnosticObj) {
+  try {
+    const cleanType = entityType === 'client' ? 'client' : 'lead';
+    const folderPath = getAuditFolder(cleanType, entityId);
+
+    // 1. Relatório HTML completo
+    const fullHtml = generateCompleteHtmlReport(leadObj, diagnosticObj);
+    const htmlFilePath = path.join(folderPath, 'relatorio_geo.html');
+    fs.writeFileSync(htmlFilePath, fullHtml, 'utf8');
+
+    // 2. Screenshots das seções-chave via Puppeteer
+    const screenshots = await takeReportScreenshots(fullHtml);
+    const savedScreenshots = [];
+
+    screenshots.forEach((sc, idx) => {
+      const safeLabel = sc.label.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      const fileName = `screenshot_${idx + 1}_${safeLabel}.png`;
+      const filePath = path.join(folderPath, fileName);
+      const buffer = Buffer.from(sc.base64, 'base64');
+      fs.writeFileSync(filePath, buffer);
+      savedScreenshots.push({
+        label: sc.label,
+        fileName,
+        url: `/audits/${cleanType}_${entityId}/${fileName}`,
+        createdAt: new Date().toISOString()
+      });
+    });
+
+    // 3. Log JSON da auditoria completa
+    const auditLogData = {
+      entityType: cleanType,
+      entityId,
+      geoScore: diagnosticObj.overallGeoScore,
+      clientUrl: diagnosticObj.clientUrl,
+      generatedAt: diagnosticObj.generatedAt || new Date().toISOString(),
+      agentAuditLog: diagnosticObj.visibilityBenchmarking?.agentAuditLog || [],
+      savedScreenshots,
+      htmlReportUrl: `/audits/${cleanType}_${entityId}/relatorio_geo.html`
+    };
+    fs.writeFileSync(path.join(folderPath, 'audit_log.json'), JSON.stringify(auditLogData, null, 2), 'utf8');
+
+    console.log(`📁 Auditoria e ${savedScreenshots.length} prints salvos na pasta: ${folderPath}`);
+    return auditLogData;
+  } catch (err) {
+    console.error('Erro ao salvar arquivos da auditoria:', err);
+    return null;
+  }
+}
 
 
 const PORT = process.env.PORT || 80;
@@ -992,6 +1051,9 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
         }),
       });
 
+      // Salvar artefatos e prints de tela na pasta dedicada do lead
+      await saveAuditArtifacts('lead', leadId, lead, diagnostic);
+
       console.log(`✅ Diagnóstico concluído para ${lead.url} — GEO Score: ${overallGeoScore}%`);
     } catch (err) {
       console.error('Diagnostic pipeline error:', err);
@@ -1261,6 +1323,96 @@ app.get('/api/admin/diagnostic/pdf/:leadId', verifyAdminToken, async (req, res) 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.pdf"`);
     res.send(pdfBuffer);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── AUDIT FILES & SCREENSHOTS API ──────────────────────────────────────────
+// GET /api/admin/audits/:entityType/:entityId
+app.get('/api/admin/audits/:entityType/:entityId', verifyAdminToken, async (req, res) => {
+  const { entityType, entityId } = req.params;
+  try {
+    const cleanType = entityType === 'client' ? 'client' : 'lead';
+    const folderPath = path.join(__dirname, 'public', 'audits', `${cleanType}_${entityId}`);
+    const auditJsonPath = path.join(folderPath, 'audit_log.json');
+
+    let auditData = null;
+    if (fs.existsSync(auditJsonPath)) {
+      try {
+        auditData = JSON.parse(fs.readFileSync(auditJsonPath, 'utf8'));
+      } catch (e) {}
+    }
+
+    let files = [];
+    if (fs.existsSync(folderPath)) {
+      const rawFiles = fs.readdirSync(folderPath);
+      files = rawFiles.map(fn => {
+        const full = path.join(folderPath, fn);
+        const stat = fs.statSync(full);
+        return {
+          name: fn,
+          url: `/audits/${cleanType}_${entityId}/${fn}`,
+          isImage: /\.(png|jpg|jpeg|webp|gif)$/i.test(fn),
+          isHtml: /\.html$/i.test(fn),
+          sizeBytes: stat.size,
+          createdAt: stat.birthtime.toISOString()
+        };
+      });
+    }
+
+    res.json({
+      success: true,
+      auditFolderUrl: `/audits/${cleanType}_${entityId}`,
+      auditData,
+      files
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/admin/audits/:entityType/:entityId/upload — Upload custom screenshots/prints
+app.post('/api/admin/audits/:entityType/:entityId/upload', verifyAdminToken, async (req, res) => {
+  const { entityType, entityId } = req.params;
+  const { fileName, base64Data, label } = req.body;
+
+  if (!base64Data) {
+    return res.status(400).json({ error: 'base64Data é obrigatório' });
+  }
+
+  try {
+    const cleanType = entityType === 'client' ? 'client' : 'lead';
+    const folderPath = getAuditFolder(cleanType, entityId);
+
+    const safeName = (fileName || `print_auditoria_${Date.now()}.png`).replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+
+    const filePath = path.join(folderPath, safeName);
+    fs.writeFileSync(filePath, buffer);
+
+    const auditJsonPath = path.join(folderPath, 'audit_log.json');
+    let auditData = { savedScreenshots: [] };
+    if (fs.existsSync(auditJsonPath)) {
+      try { auditData = JSON.parse(fs.readFileSync(auditJsonPath, 'utf8')); } catch (e) {}
+    }
+    if (!auditData.savedScreenshots) auditData.savedScreenshots = [];
+
+    const newScreen = {
+      label: label || safeName,
+      fileName: safeName,
+      url: `/audits/${cleanType}_${entityId}/${safeName}`,
+      createdAt: new Date().toISOString()
+    };
+    auditData.savedScreenshots.push(newScreen);
+    fs.writeFileSync(auditJsonPath, JSON.stringify(auditData, null, 2), 'utf8');
+
+    res.json({
+      success: true,
+      message: 'Print de tela para auditoria salvo com sucesso!',
+      screenshot: newScreen
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1948,6 +2100,9 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
               actionPlanMarkdown,
             });
 
+            // Salvar pasta de auditoria e prints para o cliente
+            await saveAuditArtifacts('client', clientId, { id: clientId, url: baseUrl, company: clientInfo.company, name: clientInfo.name }, { clientUrl: baseUrl, overallGeoScore: score, gatekeeperStatus: gk, metadataAnalysis: md, contentReview: ct, visibilityBenchmarking: vis, seoAnalysis: seo, semanticAnalysis: sem, offpageAnalysis: off, checklist: chk, actionItemsPriorityList: actions, generatedAt: new Date().toISOString() });
+
             break;
           }
           default:
@@ -2457,6 +2612,16 @@ app.get('/api/admin/lead-hunter/leads', verifyAdminToken, async (req, res) => {
   }
 });
 
+// Normaliza texto para comparação de localização, removendo acentos e caixa (ex: "São Paulo" -> "sao paulo")
+function normalizeLocationText(text) {
+  return (text || '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 // Função utilitária para varredura profunda de e-mail, telefone e LinkedIn no site da empresa
 async function extractLeadContactFromSite(domain) {
   let email = '';
@@ -2570,7 +2735,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
               body: JSON.stringify({
                 searchStringsArray: [mapQuery, `${niche} em ${location}`],
                 locationQuery: `${location}, Brasil`,
-                maxCrawledPlacesPerSearch: Math.min(count * 2, 20),
+                maxCrawledPlacesPerSearch: Math.min(Math.max(count * 4, 20), 60),
                 language: 'pt-BR'
               })
             }
@@ -2579,36 +2744,49 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           if (mapsRes.ok) {
             const places = await mapsRes.json();
             const extractedDomains = new Set();
+            const extractedPlaceKeys = new Set();
 
             if (Array.isArray(places) && places.length > 0) {
               for (const place of places) {
-                const rawWebsite = place.website || place.url || '';
                 const placeTitle = place.title || place.name || '';
-                
-                // Valida se o item tem website próprio real (não redes sociais ou links nulos)
-                if (!rawWebsite || !placeTitle) continue;
+                if (!placeTitle) continue;
 
-                let dom = rawWebsite.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '').toLowerCase();
-                
-                const stopDomains = [
-                  'google.com', 'maps.google', 'facebook.com', 'instagram.com', 'youtube.com', 'twitter.com',
-                  'whatsapp.com', 'tripadvisor.com', 'doctoralia.com.br', 'guiamais.com.br', 'telelistas.net',
+                // Dedup por lugar (título + endereço), já que muitos locais não têm site/domínio próprio
+                const placeKey = `${placeTitle.toLowerCase()}|${(place.address || '').toLowerCase()}`;
+                if (extractedPlaceKeys.has(placeKey)) continue;
+                extractedPlaceKeys.add(placeKey);
+
+                const rawWebsite = place.website || place.url || '';
+                let dom = rawWebsite
+                  ? rawWebsite.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '').toLowerCase()
+                  : '';
+
+                // Domínios de agregadores/portais que não representam o site oficial do negócio
+                const aggregatorStopDomains = [
+                  'google.com', 'maps.google', 'youtube.com', 'twitter.com', 'x.com',
+                  'tripadvisor.com', 'doctoralia.com.br', 'guiamais.com.br', 'telelistas.net',
                   'listamais.com.br', 'acharesteticas.com.br', 'jusbrasil.com.br', 'reclameaqui.com.br'
                 ];
-                const isStop = stopDomains.some(sd => dom.includes(sd));
-                if (isStop || extractedDomains.has(dom)) continue;
-                extractedDomains.add(dom);
+                if (dom && aggregatorStopDomains.some(sd => dom.includes(sd))) continue;
+                if (dom && extractedDomains.has(dom)) continue;
+                if (dom) extractedDomains.add(dom);
+
+                // Redes sociais (Instagram/Facebook/WhatsApp) contam como "site" válido para negócios
+                // locais sem domínio próprio — não devem ser descartadas, apenas não usadas no crawler de e-mail.
+                const isSocialOnly = !!dom && (dom.includes('instagram.com') || dom.includes('facebook.com') || dom.includes('whatsapp.com'));
 
                 // Formata endereço e contato real do Google Maps
                 const realPhone = place.phone || place.phoneUnformatted || '';
                 const realAddress = place.address || place.street || `${location}, Brasil`;
 
-                // ── Varredura profunda de e-mail e contatos diretamente no site oficial ──
-                const contacts = await extractLeadContactFromSite(dom);
+                // ── Varredura profunda de e-mail e contatos diretamente no site oficial (pula redes sociais) ──
+                const contacts = (dom && !isSocialOnly) ? await extractLeadContactFromSite(dom) : { email: '', phone: '', linkedinUrl: '' };
 
                 const leadObj = {
                   id: `google_maps_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
                   domain: dom,
+                  website: rawWebsite || '',
+                  isSocialOnly,
                   company: placeTitle,
                   contactName: '',
                   contactRole: targetRole || 'Diretor / CEO',
@@ -2694,32 +2872,52 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
               // ── 3. Varredura profunda de e-mail e contatos ──
               const contacts = await extractLeadContactFromSite(dom);
               let hasLocationMatch = false;
+              let siteHtmlForAddress = '';
 
               try {
                 const siteRes = await fetch(`https://${dom}`, {
                   headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GoogleBot/2.1)' },
-                  signal: AbortSignal.timeout(4000)
+                  signal: AbortSignal.timeout(6000)
                 });
 
                 if (siteRes.ok) {
                   const siteHtml = await siteRes.text();
-                  const siteText = siteHtml.replace(/<[^>]+>/g, ' ').toLowerCase();
+                  siteHtmlForAddress = siteHtml;
+                  const siteText = normalizeLocationText(siteHtml.replace(/<[^>]+>/g, ' '));
 
-                  // Valida se o local pesquisado é mencionado no site do lead (ex: "Ilhabela")
-                  const locTerm = (location || '').toLowerCase().trim();
-                  if (!locTerm || locTerm === 'brasil' || locTerm === 'brazil' || siteText.includes(locTerm) || dom.includes(locTerm)) {
+                  // Valida se o local pesquisado é mencionado no site do lead (ex: "Ilhabela"),
+                  // tolerando acentos, maiúsculas/minúsculas e "Ilha Bela" vs "Ilhabela"
+                  const locTerm = normalizeLocationText(location || '');
+                  const locTermNoSpaces = locTerm.replace(/\s+/g, '');
+                  const domNorm = normalizeLocationText(dom);
+                  if (
+                    !locTerm || locTerm === 'brasil' || locTerm === 'brazil' ||
+                    siteText.includes(locTerm) || siteText.replace(/\s+/g, '').includes(locTermNoSpaces) ||
+                    domNorm.includes(locTerm) || domNorm.includes(locTermNoSpaces)
+                  ) {
                     hasLocationMatch = true;
                   }
                 }
               } catch (_siteErr) {
-                // Se site offline, permite se o domínio for limpo
+                // Site lento/offline/bloqueando bots: não há como validar o texto, então não descarta
+                // por engano — apenas evita afirmar uma correspondência que não foi confirmada.
                 hasLocationMatch = true;
               }
 
-              // Se a localização não bater ou for portal, descarta
+              // Se a localização não bater e não veio de timeout/erro, descarta (evita "portais" fora do local)
               if (!hasLocationMatch && location && location.toLowerCase() !== 'brasil') continue;
 
               extractedDomains.add(dom);
+
+              // Tenta extrair um endereço real do site (padrão de logradouro BR); se não achar, usa o termo buscado como aproximação
+              let extractedAddress = '';
+              if (siteHtmlForAddress) {
+                const addressMatch = siteHtmlForAddress
+                  .replace(/<[^>]+>/g, ' ')
+                  .match(/(?:Rua|Av\.|Avenida|Alameda|Travessa|Praça)[^,\n<]{5,80},?[^\n<]{0,60}\d{5}-?\d{3}?/i);
+                if (addressMatch) extractedAddress = addressMatch[0].replace(/\s+/g, ' ').trim();
+              }
+
               const leadObj = {
                 id: `google_native_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
                 domain: dom,
@@ -2729,7 +2927,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 linkedinUrl: contacts.linkedinUrl || '',
                 email: contacts.email || '',
                 phone: contacts.phone || '',
-                address: `${location || 'Brasil'}`,
+                address: extractedAddress || `${location || 'Brasil'} (aproximado)`,
                 niche: niche || 'Geral',
                 location: location || 'Brasil',
                 companySize: companySize || '10-50 funcionários',
@@ -2783,19 +2981,28 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           for (const queryKw of searchQueries) {
             console.log(`💼 Conectando ao Apify harvestapi/linkedin-profile-search [searchQuery: "${queryKw}"] [locations: "${locArray.join(', ')}"]...`);
 
-            const apifyRes = await fetch(
-              `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
-              {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  searchQuery: queryKw,
-                  locations: locArray,
-                  maxItems: Math.min(count * 2, 50),
-                  profileScraperMode: 'Short'
-                })
-              }
-            );
+            let apifyRes;
+            try {
+              apifyRes = await fetch(
+                `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    searchQuery: queryKw,
+                    locations: locArray,
+                    maxItems: Math.min(count * 2, 50),
+                    profileScraperMode: 'Short'
+                  }),
+                  signal: AbortSignal.timeout(130000)
+                }
+              );
+            } catch (fetchErr) {
+              lastApifyStatus = 0;
+              lastErrText = fetchErr.name === 'TimeoutError' ? 'Timeout ao aguardar resposta da Apify (>130s)' : fetchErr.message;
+              console.warn(`Apify falha de rede/timeout: ${lastErrText}`);
+              break;
+            }
 
             if (apifyRes.ok) {
               const resData = await apifyRes.json();
@@ -2803,10 +3010,17 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 profiles = resData;
                 break; // Encontrou perfis reais!
               }
+            } else if (apifyRes.status === 429) {
+              // Rate limit: aguarda um pouco e tenta a próxima variação de query em vez de desistir na hora
+              lastApifyStatus = 429;
+              lastErrText = await apifyRes.text().catch(() => '');
+              console.warn(`Apify rate limit (429), aguardando antes de tentar próxima query...`);
+              await new Promise(r => setTimeout(r, 3000));
+              continue;
             } else {
               lastApifyStatus = apifyRes.status;
               lastErrText = await apifyRes.text().catch(() => '');
-              console.warn(`Apify erro HTTP ${apifyRes.status}: ${lastErrText.slice(0, 150)}`);
+              console.warn(`Apify erro HTTP ${apifyRes.status}: ${lastErrText.slice(0, 300)}`);
               break; // Se deu erro de token/autenticação/status HTTP, interrompe para reportar o erro real
             }
           }
@@ -2814,10 +3028,21 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           const extractedLinks = new Set();
           if (Array.isArray(profiles) && profiles.length > 0) {
             for (const p of profiles) {
-              const realPersonName = p.fullName || p.name || p.title?.split('-')[0] || '';
+              // Campos reais do dataset harvestapi/linkedin-profile-search (profileScraperMode "Short"):
+              // firstName/lastName (não "fullName"), linkedinUrl (não "profileUrl"), currentPosition (não "currentCompany")
+              const realPersonName = p.fullName
+                || [p.firstName, p.lastName].filter(Boolean).join(' ')
+                || p.name
+                || p.title?.split('-')[0]
+                || '';
               const realRole = p.headline || p.title || targetRole || 'CEO';
-              const realCompany = p.currentCompany?.name || p.company || p.companyName || '';
-              const linkedinUrl = p.profileUrl || p.linkedinUrl || p.url || '';
+              const realCompany = p.currentPosition?.[0]?.companyName
+                || p.currentCompany?.name
+                || p.company
+                || p.companyName
+                || '';
+              const linkedinUrl = p.linkedinUrl || p.profileUrl || p.url
+                || (p.publicIdentifier ? `https://www.linkedin.com/in/${p.publicIdentifier}` : '');
 
               if (!linkedinUrl || extractedLinks.has(linkedinUrl)) continue;
               extractedLinks.add(linkedinUrl);
@@ -2846,8 +3071,16 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
               newLeads.push(leadObj);
               if (newLeads.length >= count) break;
             }
-          } else {
-            if (lastApifyStatus !== 200) {
+          }
+
+          if (newLeads.length === 0) {
+            if (lastApifyStatus === 401 || lastApifyStatus === 403) {
+              apifyErrorMsg = `Apify recusou a autenticação (erro ${lastApifyStatus}). O APIFY_API_TOKEN configurado no servidor é inválido, expirou ou não tem permissão para rodar o actor harvestapi/linkedin-profile-search.`;
+            } else if (lastApifyStatus === 402 || /credit|insufficient.*usage|not enough/i.test(lastErrText)) {
+              apifyErrorMsg = `Créditos da conta Apify esgotados (erro ${lastApifyStatus}). Verifique o saldo/plano da conta Apify vinculada ao APIFY_API_TOKEN.`;
+            } else if (lastApifyStatus === 429) {
+              apifyErrorMsg = `Apify aplicou rate limit (429) em todas as tentativas. Aguarde alguns minutos e tente novamente.`;
+            } else if (lastApifyStatus !== 200) {
               apifyErrorMsg = `Apify API erro ${lastApifyStatus}: ${lastErrText.slice(0, 200)}. Verifique a chave APIFY_API_TOKEN no servidor.`;
             } else {
               apifyErrorMsg = `Nenhum perfil encontrado no LinkedIn para "${targetRole}" + "${niche}" em "${location}". Tente simplificar os termos.`;

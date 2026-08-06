@@ -3,6 +3,7 @@ import { useLeads, useDiagnostic, type Lead } from '../hooks/useFirestore';
 import StatusBadge from '../components/StatusBadge';
 import GeoScoreGauge from '../components/GeoScoreGauge';
 import Modal from '../components/Modal';
+import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
 import {
   IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
   IconShield, IconFolder, IconClipboard, IconChat, IconBot, IconHourglass,
@@ -360,7 +361,7 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   const [showDiagEditor, setShowDiagEditor] = useState(false);
 
   // Tab switcher
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'agents' | 'chat'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'agents' | 'audit' | 'chat'>('dashboard');
   const [isEditing, setIsEditing] = useState(false);
 
   // Polling para atualizar o lead e buscar o diagnóstico enquanto estiver processando ou recém-disparado
@@ -677,6 +678,12 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
                   <IconShield className="w-3.5 h-3.5" /> Detalhes dos Agentes
                 </button>
                 <button
+                  onClick={() => setActiveTab('audit')}
+                  className={`px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'audit' ? 'bg-zinc-950 text-white shadow-sm font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
+                >
+                  🔬 Auditoria LLM & Prints
+                </button>
+                <button
                   onClick={() => setActiveTab('chat')}
                   className={`px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'chat' ? 'bg-zinc-950 text-white shadow-sm font-bold' : 'text-zinc-600 hover:text-zinc-900'}`}
                 >
@@ -846,6 +853,15 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
                         )}
                       </div>
                     </div>
+                  )}
+
+                  {activeTab === 'audit' && (
+                    <AuditAndScreenshotsPanel
+                      entityType="lead"
+                      entityId={lead.id}
+                      diagnostic={d}
+                      leadUrl={lead.url}
+                    />
                   )}
 
                   {activeTab === 'chat' && (
