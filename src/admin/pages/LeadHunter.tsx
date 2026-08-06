@@ -94,8 +94,9 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [attachPdfReport, setAttachPdfReport] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
-  // HTML Report Preview Modal
+  // HTML Report Preview Modal & Lead Editing State
   const [htmlPreviewModal, setHtmlPreviewModal] = useState<{ url: string; title: string } | null>(null);
+  const [editingLead, setEditingLead] = useState<HunterLead | null>(null);
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -890,26 +891,35 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
                   </div>
 
-                  {/* Middle Section: GEO Score & IA Diagnostic Bar */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50/70 p-3 rounded-xl border border-zinc-150 text-xs">
-                    <div className="flex items-center gap-3">
-                      <span className="font-semibold text-zinc-700">Score GEO Real:</span>
-                      <span className={`font-bold font-mono px-2.5 py-1 rounded-lg text-xs ${
-                        (lead.geoScoreEstimado || 0) < 40 ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
-                      }`}>
-                        {lead.geoScoreEstimado || 0}%
-                      </span>
-                      <span className={`text-[11px] font-semibold ${lead.aiCrawlersBlocked ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {lead.aiCrawlersBlocked ? '⚠️ Bloqueia Robôs no robots.txt' : '✓ Robôs IA permitidos'}
+                  {/* Middle Section: GEO Score & IA Diagnostic Bar (Exibido apenas se auditado) */}
+                  {lead.status !== 'unscanned' || lead.diagnosticId || lead.geoScoreEstimado !== undefined ? (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50/70 p-3 rounded-xl border border-zinc-150 text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-zinc-700">Score GEO Real:</span>
+                        <span className={`font-bold font-mono px-2.5 py-1 rounded-lg text-xs ${
+                          (lead.geoScoreEstimado || 0) < 40 ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
+                        }`}>
+                          {lead.geoScoreEstimado || 0}%
+                        </span>
+                        <span className={`text-[11px] font-semibold ${lead.aiCrawlersBlocked ? 'text-red-600' : 'text-emerald-600'}`}>
+                          {lead.aiCrawlersBlocked ? '⚠️ Bloqueia Robôs no robots.txt' : '✓ Robôs IA permitidos'}
+                        </span>
+                      </div>
+
+                      {lead.citedCompetitor && (
+                        <div className="text-[11px] text-zinc-500 font-mono">
+                          Concorrente Citado nas IAs: <strong className="text-zinc-800">{lead.citedCompetitor}</strong>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between bg-zinc-50/50 p-2.5 rounded-xl border border-dashed border-zinc-200 text-xs text-zinc-400 font-mono">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                        <span>Pendente de Diagnóstico GEO — Clique em <strong>"Audit 8 Agentes"</strong> para calcular o score real.</span>
                       </span>
                     </div>
-
-                    {lead.citedCompetitor && (
-                      <div className="text-[11px] text-zinc-500 font-mono">
-                        Concorrente Citado nas IAs: <strong className="text-zinc-800">{lead.citedCompetitor}</strong>
-                      </div>
-                    )}
-                  </div>
+                  )}
 
                   {/* Bottom Action Bar: Unified Height (h-9), Clean Alignment & Cohesive Styling */}
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
@@ -960,6 +970,15 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                       >
                         <IconSend className={`w-3.5 h-3.5 text-emerald-400 ${generatingCopyId === lead.id ? 'animate-bounce' : ''}`} />
                         <span>{lead.outreachCopies ? 'Ver Copys (Pipeline)' : 'Gerar 9 Copys'}</span>
+                      </button>
+
+                      {/* Edit Lead */}
+                      <button
+                        onClick={() => setEditingLead(lead)}
+                        title="Editar dados deste lead (Empresa, Nome, E-mail, Telefone, etc)"
+                        className="h-9 px-3 bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-300 rounded-xl text-xs font-mono font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs"
+                      >
+                        <span>✏️ Editar</span>
                       </button>
 
                       {/* Promote to Main Lead Workspace */}
@@ -1197,6 +1216,161 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               className="w-full flex-1 border-none bg-[#f4f5f8]" 
               title="GEO Report Preview"
             />
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Dados do Lead */}
+      {editingLead && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-zinc-200 space-y-4 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div>
+                <h3 className="font-bold text-base font-display text-zinc-900">Editar Dados do Lead</h3>
+                <p className="text-xs text-zinc-400 font-mono">Atualize as informações de contato e localização</p>
+              </div>
+              <button
+                onClick={() => setEditingLead(null)}
+                className="text-zinc-400 hover:text-zinc-900 text-sm font-mono cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const { id, ...updatedData } = editingLead;
+                await handleUpdateLeadState(id, updatedData);
+                setEditingLead(null);
+              }}
+              className="space-y-4 text-xs"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Empresa</label>
+                  <input
+                    type="text"
+                    value={editingLead.company || ''}
+                    onChange={e => setEditingLead({ ...editingLead, company: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Domínio (Site)</label>
+                  <input
+                    type="text"
+                    value={editingLead.domain || ''}
+                    onChange={e => setEditingLead({ ...editingLead, domain: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Nome do Contato / Decisor</label>
+                  <input
+                    type="text"
+                    value={editingLead.contactName || ''}
+                    onChange={e => setEditingLead({ ...editingLead, contactName: e.target.value })}
+                    placeholder="Ex: Dra. Ana Paula"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Cargo</label>
+                  <input
+                    type="text"
+                    value={editingLead.contactRole || ''}
+                    onChange={e => setEditingLead({ ...editingLead, contactRole: e.target.value })}
+                    placeholder="Ex: CEO / Sócio Proprietário"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">E-mail de Contato</label>
+                  <input
+                    type="email"
+                    value={editingLead.email || ''}
+                    onChange={e => setEditingLead({ ...editingLead, email: e.target.value })}
+                    placeholder="contato@empresa.com.br"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Telefone / WhatsApp</label>
+                  <input
+                    type="text"
+                    value={editingLead.phone || ''}
+                    onChange={e => setEditingLead({ ...editingLead, phone: e.target.value })}
+                    placeholder="Ex: (11) 99999-8888"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block font-semibold text-zinc-700 mb-1">Perfil LinkedIn (URL)</label>
+                  <input
+                    type="url"
+                    value={editingLead.linkedinUrl || ''}
+                    onChange={e => setEditingLead({ ...editingLead, linkedinUrl: e.target.value })}
+                    placeholder="https://www.linkedin.com/in/nome-perfil"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block font-semibold text-zinc-700 mb-1">Endereço Completo / Cidade</label>
+                  <input
+                    type="text"
+                    value={editingLead.address || ''}
+                    onChange={e => setEditingLead({ ...editingLead, address: e.target.value })}
+                    placeholder="Ex: Av. Ipiranga, 344, São Paulo - SP"
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
+                  <input
+                    type="text"
+                    value={editingLead.niche || ''}
+                    onChange={e => setEditingLead({ ...editingLead, niche: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Localização</label>
+                  <input
+                    type="text"
+                    value={editingLead.location || ''}
+                    onChange={e => setEditingLead({ ...editingLead, location: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-zinc-300 bg-zinc-50 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingLead(null)}
+                  className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl font-bold cursor-pointer transition-all font-mono"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl font-bold transition-all shadow-md cursor-pointer flex items-center gap-1.5 font-mono"
+                >
+                  <span>💾 Salvar Alterações</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
