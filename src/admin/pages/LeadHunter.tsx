@@ -337,18 +337,21 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   // Download PDF Report (Single Page)
   const handleDownloadPdfReport = async (lead: HunterLead) => {
     setDownloadingPdfId(lead.id);
-    showToastMsg(`Gerando PDF idêntico ao HTML para ${lead.domain}...`);
+    showToastMsg(`Gerando PDF oficial para ${lead.domain}...`);
     try {
       const token = await getAdminToken();
       const res = await fetch(`/api/admin/lead-hunter/pdf/${lead.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        const isPdf = contentType.includes('application/pdf');
+
         const blob = await res.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Relatorio_GEO_${lead.domain}.pdf`;
+        a.download = `Relatorio_GEO_${lead.domain}.${isPdf ? 'pdf' : 'html'}`;
         document.body.appendChild(a);
         a.click();
         a.remove();

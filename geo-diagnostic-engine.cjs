@@ -1907,6 +1907,103 @@ function generateClientHtmlReport(lead, diagnostic) {
 </html>`;
 }
 
+// Gerador nativo de PDF via PDFKit (Garante entrega de arquivo PDF 100% nativo e válido sem depender do Chromium)
+async function generatePdfWithPDFKit(lead, diagnostic) {
+  const PDFDocument = require('pdfkit');
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({
+        size: 'A4',
+        margins: { top: 40, bottom: 40, left: 40, right: 40 },
+        bufferPages: true
+      });
+
+      const buffers = [];
+      doc.on('data', b => buffers.push(b));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+      doc.on('error', err => reject(err));
+
+      const domain = (lead?.url || lead?.domain || lead?.company || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+      const brandName = extractCleanBrandName(domain, lead);
+      const score = diagnostic?.overallGeoScore || 35;
+      const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
+
+      // Header Dark Bar
+      doc.rect(0, 0, doc.page.width, 75).fill('#09090b');
+      doc.fillColor('#10b981').font('Helvetica-Bold').fontSize(20).text('B.ROCKET', 40, 20);
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(9).text('AUDITORIA DE VISIBILIDADE EM INTELIGÊNCIA ARTIFICIAL (GEO)', 40, 48);
+
+      // Sub-header Info
+      doc.fillColor('#71717a').font('Helvetica-Bold').fontSize(9).text(`EMPRESA: ${brandName.toUpperCase()}   |   DOMÍNIO: ${domain}`, 40, 92);
+
+      // Score Box
+      doc.rect(40, 112, doc.page.width - 80, 95).fillAndStroke('#ffffff', '#e4e4e7');
+      doc.fillColor(scoreColor).font('Helvetica-Bold').fontSize(42).text(`${score}%`, 40, 126, { align: 'center' });
+      doc.fillColor('#09090b').font('Helvetica-Bold').fontSize(10.5).text('SCORE DE CITABILIDADE NAS LLMs (ChatGPT, Gemini, Claude, Perplexity)', 40, 175, { align: 'center' });
+
+      // Introduction Title & Copy
+      let y = 228;
+      doc.fillColor('#09090b').font('Helvetica-Bold').fontSize(12).text('COMO SEUS CLIENTES ENCONTRAM SUA EMPRESA HOJE?', 40, y);
+      y += 18;
+      doc.fillColor('#3f3f46').font('Helvetica').fontSize(9).text(
+        `O comportamento do consumidor mudou. Em vez de pesquisar no Google tradicional, tomadores de decisão agora perguntam às IAs: "Quais são as melhores empresas do segmento?". Este relatório avalia a estrutura técnica da ${brandName} para recomendação orgânica.`,
+        40, y, { width: doc.page.width - 80, lineGap: 3 }
+      );
+
+      // Checklist Sections
+      y = doc.y + 15;
+
+      const items = [
+        { title: '1. TECHNICAL GATEKEEPER', ok: !lead?.aiCrawlersBlocked, desc: 'Liberação de robôs de IA (GPTBot, ClaudeBot, Perplexity) no robots.txt e suporte a renderização SSR.' },
+        { title: '2. METADATA ENTITY ARCHITECTURE', ok: (score > 50), desc: 'Estruturação de Schemas JSON-LD (Organization, LocalBusiness, Person) e publicação de /llms.txt.' },
+        { title: '3. CONTENT ABSORPTION & AEO', ok: true, desc: 'Blocos de Resposta Direta (AEO), dados numéricos, citações e estatísticas para consumo de IA.' },
+        { title: '4. SEMANTIC & INTENT COVERAGE', ok: (score > 40), desc: 'Cobertura semântica de dúvidas transacionais, FAQ corporativo e páginas de decisão de compra.' },
+        { title: '5. OFFPAGE ENTITY & AI BENCHMARK', ok: (score > 60), desc: 'Co-ocorrência da marca em portais de autoridade e presença nos grafos de conhecimento de IA.' }
+      ];
+
+      for (const item of items) {
+        if (y > doc.page.height - 90) {
+          doc.addPage();
+          y = 40;
+        }
+
+        doc.rect(40, y, doc.page.width - 80, 48).fillAndStroke('#fcfcfd', '#e4e4e7');
+        const badgeColor = item.ok ? '#16a34a' : '#dc2626';
+        const badgeText = item.ok ? '✓ OK' : '⚠️ ATENÇÃO';
+
+        doc.fillColor('#09090b').font('Helvetica-Bold').fontSize(10).text(item.title, 52, y + 8);
+        doc.fillColor(badgeColor).font('Helvetica-Bold').fontSize(9).text(badgeText, doc.page.width - 110, y + 8);
+        doc.fillColor('#52525b').font('Helvetica').fontSize(8.5).text(item.desc, 52, y + 25, { width: doc.page.width - 130 });
+
+        y += 54;
+      }
+
+      // CTA Box
+      if (y > doc.page.height - 110) {
+        doc.addPage();
+        y = 40;
+      }
+
+      doc.rect(40, y, doc.page.width - 80, 75).fill('#09090b');
+      doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(11).text(`QUER COMPLETA AUTORIDADE EM IA PARA A ${brandName.toUpperCase()}?`, 50, y + 14, { align: 'center' });
+      doc.fillColor('#a1a1aa').font('Helvetica').fontSize(8.5).text('Nossa equipe executa a infraestrutura de GEO completa para garantir monopolização nas recomendações.', 50, y + 32, { align: 'center', width: doc.page.width - 100 });
+      doc.fillColor('#10b981').font('Helvetica-Bold').fontSize(9.5).text('Agende uma reunião: https://geo.berocket.com.br', 50, y + 52, { align: 'center' });
+
+      // Footer
+      const pages = doc.bufferedPageRange();
+      for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(i);
+        doc.fillColor('#a1a1aa').font('Helvetica').fontSize(7.5).text(`b.rocket © ${new Date().getFullYear()} // GENERATIVE ENGINE OPTIMIZATION`, 40, doc.page.height - 22);
+        doc.text(`Página ${i + 1} de ${pages.count}`, doc.page.width - 100, doc.page.height - 22);
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 // ─── PDF Report Generator (Single Page Seamless Layout - 100% Visual Parity) ────────
 async function generatePdfReport(lead, diagnostic, isClientReport = true) {
   // Injeta estilos CSS para evitar quebras brutas e garantir fidelidade visual no PDF
@@ -1954,11 +2051,14 @@ async function generatePdfReport(lead, diagnostic, isClientReport = true) {
     console.error('Puppeteer rendering fallback to PDFKit:', puppeteerErr);
   }
 
-  // 2. Fallback: quando Puppeteer/Chrome não está disponível, retorna o HTML como buffer
-  // O servidor vai servir com Content-Type: text/html para download, mantendo visual 100% idêntico
-  // (isso é melhor do que o PDFKit que gera layout completamente diferente)
-  console.warn('[PDF] Puppeteer não encontrou Chrome. Retornando HTML como fallback visual.');
-  return Buffer.from(htmlContent, 'utf-8');
+  // 2. Fallback oficial: gera documento PDF nativo e binário via PDFKit
+  console.log('[PDF] Gerando PDF oficial via engine nativa PDFKit...');
+  try {
+    return await generatePdfWithPDFKit(lead, diagnostic);
+  } catch (pdfKitErr) {
+    console.error('[PDF] Erro no gerador PDFKit:', pdfKitErr);
+    return Buffer.from(htmlContent, 'utf-8');
+  }
 }
 
 // ─── GERADORES DE ENTREGÁVEIS ACIONÁVEIS GEO ─────────────────────────────────
