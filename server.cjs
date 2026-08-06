@@ -23,6 +23,8 @@ const {
   generateAeoContentTemplate,
   generateActionPlanByStages,
   fetchUrl,
+  generateCompleteHtmlReport,
+  takeReportScreenshots,
 } = require('./geo-diagnostic-engine.cjs');
 
 const app = express();
@@ -1126,8 +1128,9 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
   }
 });
 
-// ─── DOWNLOAD HTML DIAGNOSTIC ───────────────────────────────────────────────
-// Retorna o relatório HTML completo para download direto (inclui trilha de auditoria)
+// ─── DOWNLOAD HTML DIAGNOSTIC ──────────────────────────────────────────────────────────────────
+// Retorna o relatório HTML COMPLETO para download direto
+// Inclui: relatório comercial + prints (Puppeteer) + trilha de auditoria
 app.get('/api/admin/diagnostic/html/:leadId', verifyAdminToken, async (req, res) => {
   const { leadId } = req.params;
   try {

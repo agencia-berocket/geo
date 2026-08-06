@@ -1090,7 +1090,7 @@ function generateHtmlReport(lead, diagnostic) {
   </table>
 
   <!-- Hero & Score -->
-  <div style="text-align:center;margin-bottom:32px;">
+  <div id="section-score" style="text-align:center;margin-bottom:32px;">
     <div style="${fontMono} font-size:9.5px;color:#dc2626;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:bold;">DIAGNÓSTICO SEMÂNTICO DE GEO</div>
     <h1 class="hero-title" style="${fontDisplay} font-size:36px;font-weight:800;color:#0c0d0e;margin:0 0 6px;letter-spacing:-1px;text-transform:uppercase;">Raio-X de GEO</h1>
     <div style="${fontMono} font-size:13px;color:#71717a;word-break:break-all;margin-bottom:28px;">${lead.url}</div>
@@ -1494,54 +1494,9 @@ ${item.codeSnippet.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
     </div>
   </div>
 
-  <!-- ═══════════════════════════════════════════════════════════════════════
-       SEÇÃO INTERNA — TRILHA DE AUDITORIA DOS AGENTES (USO EXCLUSIVO b.rocket)
-       ═══════════════════════════════════════════════════════════════════════ -->
-  ${(diagnostic.visibilityBenchmarking && diagnostic.visibilityBenchmarking.agentAuditLog && diagnostic.visibilityBenchmarking.agentAuditLog.length > 0) ? `
-  <div style="background:#1a1a2e;border:2px dashed #3b3b5c;border-radius:20px;padding:28px;margin-top:32px;">
-    <div style="margin-bottom:20px;">
-      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#dc2626;color:#fff;padding:4px 10px;border-radius:5px;margin-right:10px;">USO INTERNO</span>
-      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#6b7280;">b.rocket confidencial</span>
-      ${diagnostic.visibilityBenchmarking.agentAuditLog.some(e => e.simulated) ? `<span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#92400e;color:#fcd34d;padding:4px 10px;border-radius:5px;margin-left:8px;">MODO SIMULADO</span>` : ''}
-      <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#e5e7eb;margin:12px 0 4px;letter-spacing:-0.2px;">🔬 Trilha de Auditoria — Intent Prompt Agent</h3>
-      <p style="${fontSans} font-size:11.5px;color:#9ca3af;margin:0 0 6px;">Registro completo das ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas às LLMs (${[...new Set(diagnostic.visibilityBenchmarking.agentAuditLog.map(e => e.model))].join(' · ')}). Perguntas preenchidas com o nicho real do site analisado.</p>
-      ${diagnostic.visibilityBenchmarking.agentAuditLog.some(e => e.simulated) ? `<div style="${fontSans} font-size:11px;color:#fbbf24;background:#1c1400;border:1px solid #78350f;border-radius:8px;padding:8px 12px;margin-top:8px;">⚠️ As respostas mostradas são simuladas. Para obter as respostas reais das LLMs, configure a variável de ambiente <strong>OPENROUTER_API_KEY</strong> no servidor.</div>` : ''}
-    </div>
-
-    ${diagnostic.visibilityBenchmarking.agentAuditLog.map((entry, idx) => `
-    <div style="background:#0f0f1a;border:1px solid ${entry.citedBrand ? '#16a34a' : entry.error ? '#dc2626' : '#27272a'};border-radius:12px;padding:14px;margin-bottom:12px;">
-      <div style="display:table;width:100%;margin-bottom:10px;">
-        <div style="display:table-cell;vertical-align:middle;">
-          <span style="${fontMono} font-size:9px;font-weight:bold;color:#4b5563;text-transform:uppercase;">#${idx + 1}</span>
-          <span style="${fontMono} font-size:9px;font-weight:bold;color:#a78bfa;text-transform:uppercase;margin-left:6px;">${entry.model}</span>
-        </div>
-        <div style="display:table-cell;vertical-align:middle;text-align:right;">
-          ${entry.simulated ? `<span style="${fontMono} font-size:8px;font-weight:bold;padding:2px 7px;border-radius:4px;background:#1c1400;color:#fbbf24;border:1px solid #78350f;margin-right:6px;">SIMULADO</span>` : ''}
-          <span style="${fontMono} font-size:9px;font-weight:bold;padding:3px 8px;border-radius:5px;${entry.citedBrand ? 'background:#14532d;color:#4ade80;' : entry.error ? 'background:#7f1d1d;color:#fca5a5;' : 'background:#18181b;color:#71717a;'}">
-            ${entry.citedBrand ? '✓ MARCA CITADA' : entry.error ? '⚠ ERRO' : '✗ NÃO CITADA'}
-          </span>
-        </div>
-      </div>
-      <div style="margin-bottom:8px;">
-        <div style="${fontMono} font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">📤 PERGUNTA ENVIADA À IA:</div>
-        <div style="${fontSans} font-size:12.5px;color:#e2e8f0;background:#1f1f30;border-left:3px solid #6366f1;border-radius:0 6px 6px 0;padding:10px 12px;line-height:1.6;font-weight:500;">${entry.userPrompt}</div>
-      </div>
-      <div>
-        <div style="${fontMono} font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">📥 RESPOSTA RECEBIDA${entry.response && entry.response.length >= 400 ? ' (truncada em 400 chars)' : ''}${entry.simulated ? ' [SIMULADA]' : ''}:</div>
-        <div style="${fontSans} font-size:11.5px;color:#94a3b8;background:#1f1f30;border-left:3px solid ${entry.citedBrand ? '#16a34a' : entry.simulated ? '#78350f' : '#374151'};border-radius:0 6px 6px 0;padding:10px 12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${entry.error ? '<span style="color:#fca5a5;">Erro: ' + entry.error + '</span>' : (entry.response || '—')}</div>
-      </div>
-    </div>
-    `).join('')}
-
-    <div style="text-align:center;margin-top:16px;border-top:1px solid #27272a;padding-top:14px;">
-      <span style="${fontMono} font-size:9px;color:#4b5563;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">b.rocket Intent Prompt Agent · ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas · ${diagnostic.visibilityBenchmarking.agentAuditLog.some(e => e.simulated) ? 'MODO SIMULADO' : 'RESPOSTAS REAIS'} · Gerado em ${new Date(diagnostic.generatedAt || Date.now()).toLocaleDateString('pt-BR')}</span>
-    </div>
-  </div>
-  ` : ''}
-
   <!-- Footer -->
   <div style="text-align:center;padding:24px 0 10px;${fontMono} font-size:9px;color:#9ca3af;font-weight:bold;">
-    b.rocket © ${new Date().getFullYear()} // GEO_CORE_V10 // CONFIDENCIAL
+    b.rocket \u00a9 ${new Date().getFullYear()} // GEO_CORE_V10 // CONFIDENCIAL
   </div>
 
 </div>
@@ -2400,6 +2355,122 @@ ${actions.map((act, i) => `${i + 1}. **[${act.impact}]** ${act.task}`).join('\n'
 `;
 }
 
+// ─── Captura screenshots das seções-chave do relatório via Puppeteer ─────────
+async function takeReportScreenshots(htmlContent) {
+  const results = [];
+  try {
+    const puppeteer = require('puppeteer-core');
+    const executablePath = getChromeExecutablePath();
+    if (!executablePath) return results;
+
+    const browser = await puppeteer.launch({
+      executablePath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 700, height: 900, deviceScaleFactor: 2 });
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0', timeout: 20000 });
+
+    const sections = [
+      { id: 'section-score',       label: 'GEO Score — Resultado do Diagnóstico' },
+      { id: 'section-citation',    label: 'Citation Share nas IAs — Visibilidade por Modelo' },
+      { id: 'section-action-plan', label: 'Plano de Ação Priorizado' },
+    ];
+
+    for (const sec of sections) {
+      try {
+        const el = await page.$(`#${sec.id}`);
+        if (!el) continue;
+        const png = await el.screenshot({ type: 'png', omitBackground: false });
+        results.push({ label: sec.label, base64: png.toString('base64') });
+      } catch (_) { /* skip section on error */ }
+    }
+
+    await browser.close();
+  } catch (err) {
+    console.warn('takeReportScreenshots: Puppeteer not available —', err.message);
+  }
+  return results;
+}
+
+// ─── Relatório HTML Completo (uso interno b.rocket) ──────────────────────────
+// Inclui: relatório comercial + evidências visuais (prints) + trilha de auditoria
+function generateCompleteHtmlReport(lead, diagnostic, screenshots = []) {
+  // Gera o relatório comercial limpo (base)
+  const cleanHtml = generateHtmlReport(lead, diagnostic);
+
+  const fontMono = `font-family:'JetBrains Mono', 'Courier New', monospace;`;
+  const fontSans = `font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
+  const fontDisplay = `font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
+  const auditLog = (diagnostic.visibilityBenchmarking && diagnostic.visibilityBenchmarking.agentAuditLog) || [];
+  const isSimulated = auditLog.some(e => e.simulated);
+
+  // ── Seção de Evidências Visuais ─────────────────────────────────────────────
+  const screenshotsSection = `
+  <!-- EVIDÊNCIAS VISUAIS -->
+  <div style="background:#f8fafc;border:2px solid #e2e8f0;border-radius:20px;padding:28px;margin-top:32px;">
+    <div style="margin-bottom:20px;">
+      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#dc2626;color:#fff;padding:4px 10px;border-radius:5px;margin-right:10px;">USO INTERNO</span>
+      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#6b7280;">b.rocket confidencial</span>
+      <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#09090b;margin:12px 0 4px;letter-spacing:-0.2px;">🖼 Evidências Visuais — Prints do Diagnóstico Gerado</h3>
+      <p style="${fontSans} font-size:11.5px;color:#6b7280;margin:0;">Capturas de tela renderizadas das seções principais do diagnóstico. Geradas automaticamente no momento do download.</p>
+    </div>
+    ${screenshots.length > 0 ? screenshots.map(s => `
+    <div style="margin-bottom:24px;">
+      <div style="${fontMono} font-size:9px;color:#6b7280;text-transform:uppercase;font-weight:bold;letter-spacing:1px;margin-bottom:8px;border-left:3px solid #dc2626;padding-left:8px;">${s.label}</div>
+      <img src="data:image/png;base64,${s.base64}" style="width:100%;max-width:650px;border-radius:12px;border:1px solid #e4e4e7;box-shadow:0 4px 16px rgba(0,0,0,0.08);display:block;" alt="${s.label}"/>
+    </div>
+    `).join('') : `
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:16px;text-align:center;">
+      <p style="${fontMono} font-size:10px;color:#b91c1c;margin:0;font-weight:bold;">⚠ Prints não disponíveis — Chrome não encontrado no servidor</p>
+      <p style="${fontSans} font-size:11px;color:#6b7280;margin:6px 0 0;">Configure Puppeteer/Chrome no servidor para habilitar a captura automática de telas.</p>
+    </div>`}
+  </div>`;
+
+  // ── Seção de Auditoria ───────────────────────────────────────────────────────
+  const auditSection = auditLog.length > 0 ? `
+  <!-- TRILHA DE AUDITORIA -->
+  <div style="background:#1a1a2e;border:2px dashed #3b3b5c;border-radius:20px;padding:28px;margin-top:24px;">
+    <div style="margin-bottom:20px;">
+      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#dc2626;color:#fff;padding:4px 10px;border-radius:5px;margin-right:10px;">USO INTERNO</span>
+      <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#6b7280;">b.rocket confidencial</span>
+      ${isSimulated ? `<span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#92400e;color:#fcd34d;padding:4px 10px;border-radius:5px;margin-left:8px;">MODO SIMULADO</span>` : ''}
+      <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#e5e7eb;margin:12px 0 4px;letter-spacing:-0.2px;">🔬 Trilha de Auditoria — Intent Prompt Agent</h3>
+      <p style="${fontSans} font-size:11.5px;color:#9ca3af;margin:0 0 6px;">Registro completo das ${auditLog.length} chamadas às LLMs (${[...new Set(auditLog.map(e => e.model))].join(' · ')}). Perguntas preenchidas com o nicho real do site analisado.</p>
+      ${isSimulated ? `<div style="${fontSans} font-size:11px;color:#fbbf24;background:#1c1400;border:1px solid #78350f;border-radius:8px;padding:8px 12px;margin-top:8px;">⚠️ As respostas mostradas são simuladas. Configure a variável de ambiente <strong>OPENROUTER_API_KEY</strong> no servidor para obter as respostas reais das LLMs.</div>` : ''}
+    </div>
+    ${auditLog.map((entry, idx) => `
+    <div style="background:#0f0f1a;border:1px solid ${entry.citedBrand ? '#16a34a' : entry.error ? '#dc2626' : '#27272a'};border-radius:12px;padding:14px;margin-bottom:12px;">
+      <div style="display:table;width:100%;margin-bottom:10px;">
+        <div style="display:table-cell;vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;color:#4b5563;text-transform:uppercase;">#${idx + 1}</span>
+          <span style="${fontMono} font-size:9px;font-weight:bold;color:#a78bfa;text-transform:uppercase;margin-left:6px;">${entry.model}</span>
+        </div>
+        <div style="display:table-cell;vertical-align:middle;text-align:right;">
+          ${entry.simulated ? `<span style="${fontMono} font-size:8px;font-weight:bold;padding:2px 7px;border-radius:4px;background:#1c1400;color:#fbbf24;border:1px solid #78350f;margin-right:6px;">SIMULADO</span>` : ''}
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:3px 8px;border-radius:5px;${entry.citedBrand ? 'background:#14532d;color:#4ade80;' : entry.error ? 'background:#7f1d1d;color:#fca5a5;' : 'background:#18181b;color:#71717a;'}">${entry.citedBrand ? '✓ MARCA CITADA' : entry.error ? '⚠ ERRO' : '✗ NÃO CITADA'}</span>
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="${fontMono} font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">📤 PERGUNTA ENVIADA À IA:</div>
+        <div style="${fontSans} font-size:12.5px;color:#e2e8f0;background:#1f1f30;border-left:3px solid #6366f1;border-radius:0 6px 6px 0;padding:10px 12px;line-height:1.6;font-weight:500;">${entry.userPrompt}</div>
+      </div>
+      <div>
+        <div style="${fontMono} font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">📥 RESPOSTA RECEBIDA${entry.response && entry.response.length >= 400 ? ' (truncada 400 chars)' : ''}${entry.simulated ? ' [SIMULADA]' : ''}:</div>
+        <div style="${fontSans} font-size:11.5px;color:#94a3b8;background:#1f1f30;border-left:3px solid ${entry.citedBrand ? '#16a34a' : entry.simulated ? '#78350f' : '#374151'};border-radius:0 6px 6px 0;padding:10px 12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${entry.error ? '<span style="color:#fca5a5;">Erro: ' + entry.error + '</span>' : (entry.response || '—')}</div>
+      </div>
+    </div>`).join('')}
+    <div style="text-align:center;margin-top:16px;border-top:1px solid #27272a;padding-top:14px;">
+      <span style="${fontMono} font-size:9px;color:#4b5563;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">b.rocket Intent Prompt Agent · ${auditLog.length} chamadas · ${isSimulated ? 'MODO SIMULADO' : 'RESPOSTAS REAIS'} · Gerado em ${new Date(diagnostic.generatedAt || Date.now()).toLocaleDateString('pt-BR')}</span>
+    </div>
+  </div>` : '';
+
+  // Injeta as seções internas antes de </body>
+  return cleanHtml.replace('</body>\n</html>', `${screenshotsSection}\n${auditSection}\n</body>\n</html>`);
+}
+
 module.exports = {
   runGatekeeperAgent,
   runMetadataAgent,
@@ -2412,6 +2483,8 @@ module.exports = {
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
+  generateCompleteHtmlReport,
+  takeReportScreenshots,
   generatePdfReport,
   generateRobotsTxt,
   generateJsonLdSchema,
