@@ -16,7 +16,6 @@ const navItems = [
   { id: 'leads', icon: IconLeads, label: 'Leads' },
   { id: 'clients', icon: IconClients, label: 'Clientes' },
   { id: 'newsletter', icon: IconMail, label: 'Newsletter' },
-  { id: 'configs', icon: IconSettings, label: 'Agentes' },
 ];
 
 export default function AdminLayout({ children, user, currentPage, onNavigate }: AdminLayoutProps) {
