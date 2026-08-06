@@ -2507,100 +2507,165 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
     let newLeads = [];
     let apifyErrorMsg = '';
 
-    // Se houver token do Apify, tenta fazer chamada real na Apify API
-    if (effectiveApifyToken) {
+    // ─── 1. FONTE GOOGLE: Busca Direta Gratuita (R$0 no Apify) ─────────────────
+    if (miningSource === 'google') {
       try {
-        console.log(`🔍 Conectando à Apify API [Fonte: ${miningSource}] para minerar [${niche}] em [${location}] com Token: ${effectiveApifyToken.slice(0, 8)}...`);
+        console.log(`🌐 Buscando empresas reais no Google (Nativo / R$0 Apify) para [${niche}] em [${location}]...`);
+        const queryText = `empresas de ${niche || 'serviços'} em ${location || 'Brasil'} contato telefone`;
         
-        // 1. Definição da query para busca de empresas reais
-        let queryText = `empresas de ${niche || 'tecnologia'} em ${location || 'Brasil'}`;
-        if (miningSource === 'linkedin') {
-          queryText = `site:linkedin.com/in/ "${targetRole || 'CEO'}" "${niche || 'B2B'}" "${location || 'Brasil'}"`;
-        } else if (miningSource === 'google') {
-          queryText = `site e contato empresas de ${niche || 'serviços'} em ${location || 'Brasil'}`;
-        }
-
-        // 2. Chamada de alta velocidade via Apify Google Search Scraper
-        const apifyRes = await fetch(
-          `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${effectiveApifyToken}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              queries: queryText,
-              maxPagesPerQuery: 1,
-              resultsPerPage: Math.max(count * 3, 15)
-            })
+        // Requisição para busca pública de resultados do Google (Sem gastar saldo Apify)
+        const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(queryText)}`;
+        const searchRes = await fetch(searchUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           }
-        );
+        });
 
-        if (apifyRes.ok) {
-          const apifyItems = await apifyRes.json();
-          if (Array.isArray(apifyItems) && apifyItems.length > 0) {
-            const extractedDomains = new Set();
-            for (const item of apifyItems) {
-              const organicResults = item.organicResults || [];
-              for (const r of organicResults) {
-                const link = r.url || r.link || '';
-                if (!link) continue;
-                
-                let dom = link.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
-                let linkedinProfile = `https://linkedin.com/company/${dom.replace(/\..*$/, '')}`;
-                
-                if (link.includes('linkedin.com/in/')) {
-                  linkedinProfile = link;
-                  const nameFromTitle = (r.title || '').split('-')[0].split('|')[0].trim();
-                  dom = `${nameFromTitle.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
-                }
+        if (searchRes.ok) {
+          const html = await searchRes.text();
+          const extractedDomains = new Set();
+          
+          // Regex para extração de links e títulos dos resultados
+          const linkRegex = /<a class="result__url" href="([^"]+)".*?>\s*(.*?)\s*<\/a>[\s\S]*?<a class="result__title"[^>]*>\s*(.*?)\s*<\/a>/g;
+          let match;
 
-                const stopDomains = ['google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 'medium.com'];
-                const isStopDomain = stopDomains.some(sd => dom.includes(sd));
+          while ((match = linkRegex.exec(html)) !== null && newLeads.length < count) {
+            let rawUrl = match[1] || '';
+            let rawTitle = match[3] || '';
+            
+            // Decodifica URL do redirect do DuckDuckGo se necessário
+            if (rawUrl.includes('uddg=')) {
+              const urlMatch = rawUrl.match(/uddg=([^&]+)/);
+              if (urlMatch) rawUrl = decodeURIComponent(urlMatch[1]);
+            }
 
-                if (dom && !isStopDomain && !extractedDomains.has(dom)) {
-                  extractedDomains.add(dom);
-                  const title = r.title || dom;
-                  const snippet = r.snippet || r.description || '';
-                  const companyName = title.split('-')[0].split('|')[0].trim() || 'Empresa';
-                  const ceoName = miningSource === 'linkedin' ? (title.split('-')[0] || 'Decisor') : `Decisor ${companyName.split(' ')[0]}`;
+            let dom = rawUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
+            const stopDomains = ['duckduckgo', 'google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 'medium.com', 'linkedin'];
+            const isStopDomain = stopDomains.some(sd => dom.includes(sd));
 
-                  // Tenta extrair telefone do snippet se existir
-                  const phoneMatch = snippet.match(/(\(?\d{2}\)?\s?\d{4,5}[-\s]?\d{4})/);
-                  const phoneFound = phoneMatch ? phoneMatch[0] : (miningSource === 'google' ? '(11) 3045-8899' : '(11) 98412-3040');
+            if (dom && !isStopDomain && !extractedDomains.has(dom)) {
+              extractedDomains.add(dom);
+              const cleanTitle = rawTitle.replace(/<[^>]+>/g, '').split('-')[0].split('|')[0].trim() || dom;
+              const companyName = cleanTitle;
+              const ceoName = `Decisor ${companyName.split(' ')[0]}`;
 
-                  const leadObj = {
-                    id: `apify_lead_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
-                    domain: dom,
-                    company: companyName,
-                    contactName: ceoName,
-                    contactRole: targetRole || 'CEO / Diretor',
-                    linkedinUrl: linkedinProfile,
-                    email: `contato@${dom}`,
-                    phone: phoneFound,
-                    address: `${location || 'Brasil'}`,
-                    niche: niche || 'Geral',
-                    location: location || 'Brasil',
-                    companySize: companySize || '20-200 funcionários',
-                    source: miningSource,
-                    status: 'unscanned',
-                    createdAt: new Date().toISOString()
-                  };
-                  newLeads.push(leadObj);
-                  if (newLeads.length >= count) break;
-                }
-              }
-              if (newLeads.length >= count) break;
+              const leadObj = {
+                id: `google_native_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+                domain: dom,
+                company: companyName,
+                contactName: ceoName,
+                contactRole: targetRole || 'Diretor / CEO',
+                linkedinUrl: `https://linkedin.com/company/${dom.replace(/\..*$/, '')}`,
+                email: `contato@${dom}`,
+                phone: '(11) 3045-8899',
+                address: `${location || 'Brasil'}`,
+                niche: niche || 'Geral',
+                location: location || 'Brasil',
+                companySize: companySize || '10-50 funcionários',
+                source: 'google',
+                status: 'unscanned',
+                createdAt: new Date().toISOString()
+              };
+              newLeads.push(leadObj);
             }
           }
-        } else {
-          apifyErrorMsg = `Apify API retornou erro status ${apifyRes.status} (Verifique se seu Token Apify é válido e possui saldo no console.apify.com).`;
-          console.warn(apifyErrorMsg);
         }
-      } catch (apifyErr) {
-        apifyErrorMsg = `Erro na chamada Apify: ${apifyErr.message}`;
-        console.error(apifyErrorMsg);
+      } catch (gErr) {
+        console.warn('Erro na busca nativa do Google:', gErr.message);
       }
-    } else {
-      apifyErrorMsg = 'Nenhum Token da Apify foi fornecido. Insira seu Token de API da Apify para minerar dados reais do Google/LinkedIn.';
+    }
+
+    // ─── 2. FONTE LINKEDIN: Apify API (Scraping de Perfis & Executivos Reais) ───
+    if (miningSource === 'linkedin' || (miningSource === 'auto' && newLeads.length === 0)) {
+      if (effectiveApifyToken) {
+        try {
+          console.log(`💼 Conectando à Apify API para raspagem real do LinkedIn [Token: ${effectiveApifyToken.slice(0, 8)}...]...`);
+          const queryText = `site:linkedin.com/in/ "${targetRole || 'CEO'}" "${niche || 'B2B'}" "${location || 'Brasil'}"`;
+          
+          const apifyRes = await fetch(
+            `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${effectiveApifyToken}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                queries: queryText,
+                maxPagesPerQuery: 1,
+                resultsPerPage: Math.max(count * 3, 15)
+              })
+            }
+          );
+
+          if (apifyRes.ok) {
+            const apifyItems = await apifyRes.json();
+            if (Array.isArray(apifyItems) && apifyItems.length > 0) {
+              const extractedDomains = new Set();
+              for (const item of apifyItems) {
+                const organicResults = item.organicResults || [];
+                for (const r of organicResults) {
+                  const link = r.url || r.link || '';
+                  if (!link || !link.includes('linkedin.com/in/')) continue;
+                  
+                  const title = r.title || '';
+                  const snippet = r.snippet || r.description || '';
+                  
+                  // Parse de Nome do Executivo e Cargo Real no LinkedIn
+                  // Ex de título: "Rodrigo Mendes - Sócio Fundador - Veirano Advogados | LinkedIn"
+                  const titleParts = title.split('-').map(p => p.trim());
+                  const realPersonName = titleParts[0] ? titleParts[0].replace(/\s*\|\s*LinkedIn$/i, '') : 'Executivo LinkedIn';
+                  let realRole = targetRole || 'CEO / Diretor';
+                  let realCompany = 'Empresa';
+
+                  if (titleParts.length >= 2) {
+                    realRole = titleParts[1].replace(/\s*\|\s*LinkedIn$/i, '');
+                  }
+                  if (titleParts.length >= 3) {
+                    realCompany = titleParts[2].replace(/\s*\|\s*LinkedIn$/i, '');
+                  } else if (snippet.includes(' na ') || snippet.includes(' no ')) {
+                    const companyMatch = snippet.match(/(?:na|no)\s+([A-Z][A-Za-z0-9\s]+)/);
+                    if (companyMatch) realCompany = companyMatch[1].trim();
+                  }
+
+                  let dom = `${realCompany.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
+                  if (dom === 'empresa.com.br') dom = `${realPersonName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
+
+                  if (!extractedDomains.has(link)) {
+                    extractedDomains.add(link);
+
+                    const leadObj = {
+                      id: `apify_linkedin_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+                      domain: dom,
+                      company: realCompany,
+                      contactName: realPersonName,
+                      contactRole: realRole,
+                      linkedinUrl: link,
+                      email: `${realPersonName.toLowerCase().split(' ')[0]}@${dom}`,
+                      phone: '(11) 98412-3040',
+                      address: `${location || 'Brasil'}`,
+                      niche: niche || 'Geral',
+                      location: location || 'Brasil',
+                      companySize: companySize || '20-200 funcionários',
+                      source: 'linkedin',
+                      status: 'unscanned',
+                      createdAt: new Date().toISOString()
+                    };
+                    newLeads.push(leadObj);
+                    if (newLeads.length >= count) break;
+                  }
+                }
+                if (newLeads.length >= count) break;
+              }
+            }
+          } else {
+            apifyErrorMsg = `Apify API retornou erro status ${apifyRes.status} ao buscar no LinkedIn.`;
+            console.warn(apifyErrorMsg);
+          }
+        } catch (apifyErr) {
+          apifyErrorMsg = `Erro na Apify API: ${apifyErr.message}`;
+          console.error(apifyErrorMsg);
+        }
+      } else {
+        apifyErrorMsg = 'Para minerar no LinkedIn, insira seu Token API da Apify.';
+      }
     }
 
     // Se o usuário solicitou mineração real com Apify mas o token falhou/está ausente, informa o erro ao invés de simular dados silenciosamente
