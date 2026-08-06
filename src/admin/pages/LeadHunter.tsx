@@ -750,10 +750,13 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                   type="password"
                   value={apifyToken}
                   onChange={e => setApifyToken(e.target.value)}
-                  placeholder="apify_api_xxxxxxxx..."
+                  placeholder="Definido no .env (Coolify) ou informe o seu token..."
                   className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
                 />
-                <p className="text-[10px] text-zinc-400 mt-1">Usado para mineração de decisores no LinkedIn.</p>
+                <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-emerald-700 font-medium">
+                  <IconCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                  <span>Integrado automaticamente à variável <code>APIFY_API_TOKEN</code> do Coolify.</span>
+                </div>
               </div>
 
               <div>
