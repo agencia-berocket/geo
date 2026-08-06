@@ -1523,11 +1523,20 @@ function getChromeExecutablePath() {
   return null;
 }
 
-// ─── PDF Report Generator ─────────────────────────────────────────────────────
+// ─── PDF Report Generator (Single Page Seamless Layout) ──────────────────────
 async function generatePdfReport(lead, diagnostic) {
-  const htmlContent = generateHtmlReport(lead, diagnostic);
+  // Injeta estilos CSS para evitar quebras brutas e garantir fidelidade visual no PDF
+  const printStyle = `
+    <style>
+      @media print {
+        body { background-color: #f4f5f8 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        .card, div { page-break-inside: avoid !important; break-inside: avoid !important; }
+      }
+    </style>
+  `;
+  const htmlContent = generateHtmlReport(lead, diagnostic).replace('</head>', `${printStyle}</head>`);
 
-  // 1. Tentar renderizar o HTML completo via Puppeteer Core para PDF 100% idêntico
+  // 1. Renderizar via Puppeteer Core para PDF 100% idêntico de página única sem quebras
   try {
     const puppeteer = require('puppeteer-core');
     const executablePath = getChromeExecutablePath();
@@ -1540,12 +1549,17 @@ async function generatePdfReport(lead, diagnostic) {
       });
 
       const page = await browser.newPage();
-      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 15000 });
+      await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 2 });
+      await page.setContent(htmlContent, { waitUntil: 'networkidle0', timeout: 20000 });
+
+      // Calcula a altura real total do relatório para gerar um PDF contínuo sem cortes
+      const bodyHeight = await page.evaluate(() => Math.max(document.body.scrollHeight, document.documentElement.scrollHeight));
 
       const pdfBuffer = await page.pdf({
-        format: 'A4',
+        width: '1200px',
+        height: `${bodyHeight + 40}px`,
         printBackground: true,
-        margin: { top: '20px', bottom: '20px', left: '15px', right: '15px' }
+        margin: { top: '0px', bottom: '0px', left: '0px', right: '0px' }
       });
 
       await browser.close();

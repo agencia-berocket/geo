@@ -2633,37 +2633,102 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
   }
 });
 
-// POST /api/admin/lead-hunter/audit
+// POST /api/admin/lead-hunter/audit (Unificado com Motor Diagnóstico de 8 Agentes)
 app.post('/api/admin/lead-hunter/audit', verifyAdminToken, async (req, res) => {
   const { leadId, domain, niche } = req.body;
   if (!domain) return res.status(400).json({ error: 'Dominio obrigatorio' });
 
   try {
     const accessToken = await getGoogleAccessToken();
-    let robotsBlocked = true;
-    let hasBlog = true;
-    let hasAnswerFirst = false;
-    let citedCompetitor = `${niche || 'Nicho'} Lider S/A`;
-
+    const normalizedUrl = domain.startsWith('http') ? domain : `https://${domain}`;
+    const cleanDomain = normalizedUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+    
+    // Fetch HTML do site
+    let htmlContent = '';
     try {
-      const robotsUrl = `https://${domain}/robots.txt`;
-      const txt = await fetchUrl(robotsUrl).catch(() => '');
-      if (txt) {
-        robotsBlocked = /Disallow:\s*\//i.test(txt) && /(GPTBot|OAI-SearchBot|PerplexityBot|ClaudeBot)/i.test(txt);
-      }
+      const siteRes = await fetchUrl(normalizedUrl);
+      htmlContent = siteRes.body || '';
     } catch (e) {
-      robotsBlocked = true;
+      htmlContent = '';
     }
+
+    const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+
+    // Executa os 6 agentes especialistas em paralelo
+    const [gk, md, ct, sem, off, seo] = await Promise.all([
+      runGatekeeperAgent(normalizedUrl, htmlContent),
+      runMetadataAgent(htmlContent, cleanDomain),
+      runContentAgent(htmlContent),
+      runSemanticExplorerAgent(normalizedUrl, htmlContent, openrouterKey),
+      runOffPageEntityAgent(normalizedUrl, htmlContent, openrouterKey),
+      runSeoOptimizerAgent(normalizedUrl, htmlContent),
+    ]);
+
+    // Executa agentes sequenciais (Intent & Checklist Architect)
+    const vis = await runIntentAgent(normalizedUrl, htmlContent, openrouterKey);
+    const chk = await runChecklistArchitectAgent(gk, md, ct, seo, sem, off, cleanDomain, normalizedUrl);
+
+    // Calcula Score Real GEO consolidado
+    const score = calculateGeoScore(gk, md, ct, vis, sem, off, seo);
+    const actions = buildActionList(gk, md, ct, vis, sem, off, seo);
+
+    const diagnosticId = `diag_hunter_${leadId || Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+    const leadObj = { 
+      id: leadId || cleanDomain, 
+      url: normalizedUrl, 
+      email: `contato@${cleanDomain}`, 
+      company: cleanDomain, 
+      name: 'Decisor' 
+    };
+
+    const diagObj = {
+      id: diagnosticId,
+      leadId: leadId || cleanDomain,
+      clientUrl: normalizedUrl,
+      overallGeoScore: score,
+      gatekeeperStatus: gk,
+      metadataAnalysis: md,
+      contentReview: ct,
+      seoAnalysis: seo,
+      semanticAnalysis: sem,
+      offpageAnalysis: off,
+      visibilityBenchmarking: vis,
+      checklist: chk,
+      actionItemsPriorityList: actions,
+      generatedAt: new Date().toISOString(),
+    };
+
+    const htmlReport = generateHtmlReport(leadObj, diagObj);
+
+    // Salva o diagnóstico completo no Firestore
+    try {
+      const diagFields = {};
+      for (const [k, v] of Object.entries({ ...diagObj, htmlReportContent: htmlReport.slice(0, 500000) })) {
+        diagFields[k] = toFirestoreValue(v);
+      }
+      await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: diagFields }),
+      });
+    } catch (fsDiagErr) {
+      console.warn('Erro ao salvar diagnóstico no Firestore:', fsDiagErr.message);
+    }
+
+    const robotsBlocked = !gk.robotsTxtAllowAiBots;
+    const citedCompetitor = vis.topMentionedCompetitors?.[0] || `${niche || 'Nicho'} Líder S/A`;
 
     const updatedData = {
       status: 'audited',
       aiCrawlersBlocked: robotsBlocked,
-      hasBlog: hasBlog,
-      hasAnswerFirst: hasAnswerFirst,
+      hasBlog: md.llmsTxtPublished || ct.meanChunkSizeTokens > 0,
+      hasAnswerFirst: ct.factorsDetected?.hasTldrAnswerFirstParagraph || false,
       citedCompetitor: citedCompetitor,
-      geoScoreEstimado: robotsBlocked ? 30 : 45
+      geoScoreEstimado: score,
+      diagnosticId: diagnosticId
     };
 
+    // Atualiza o lead em hunter_leads
     if (leadId) {
       try {
         const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?pageSize=100`;
@@ -2671,7 +2736,7 @@ app.post('/api/admin/lead-hunter/audit', verifyAdminToken, async (req, res) => {
         let docPath = null;
         for (const doc of (listData.documents || [])) {
           const f = parseFirestoreDoc(doc);
-          if (f.id === leadId || f.domain === domain) {
+          if (f.id === leadId || f.domain === cleanDomain) {
             docPath = doc.name;
             break;
           }
@@ -2694,14 +2759,14 @@ app.post('/api/admin/lead-hunter/audit', verifyAdminToken, async (req, res) => {
       }
     }
 
-    res.json({ success: true, updatedLead: updatedData });
+    res.json({ success: true, updatedLead: updatedData, diagnosticId, htmlReport });
   } catch (err) {
     console.error('Error auditing lead:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// POST /api/admin/lead-hunter/outreach
+// POST /api/admin/lead-hunter/outreach (Copys Dinâmicas com base na Auditoria Real)
 app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) => {
   const { leadId, leadData } = req.body;
   const lead = leadData || {};
@@ -2709,13 +2774,34 @@ app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) =
   const name = lead.contactName || 'Decisor';
   const domain = lead.domain || 'site.com.br';
   const competitor = lead.citedCompetitor || 'Concorrente Direto';
+  const robotsBlocked = lead.aiCrawlersBlocked !== false; // true por padrão se indefinido
 
-  const outreachCopies = {
-    pasLinkedin: `Olá ${name}! Estava analisando o posicionamento digital da ${company} e notei algo crítico: o seu robots.txt está com restrições para crawlers de IA.\n\nEnquanto sua equipe investe em conteúdo, o ChatGPT, Gemini, Claude e Perplexity recomendam a ${competitor} para buscas de alta intenção no seu nicho.\n\nElaborei um mini-diagnóstico em PDF mostrando como destravar essa visibilidade técnica sem alterar seu SEO tradicional. Quer que eu te envie por aqui?`,
-    pasEmail: `Assunto: Ponto cego na visibilidade de IA da ${company} (${competitor} sendo recomendada no ChatGPT, Gemini e Claude)\n\nOlá ${name}, tudo bem?\n\nEstava revisando os domínios corporativos no segmento e notei algo importante no site ${domain}.\n\nSua empresa produz conteúdo, mas as diretivas de robôs no arquivo robots.txt contêm bloqueios para os rastreadores de IA (GPTBot, PerplexityBot e ClaudeBot). Na prática, as principais inteligências artificiais do mercado (ChatGPT, Gemini, Claude e Perplexity) estão recomendando a ${competitor} para potenciais clientes em vez da ${company}.\n\nDesenvolvemos na b.rocket a arquitetura de GEO (Generative Engine Optimization) para eliminar essa invisibilidade técnica em poucos dias.\n\nPosso te enviar uma análise rápida do seu domínio em PDF?\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`,
-    babLinkedin: `${name}, você sabia que quando um cliente em potencial pergunta ao ChatGPT, Gemini ou Claude sobre as melhores soluções no seu nicho, a IA cita a ${competitor}?\n\nIsso acontece porque a ${company} ainda não possui as diretivas de AEO e autoridade semântica para LLMs.\n\nCom o GEO da b.rocket, ajustamos a estrutura para que a ${company} passe a ser a resposta recomendada em 1ª posição no ChatGPT, Gemini, Claude e Perplexity. Quer ver como funciona?`,
-    babEmail: `Assunto: Como posicionar a ${company} em 1º lugar no ChatGPT, Gemini, Claude e Perplexity\n\nOlá ${name},\n\nImagine o seguinte cenário: um decisor pesquisa nas principais IAs (ChatGPT, Gemini, Claude e Perplexity) "quais as melhores soluções de ${lead.niche || 'tecnologia'} do mercado?". Hoje, as IAs respondem recomendando a ${competitor} e seu site sequer é mencionado.\n\nAgora imagine o cenário ideal: a ${company} sendo a fonte primária de resposta citada em 100% das buscas de IA com link direto para o seu atendimento.\n\nÉ exatamente esse resultado que entregamos com nosso protocolo de GEO (Generative Engine Optimization).\n\nSe fizer sentido para o seu momento na ${company}, posso compartilhar uma demonstração do diagnóstico nesta semana.\n\nAbraços,\nGuilherme Rossi | b.rocket`
-  };
+  let pasLinkedin = '';
+  let pasEmail = '';
+  let babLinkedin = '';
+  let babEmail = '';
+
+  if (robotsBlocked) {
+    // Caso 1: robots.txt realmente bloqueia robôs de IA
+    pasLinkedin = `Olá ${name}! Estava analisando o posicionamento digital da ${company} e notei algo crítico: o seu arquivo robots.txt está com diretivas de bloqueio para crawlers de IA (GPTBot, PerplexityBot e ClaudeBot).\n\nEnquanto sua equipe investe em conteúdo, o ChatGPT, Gemini, Claude e Perplexity recomendam a ${competitor} para buscas de alta intenção comercial no seu nicho.\n\nGeramos um relatório técnico completo em PDF/HTML mostrando como liberar a indexação IA sem alterar seu SEO tradicional. Quer que eu te envie por aqui?`;
+    
+    pasEmail = `Assunto: Ponto cego no robots.txt da ${company} (${competitor} recomendada no ChatGPT, Gemini e Claude)\n\nOlá ${name}, tudo bem?\n\nEstava revisando os domínios corporativos do seu segmento e notei algo importante no site ${domain}.\n\nSua empresa produz conteúdo, mas o arquivo robots.txt possui bloqueios ativos para os rastreadores de IA (GPTBot, PerplexityBot e ClaudeBot). Na prática, as principais inteligências artificiais do mercado (ChatGPT, Gemini, Claude e Perplexity) estão recomendando a ${competitor} para potenciais clientes em vez da ${company}.\n\nDesenvolvemos na b.rocket a arquitetura de GEO (Generative Engine Optimization) que elimina essa invisibilidade técnica em poucos dias.\n\nAnexamos nosso relatório diagnóstico completo para sua análise.\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`;
+
+    babLinkedin = `${name}, você sabia que quando um cliente em potencial pesquisa no ChatGPT, Gemini ou Claude pelas melhores soluções no seu segmento, a IA cita a ${competitor}?\n\nIsso acontece porque a ${company} bloqueia o acesso dos robôs de IA e não possui marcação AEO.\n\nCom o GEO da b.rocket, corrigimos essa barreira para que a ${company} passe a ser a resposta recomendada em 1ª posição no ChatGPT, Gemini, Claude e Perplexity. Quer ver o diagnóstico completo?`;
+
+    babEmail = `Assunto: Como posicionar a ${company} em 1º lugar no ChatGPT, Gemini, Claude e Perplexity\n\nOlá ${name},\n\nImagine o seguinte cenário: um tomador de decisão pesquisa nas principais IAs (ChatGPT, Gemini, Claude e Perplexity) "quais as melhores soluções de ${lead.niche || 'tecnologia'} do mercado?". Hoje, as IAs respondem recomendando a ${competitor} e o site ${domain} sequer é mencionado devido ao bloqueio no robots.txt.\n\nAgora imagine o cenário ideal: a ${company} sendo a fonte primária citada em 100% das buscas de IA com link direto para o seu trial/atendimento.\n\nÉ exatamente esse resultado que entregamos com nosso protocolo de GEO (Generative Engine Optimization).\n\nCompartilho em anexo a análise técnica detalhada do seu domínio.\n\nAbraços,\nGuilherme Rossi | b.rocket`;
+  } else {
+    // Caso 2: robots.txt permite robôs, mas falta AEO / Schemas / Citabilidade
+    pasLinkedin = `Olá ${name}! Analisei o posicionamento digital da ${company} e vi que, embora seu robots.txt permita o acesso de robôs de IA, o site não possui marcação AEO (Answer-First) e Schemas JSON-LD.\n\nPor causa disso, quando um decisor busca no ChatGPT, Gemini, Claude ou Perplexity, as IAs ainda recomendam a ${competitor} no seu lugar!\n\nGeramos um relatório diagnóstico completo mostrando exatamente quais tags adicionar para assumir o 1º lugar nas respostas de IA. Quer que eu te envie?`;
+
+    pasEmail = `Assunto: Ausência de AEO e Schemas na ${company} (${competitor} recomendada no ChatGPT, Gemini e Claude)\n\nOlá ${name}, tudo bem?\n\nEstava analisando a presença digital da ${company} no domínio ${domain}.\n\nIdentifiquei que embora os robôs de IA tenham acesso ao seu site, a estrutura de conteúdo não possui parágrafos de resposta direta (AEO) e faltam Schemas JSON-LD de entidade. Na prática, as IAs (ChatGPT, Gemini, Claude e Perplexity) continuam recomendando a ${competitor} para potenciais clientes do seu nicho.\n\nCom a metodologia de GEO da b.rocket, reestruturamos seus blocos semânticos para garantir a citação prioritária em poucas semanas.\n\nAnexamos nosso diagnóstico completo com o plano de ação técnico.\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`;
+
+    babLinkedin = `${name}, sabia que mesmo permitindo os robôs de IA no site, a ${company} perde citações no ChatGPT, Gemini e Claude para a ${competitor}?\n\nIsso acontece por falta de densidade factual e estrutura AEO.\n\nCom o motor de GEO da b.rocket, transformamos seu conteúdo existente em respostas autoritativas recomendadas em 1º lugar em todas as LLMs. Quer ver como funciona?`;
+
+    babEmail = `Assunto: Como transformar o conteúdo da ${company} na resposta 1º lugar nas IAs\n\nOlá ${name},\n\nQuando um cliente pesquisa no ChatGPT, Gemini, Claude ou Perplexity pelas melhores soluções no seu segmento, hoje a ${competitor} aparece como primeira recomendação.\n\nA ${company} tem excelente potencial, mas precisa de uma camada de autoridade semântica para que as IAs compreendam e citem a sua marca como fonte primária.\n\nÉ exatamente isso que a nossa arquitetura GEO entrega para empresas do seu setor.\n\nEncaminho em anexo a auditoria completa do site ${domain}.\n\nAbraços,\nGuilherme Rossi | b.rocket`;
+  }
+
+  const outreachCopies = { pasLinkedin, pasEmail, babLinkedin, babEmail };
 
   try {
     const accessToken = await getGoogleAccessToken();
@@ -2751,6 +2837,74 @@ app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) =
     res.json({ success: true, outreachCopies });
   } catch (err) {
     console.error('Error generating outreach copy:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/admin/lead-hunter/html/:leadId (Visualizar Relatório HTML)
+app.get('/api/admin/lead-hunter/html/:leadId', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    let htmlReport = null;
+    for (const doc of (diagData.documents || [])) {
+      const f = parseFirestoreDoc(doc);
+      if (f.leadId === leadId || f.id.includes(leadId)) {
+        htmlReport = f.htmlReportContent;
+        break;
+      }
+    }
+
+    if (!htmlReport) {
+      return res.status(404).send('<h1>Relatório HTML não encontrado. Execute o Audit primeiro.</h1>');
+    }
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(htmlReport);
+  } catch (err) {
+    res.status(500).send(`Erro ao buscar relatório: ${err.message}`);
+  }
+});
+
+// GET /api/admin/lead-hunter/pdf/:leadId (Baixar Relatório PDF de Página Única)
+app.get('/api/admin/lead-hunter/pdf/:leadId', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    let diagnostic = null;
+    for (const doc of (diagData.documents || [])) {
+      const f = parseFirestoreDoc(doc);
+      if (f.leadId === leadId || f.id.includes(leadId)) {
+        diagnostic = f;
+        break;
+      }
+    }
+
+    if (!diagnostic) {
+      return res.status(404).json({ error: 'Diagnóstico não encontrado' });
+    }
+
+    const leadObj = { 
+      company: diagnostic.clientUrl || leadId, 
+      url: diagnostic.clientUrl || `https://${leadId}` 
+    };
+
+    const pdfBuffer = await generatePdfReport(leadObj, diagnostic);
+    const domain = (diagnostic.clientUrl || leadId).replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('PDF download error:', err);
     res.status(500).json({ error: err.message });
   }
 });

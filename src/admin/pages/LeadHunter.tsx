@@ -13,6 +13,7 @@ import {
   IconSend, 
   IconTrash,
   IconMail,
+  IconClipboard,
   IconX 
 } from '../components/icons';
 import { getAuth } from 'firebase/auth';
@@ -34,6 +35,7 @@ interface HunterLead {
   hasAnswerFirst?: boolean;
   citedCompetitor?: string;
   geoScoreEstimado?: number;
+  diagnosticId?: string;
   outreachCopies?: {
     pasLinkedin?: string;
     pasEmail?: string;
@@ -55,6 +57,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [generatingCopyId, setGeneratingCopyId] = useState<string | null>(null);
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [downloadingPdfId, setDownloadingPdfId] = useState<string | null>(null);
   const [sendingEmail, setSendingEmail] = useState(false);
 
   // Mining parameters
@@ -68,7 +71,11 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [selectedLeadForCopy, setSelectedLeadForCopy] = useState<HunterLead | null>(null);
   const [copyTab, setCopyTab] = useState<'PAS' | 'BAB'>('PAS');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [attachReportLink, setAttachReportLink] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+
+  // HTML Report Preview Modal
+  const [htmlPreviewModal, setHtmlPreviewModal] = useState<{ url: string; title: string } | null>(null);
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -138,8 +145,10 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     }
   };
 
+  // Run Full 8-Agent Diagnostic
   const handleRunQuickAudit = async (lead: HunterLead) => {
     setAuditingId(lead.id);
+    showToastMsg(`Iniciando Diagnóstico Completo de 8 Agentes para ${lead.domain}...`);
     try {
       const token = await getAdminToken();
       const res = await fetch('/api/admin/lead-hunter/audit', {
@@ -157,7 +166,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Quick Audit concluído para ${lead.domain}!`);
+        showToastMsg(`Diagnóstico GEO concluído! Score real: ${data.updatedLead.geoScoreEstimado}%`);
         setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, ...data.updatedLead } : l));
       } else {
         showToastMsg(`Falha na auditoria de ${lead.domain}`);
@@ -187,7 +196,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Copys PAS & BAB geradas com sucesso para ${lead.company}!`);
+        showToastMsg(`Copys dinâmicas geradas com sucesso para ${lead.company}!`);
         const updated = { ...lead, outreachCopies: data.outreachCopies, status: 'outreach_ready' as const };
         setLeads(prev => prev.map(l => l.id === lead.id ? updated : l));
         setSelectedLeadForCopy(updated);
@@ -254,16 +263,69 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     }
   };
 
+  // Preview HTML Report Modal
+  const handleViewHtmlReport = async (lead: HunterLead) => {
+    try {
+      const token = await getAdminToken();
+      const res = await fetch(`/api/admin/lead-hunter/html/${lead.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const html = await res.text();
+        const blob = new Blob([html], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        setHtmlPreviewModal({ url: blobUrl, title: `Relatório GEO Completo — ${lead.company}` });
+      } else {
+        showToastMsg('Relatório HTML não encontrado. Clique em Audit para gerar primeiro.');
+      }
+    } catch (err: any) {
+      showToastMsg(`Erro ao carregar relatório: ${err.message}`);
+    }
+  };
+
+  // Download PDF Report (Continuous Single Page)
+  const handleDownloadPdfReport = async (lead: HunterLead) => {
+    setDownloadingPdfId(lead.id);
+    showToastMsg(`Gerando PDF de página única para ${lead.domain}...`);
+    try {
+      const token = await getAdminToken();
+      const res = await fetch(`/api/admin/lead-hunter/pdf/${lead.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Relatorio_GEO_${lead.domain}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToastMsg('Download do PDF em página única concluído!');
+      } else {
+        showToastMsg('Erro ao gerar PDF do relatório. Execute o Audit primeiro.');
+      }
+    } catch (err: any) {
+      showToastMsg(`Erro no download PDF: ${err.message}`);
+    } finally {
+      setDownloadingPdfId(null);
+    }
+  };
+
   const handleSendDirectEmail = async () => {
     if (!selectedLeadForCopy) return;
     const recipientEmail = selectedLeadForCopy.email;
-    const currentEmailCopy = copyTab === 'PAS' 
+    let currentEmailCopy = copyTab === 'PAS' 
       ? selectedLeadForCopy.outreachCopies?.pasEmail 
       : selectedLeadForCopy.outreachCopies?.babEmail;
 
     if (!currentEmailCopy) {
       showToastMsg('Gere primeiro a copy antes de enviar o e-mail');
       return;
+    }
+
+    if (attachReportLink) {
+      currentEmailCopy += `\n\n📌 Acesse a auditoria completa de visibilidade do seu domínio: https://geo.berocket.com.br`;
     }
 
     // Extract subject line from copy text if present
@@ -339,7 +401,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold tracking-wider">
-                AGENTE SDR/BDR DIGITAL // CANÔNICO
+                AGENTE SDR/BDR DIGITAL // MOTOR UNIFICADO 8 AGENTES
               </span>
               <span className="text-[10px] font-mono text-zinc-400">lead_hunter_v10</span>
             </div>
@@ -348,7 +410,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               Lead Hunter — Inteligência Comercial Outbound
             </h1>
             <p className="text-zinc-400 text-xs mt-1 max-w-2xl leading-relaxed">
-              Agente autônomo para mineração de ICPs via Apify & Google, micro-auditoria técnica de robôs (ChatGPT, Gemini, Claude e Perplexity) e envio de abordagens diretas.
+              Mineração autônoma de ICPs via Apify, diagnóstico unificado com 8 agentes especialistas (ChatGPT, Gemini, Claude e Perplexity) e envio de copys diretas.
             </p>
           </div>
 
@@ -379,7 +441,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
         <div className="tactile-raised p-4 bg-white rounded-2xl border border-zinc-200/60 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Micro-Auditados</p>
+            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Micro-Auditados (8 Agentes)</p>
             <p className="text-2xl font-extrabold text-emerald-600 font-display mt-0.5">{auditedLeads}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -523,7 +585,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 <tr>
                   <th className="py-3 px-4">Empresa / Dominio</th>
                   <th className="py-3 px-4">Decisor / Cargo</th>
-                  <th className="py-3 px-4">Diagnóstico Expresso (IAs)</th>
+                  <th className="py-3 px-4">Diagnóstico Unificado (8 Agentes)</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Ações do Agente</th>
                 </tr>
@@ -573,20 +635,20 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                     {/* Quick Audit Info */}
                     <td className="py-3.5 px-4">
                       {lead.status === 'unscanned' ? (
-                        <span className="text-[11px] font-mono text-zinc-400 italic">Auditoria pendente</span>
+                        <span className="text-[11px] font-mono text-zinc-400 italic">Diagnóstico 8 agentes pendente</span>
                       ) : (
                         <div className="space-y-1 text-[11px]">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">Score GEO:</span>
+                            <span className="font-semibold">Score GEO Real:</span>
                             <span className={`font-bold font-mono px-1.5 py-0.5 rounded text-[10px] ${
                               (lead.geoScoreEstimado || 0) < 40 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
                             }`}>
-                              {lead.geoScoreEstimado || 35}%
+                              {lead.geoScoreEstimado}%
                             </span>
                           </div>
                           <div className="flex items-center gap-1.5 text-zinc-600">
                             <span className={lead.aiCrawlersBlocked ? 'text-red-600 font-bold' : 'text-emerald-600'}>
-                              {lead.aiCrawlersBlocked ? '⚠️ Bloqueia IAs (ChatGPT/Gemini)' : '✓ Robôs IA permitidos'}
+                              {lead.aiCrawlersBlocked ? '⚠️ Bloqueia Robôs no robots.txt' : '✓ Robôs IA permitidos'}
                             </span>
                           </div>
                           {lead.citedCompetitor && (
@@ -594,6 +656,25 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                               <span className="text-zinc-400 font-mono">Citado nas IAs:</span> <strong className="text-zinc-700">{lead.citedCompetitor}</strong>
                             </p>
                           )}
+                          
+                          {/* Visualizar / Baixar Relatório HTML e PDF */}
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              onClick={() => handleViewHtmlReport(lead)}
+                              className="text-[10px] text-blue-600 hover:underline font-mono font-bold cursor-pointer"
+                            >
+                              👁️ Ver HTML
+                            </button>
+                            <span className="text-zinc-300">|</span>
+                            <button
+                              onClick={() => handleDownloadPdfReport(lead)}
+                              disabled={downloadingPdfId === lead.id}
+                              className="text-[10px] text-red-600 hover:underline font-mono font-bold cursor-pointer"
+                            >
+                              {downloadingPdfId === lead.id ? 'Baixando...' : '📕 Baixar PDF'}
+                            </button>
+                          </div>
+
                         </div>
                       )}
                     </td>
@@ -607,7 +688,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                       )}
                       {lead.status === 'audited' && (
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                          Micro-Auditado
+                          Auditado (8 Agentes)
                         </span>
                       )}
                       {lead.status === 'outreach_ready' && (
@@ -625,15 +706,15 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* Quick Audit Button */}
+                        {/* Run Full Audit Button */}
                         <button
                           onClick={() => handleRunQuickAudit(lead)}
                           disabled={auditingId === lead.id}
-                          title="Rodar micro-auditoria técnica de robôs (ChatGPT, Gemini, Claude, Perplexity)"
+                          title="Rodar diagnóstico completo com o pipeline dos 8 Agentes Especialistas"
                           className="p-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
                         >
                           <IconActivity className={`w-3.5 h-3.5 ${auditingId === lead.id ? 'animate-spin' : ''}`} />
-                          <span className="hidden sm:inline">Audit</span>
+                          <span className="hidden sm:inline">Audit 8 Agentes</span>
                         </button>
 
                         {/* Generate / View Copy Button */}
@@ -691,7 +772,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
                 <span className="text-[10px] font-mono uppercase bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                  Copys Geradas pelo Agente Lead Hunter (ChatGPT, Gemini, Claude & Perplexity)
+                  Copys Geradas com Base na Auditoria Real (ChatGPT, Gemini, Claude & Perplexity)
                 </span>
                 <h3 className="text-lg font-bold text-zinc-900 font-display mt-1">
                   Abordagem para {selectedLeadForCopy.contactName || selectedLeadForCopy.company} ({selectedLeadForCopy.company})
@@ -803,6 +884,19 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                     </button>
                   </div>
                 </div>
+
+                <div className="flex items-center gap-2 px-1">
+                  <label className="text-[11px] font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={attachReportLink} 
+                      onChange={e => setAttachReportLink(e.target.checked)} 
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Anexar link do Relatório GEO Completo ao final do e-mail</span>
+                  </label>
+                </div>
+
                 <div className="p-3 bg-white rounded-lg border border-zinc-200 text-xs text-zinc-800 whitespace-pre-wrap font-sans leading-relaxed">
                   {copyTab === 'PAS' 
                     ? (selectedLeadForCopy.outreachCopies?.pasEmail || 'Gerando e-mail PAS...')
@@ -821,6 +915,31 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* HTML Report Preview Modal */}
+      {htmlPreviewModal && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/80 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full h-[90vh] flex flex-col shadow-2xl border border-zinc-200 overflow-hidden">
+            <div className="p-4 border-b border-zinc-200 bg-zinc-900 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2">
+                <IconShield className="w-5 h-5 text-emerald-400" />
+                <h3 className="font-bold text-sm font-display">{htmlPreviewModal.title}</h3>
+              </div>
+              <button 
+                onClick={() => setHtmlPreviewModal(null)}
+                className="text-zinc-400 hover:text-white p-1 rounded cursor-pointer"
+              >
+                <IconX className="w-5 h-5" />
+              </button>
+            </div>
+            <iframe 
+              src={htmlPreviewModal.url} 
+              className="w-full flex-1 border-none bg-[#f4f5f8]" 
+              title="GEO Report Preview"
+            />
           </div>
         </div>
       )}
