@@ -1523,8 +1523,213 @@ function getChromeExecutablePath() {
   return null;
 }
 
-// ─── PDF Report Generator (Single Page Seamless Layout) ──────────────────────
-async function generatePdfReport(lead, diagnostic) {
+// ─── Client-Facing Simplified HTML Report (Lead Hunter & Outreach) ───────────
+function generateClientHtmlReport(lead, diagnostic) {
+  const score = diagnostic.overallGeoScore || 0;
+  const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
+  
+  const cardStyle = `background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:28px; margin-bottom:24px;`;
+  const scoreCardStyle = `background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:32px; display:inline-block; min-width:240px; text-align:center;`;
+  
+  const fontDisplay = `font-family:'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
+  const fontSans = `font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
+  const fontMono = `font-family:'JetBrains Mono', 'Courier New', monospace;`;
+
+  const domain = (lead?.url || lead?.domain || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  const brandName = extractCleanBrandName(domain, lead);
+
+  // Quick summary status
+  let statusBanner = '';
+  if (score < 40) {
+    statusBanner = `
+      <div style="background:#fef2f2; border-left:4px solid #dc2626; padding:16px; border-radius:12px; margin-top:20px; text-align:left;">
+        <p style="margin:0 0 6px; font-weight:bold; color:#991b1b; ${fontDisplay} font-size:14px; text-transform:uppercase;">🚨 Alerta Crítico de Visibilidade por Inteligência Artificial</p>
+        <p style="margin:0; color:#7f1d1d; font-size:13px; line-height:1.5; ${fontSans}">
+          Seu site está atualmente <strong>invisível para as respostas diretas do ChatGPT, Claude, Gemini e Perplexity</strong> (Score GEO: ${score}%). Quando potenciais clientes pesquisam pelas melhores soluções do seu segmento em assistentes virtuais, a IA cita seus concorrentes diretos no seu lugar.
+        </p>
+      </div>
+    `;
+  } else if (score < 70) {
+    statusBanner = `
+      <div style="background:#fff7ed; border-left:4px solid #d97706; padding:16px; border-radius:12px; margin-top:20px; text-align:left;">
+        <p style="margin:0 0 6px; font-weight:bold; color:#9a3412; ${fontDisplay} font-size:14px; text-transform:uppercase;">⚠️ Risco Comercial — Visibilidade Parcial nas IAs</p>
+        <p style="margin:0; color:#7c2d12; font-size:13px; line-height:1.5; ${fontSans}">
+          Sua empresa possui algumas bases técnicas ativas, mas faltam estruturas de resposta direta (AEO) e validação de entidades. As IAs encontram seu site com dificuldade e frequentemente recomendam concorrentes em posições de maior destaque.
+        </p>
+      </div>
+    `;
+  } else {
+    statusBanner = `
+      <div style="background:#f0fdf4; border-left:4px solid #16a34a; padding:16px; border-radius:12px; margin-top:20px; text-align:left;">
+        <p style="margin:0 0 6px; font-weight:bold; color:#166534; ${fontDisplay} font-size:14px; text-transform:uppercase;">✨ Ótimo Potencial de Domínio de Mercado</p>
+        <p style="margin:0; color:#14532d; font-size:13px; line-height:1.5; ${fontSans}">
+          Sua estrutura tem excelente compatibilidade com robôs de IA (Score GEO: ${score}%). Com pequenos ajustes nos parágrafos de resposta rápida e nos Schemas de autoridade, sua marca assumirá o monopólio das recomendações no seu setor.
+        </p>
+      </div>
+    `;
+  }
+
+  // Didactic Checklist Items
+  let checklistItems = diagnostic.checklist?.interactiveChecklist || [];
+  if (!checklistItems || checklistItems.length === 0) {
+    const priorityItems = diagnostic.actionItemsPriorityList || [];
+    checklistItems = priorityItems.map((item, idx) => ({
+      title: item.task || `Otimização de Visibilidade #${idx + 1}`,
+      category: item.agentOwner || 'GEO Core',
+      impactLevel: item.impact || 'Alto Impacto',
+      effortLevel: 'Rápida Implantação',
+      description: `Ajuste técnico essencial para garantir que robôs de busca generativa (ChatGPT, Gemini e Claude) leiam e citem a ${brandName}.`,
+      cmsInstruction: `Encaminhar esta instrução ao desenvolvedor do site ou gestor de conteúdo da marca.`
+    }));
+  }
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Relatório GEO de Visibilidade IA — ${brandName} | b.rocket</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;750;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  @media print {
+    body { background-color: #f4f5f8 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    .card { page-break-inside: avoid !important; break-inside: avoid !important; }
+  }
+  @media (max-width: 600px) {
+    .container { padding: 15px !important; }
+    .score-card { padding: 24px !important; }
+    .hero-title { font-size: 26px !important; }
+  }
+</style>
+</head>
+<body style="background-color:#f4f5f8; background-image:radial-gradient(#e2e4e9 1px, transparent 1px), radial-gradient(#e2e4e9 1px, transparent 1px); background-size:20px 20px; background-position:0 0, 10px 10px; color:#0c0d0e;${fontSans} margin:0;padding:0;-webkit-font-smoothing:antialiased;min-height:100vh;">
+<div class="container" style="max-width:680px;margin:0 auto;padding:30px 15px;">
+
+  <!-- Header Comercial -->
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:28px;border-bottom:1px solid #e4e4e7;padding-bottom:18px;">
+    <tr>
+      <td align="left" style="vertical-align:middle;">
+        <div style="display:inline-block;width:32px;height:32px;background-color:#09090b;border:1px solid #27272a;border-radius:10px;vertical-align:middle;position:relative;margin-right:10px;text-align:center;">
+          <div style="display:inline-block;width:22px;height:22px;background-color:#ffffff;border:1px solid #f4f4f5;border-radius:50%;margin-top:4px;position:relative;text-align:center;">
+            <div style="display:inline-block;width:14px;height:10px;background-color:#09090b;border-radius:3px;margin-top:4.5px;position:relative;overflow:hidden;">
+              <div style="position:absolute;top:1px;left:1px;width:3px;height:3px;background-color:rgba(255,255,255,0.4);border-radius:50%;"></div>
+              <div style="position:absolute;bottom:1px;right:1px;width:3px;height:3px;background-color:#10b981;border-radius:50%;"></div>
+            </div>
+          </div>
+        </div>
+        <div style="${fontDisplay} font-weight:900;font-size:18px;color:#09090b;letter-spacing:1.5px;display:inline-block;vertical-align:middle;text-transform:uppercase;">
+          B.ROCKET
+        </div>
+        <div style="display:inline-block;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:3px 8px;margin-left:8px;vertical-align:middle;">
+          <span style="${fontMono} font-size:9.5px;color:#047857;font-weight:bold;letter-spacing:1px;">AUDITORIA GEO</span>
+        </div>
+      </td>
+      <td align="right" style="${fontMono} font-size:9.5px;color:#71717a;font-weight:bold;vertical-align:middle;">
+        EMPRESA: ${brandName.toUpperCase()}
+      </td>
+    </tr>
+  </table>
+
+  <!-- Hero & Score Card -->
+  <div style="text-align:center;margin-bottom:32px;">
+    <div style="${fontMono} font-size:10px;color:#10b981;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;font-weight:bold;">
+      GENERATIVE ENGINE OPTIMIZATION (GEO)
+    </div>
+    <h1 class="hero-title" style="${fontDisplay} font-size:32px;font-weight:800;color:#0c0d0e;margin:0 0 6px;letter-spacing:-0.5px;text-transform:uppercase;">
+      Relatório de Visibilidade IA
+    </h1>
+    <div style="${fontMono} font-size:13px;color:#71717a;word-break:break-all;margin-bottom:24px;">${domain}</div>
+
+    <!-- Score Box -->
+    <div class="score-card card" style="${scoreCardStyle}">
+      <div style="font-size:58px;font-weight:800;color:${scoreColor};${fontMono} line-height:1;margin:0 auto 6px;">${score}%</div>
+      <div style="${fontDisplay} font-size:13px;font-weight:800;color:#09090b;text-transform:uppercase;letter-spacing:1px;">Score de Citabilidade em IA</div>
+      <div style="font-size:11px;color:#71717a;margin-top:4px;${fontSans}">Medição de acessibilidade para ChatGPT, Gemini, Claude & Perplexity</div>
+      ${statusBanner}
+    </div>
+  </div>
+
+  <!-- Explicação Didática sobre GEO -->
+  <div class="card" style="${cardStyle}">
+    <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#09090b;margin:0 0 12px;text-transform:uppercase;letter-spacing:-0.2px;">
+      💡 Como os seus clientes buscam hoje no ChatGPT e Gemini?
+    </h3>
+    <p style="font-size:13px;color:#374151;line-height:1.6;margin:0 0 12px;${fontSans}">
+      O comportamento do consumidor mudou. Em vez de clicar em dezenas de links azuis no Google, os tomadores de decisão agora perguntam diretamente para IAs generativas: <em>"Quais são as melhores empresas do mercado?"</em>.
+    </p>
+    <p style="font-size:13px;color:#374151;line-height:1.6;margin:0;${fontSans}">
+      Para que a <strong>${brandName}</strong> seja recomendada como a principal opção nestas pesquisas, seu site precisa de 3 pilares simples:
+      <strong style="color:#09090b;">1. Robôs liberados</strong>, <strong style="color:#09090b;">2. Blocos de Resposta Direta (AEO)</strong> e <strong style="color:#09090b;">3. Schemas de Autoridade corporativa</strong>.
+    </p>
+  </div>
+
+  <!-- Checklist Didático de Ações -->
+  <div class="card" style="${cardStyle}">
+    <div style="margin-bottom:18px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;">
+      <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#09090b;margin:0;text-transform:uppercase;letter-spacing:-0.2px;">
+        📋 Checklist Didático de Correções Recomendadas
+      </h3>
+    </div>
+
+    <div style="font-size:12.5px;color:#6b7280;margin-bottom:16px;line-height:1.5;${fontSans}">
+      Relatório simplificado com o passo a passo para o seu time técnico ou agência parceira implementar:
+    </div>
+
+    ${checklistItems.map((item, idx) => `
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-bottom:14px;">
+      <div style="margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="${fontMono} font-size:10px;font-weight:bold;padding:3px 8px;border-radius:6px;text-transform:uppercase;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;">
+          PASSO ${idx + 1} // ${item.category || 'GEO'}
+        </span>
+        <span style="${fontMono} font-size:10px;font-weight:bold;color:#b45309;">
+          ${item.impactLevel || 'Prioridade Comercial'}
+        </span>
+      </div>
+
+      <h4 style="margin:0 0 6px;font-size:14px;font-weight:700;color:#111827;${fontSans}">
+        ${item.title}
+      </h4>
+
+      <p style="margin:0 0 10px;font-size:12.5px;color:#4b5563;line-height:1.5;${fontSans}">
+        ${item.description}
+      </p>
+
+      <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:11.5px;color:#1e293b;${fontSans}">
+        🛠️ <strong>Como resolver na prática:</strong> ${item.cmsInstruction || 'Seguir boas práticas de estruturação AEO e robots.txt.'}
+      </div>
+    </div>
+    `).join('')}
+  </div>
+
+  <!-- CTA de Fechamento comercial -->
+  <div class="card" style="background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:32px; text-align:center; margin-top:25px; border-top:3px solid #10b981;">
+    <h3 style="${fontDisplay} font-size:18px;font-weight:800;color:#09090b;margin:0 0 8px;text-transform:uppercase;">
+      Quer que o time b.rocket execute essa otimização para a ${brandName}?
+    </h3>
+    <p style="font-size:13px;color:#4b5563;line-height:1.5;max-width:480px;margin:0 auto 20px;${fontSans}">
+      Nossa equipe cuida de toda a parte técnica sem alterar o seu site atual ou atrapalhar seu SEO tradicional.
+    </p>
+    <div>
+      <a href="https://geo.berocket.com.br/#booking" style="display:inline-block;background-color:#09090b;color:#ffffff;border:1px solid #27272a;${fontMono}font-weight:bold;padding:14px 32px;border-radius:12px;text-decoration:none;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;box-shadow:0px 6px 18px rgba(9,9,11,0.15);">
+        Agendar Reunião com Especialista em GEO →
+      </a>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <div style="text-align:center;padding:24px 0 10px;${fontMono} font-size:9.5px;color:#9ca3af;font-weight:bold;">
+    b.rocket © ${new Date().getFullYear()} // GENERATIVE ENGINE OPTIMIZATION
+  </div>
+
+</div>
+</body>
+</html>`;
+}
+
+// ─── PDF Report Generator (Single Page Seamless Layout - 100% Visual Parity) ────────
+async function generatePdfReport(lead, diagnostic, isClientReport = true) {
   // Injeta estilos CSS para evitar quebras brutas e garantir fidelidade visual no PDF
   const printStyle = `
     <style>
@@ -1534,7 +1739,8 @@ async function generatePdfReport(lead, diagnostic) {
       }
     </style>
   `;
-  const htmlContent = generateHtmlReport(lead, diagnostic).replace('</head>', `${printStyle}</head>`);
+  const rawHtml = isClientReport ? generateClientHtmlReport(lead, diagnostic) : generateHtmlReport(lead, diagnostic);
+  const htmlContent = rawHtml.replace('</head>', `${printStyle}</head>`);
 
   // 1. Renderizar via Puppeteer Core para PDF 100% idêntico de página única sem quebras
   try {
@@ -2497,6 +2703,7 @@ module.exports = {
   calculateGeoScore,
   buildActionList,
   generateHtmlReport,
+  generateClientHtmlReport,
   generateCompleteHtmlReport,
   takeReportScreenshots,
   generatePdfReport,
