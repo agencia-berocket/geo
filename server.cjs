@@ -2459,13 +2459,13 @@ app.get('/api/admin/lead-hunter/leads', verifyAdminToken, async (req, res) => {
 
 // POST /api/admin/lead-hunter/mine
 app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
-  const { niche, location, targetRole, companySize, limit, apifyToken, source } = req.body;
+  const { niche, location, targetRole, companySize, limit, source } = req.body;
   const miningSource = source || 'google';
   
   try {
     const accessToken = await getGoogleAccessToken();
     const count = parseInt(limit || '5', 10);
-    const effectiveApifyToken = apifyToken || process.env.APIFY_API_TOKEN || '';
+    const effectiveApifyToken = process.env.APIFY_API_TOKEN || '';
     let newLeads = [];
     let apifyErrorMsg = '';
 
@@ -2473,7 +2473,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
     if (miningSource === 'google') {
       try {
         console.log(`🌐 Buscando empresas reais via DuckDuckGo para [${niche}] em [${location}]...`);
-        const queryText = `empresas de ${niche || 'serviços'} em ${location || 'Brasil'} contato telefone`;
+        const queryText = `${niche || 'empresas'} ${location || 'Brasil'} contato`;
         
         const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(queryText)}`;
         const searchRes = await fetch(searchUrl, {
@@ -2486,13 +2486,13 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           const html = await searchRes.text();
           const extractedDomains = new Set();
           
-          // Regex para extração de links e títulos dos resultados
-          const linkRegex = /<a class="result__url" href="([^"]+)".*?>\s*(.*?)\s*<\/a>[\s\S]*?<a class="result__title"[^>]*>\s*(.*?)\s*<\/a>/g;
+          // Regex para extração de links e títulos dos resultados do DuckDuckGo
+          const titleRegex = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
           let match;
 
-          while ((match = linkRegex.exec(html)) !== null && newLeads.length < count) {
+          while ((match = titleRegex.exec(html)) !== null && newLeads.length < count) {
             let rawUrl = match[1] || '';
-            let rawTitle = match[3] || '';
+            let rawTitle = match[2] || '';
             
             // Decodifica URL do redirect do DuckDuckGo se necessário
             if (rawUrl.includes('uddg=')) {
@@ -2501,12 +2501,20 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
             }
 
             let dom = rawUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
-            const stopDomains = ['duckduckgo', 'google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 'medium.com', 'linkedin'];
-            const isStopDomain = stopDomains.some(sd => dom.includes(sd));
+            const stopDomains = [
+              'duckduckgo', 'google', 'facebook', 'youtube', 'instagram', 'twitter', 'x.com', 
+              'wikipedia', 'reclameaqui', 'jusbrasil', 'glassdoor', 'g2.com', 'clutch.co', 
+              'medium.com', 'linkedin', 'listamais', 'acharesteticas', 'doctoralia', 'telelistas', 'guiamais', 'tripadvisor'
+            ];
+            const isStopDomain = stopDomains.some(sd => dom.toLowerCase().includes(sd));
 
             if (dom && !isStopDomain && !extractedDomains.has(dom)) {
               extractedDomains.add(dom);
-              const cleanTitle = rawTitle.replace(/<[^>]+>/g, '').split('-')[0].split('|')[0].trim() || dom;
+              let cleanTitle = rawTitle.replace(/<[^>]+>/g, '').split('-')[0].split('|')[0].split(':')[0].trim();
+              if (!cleanTitle || ['home', 'início', 'contato', 'são paulo', 'brasil', 'faça seu agendamento'].includes(cleanTitle.toLowerCase())) {
+                cleanTitle = dom.split('.')[0].replace(/[^a-zA-Z0-9]/g, ' ');
+                cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
+              }
               const companyName = cleanTitle;
 
               // ── Extrai dados reais do site (telefone, e-mail, linkedin) ──
@@ -2641,7 +2649,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
             }
           } else {
             const errText = await apifyRes.text().catch(() => '');
-            apifyErrorMsg = `Apify API erro ${apifyRes.status}: ${errText.slice(0, 200)}. Verifique seu token em https://console.apify.com/account/integrations`;
+            apifyErrorMsg = `Apify API erro ${apifyRes.status}: ${errText.slice(0, 200)}. Verifique as configurações da APIFY_API_TOKEN no servidor.`;
             console.warn(apifyErrorMsg);
           }
         } catch (apifyErr) {
@@ -2649,7 +2657,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           console.error(apifyErrorMsg);
         }
       } else {
-        apifyErrorMsg = 'Para minerar no LinkedIn, insira seu Token API da Apify (gratuito em https://console.apify.com/account/integrations).';
+        apifyErrorMsg = 'Para minerar no LinkedIn, certifique-se de que a variável de ambiente APIFY_API_TOKEN está configurada no servidor (Coolify).';
       }
     }
 
@@ -2661,7 +2669,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
     // Sem resultado real: retorna erro em vez de gerar dados fictícios
     if (newLeads.length === 0) {
       const msg = miningSource === 'linkedin'
-        ? 'Nenhum perfil encontrado no LinkedIn. Verifique seu Token Apify e tente novamente com filtros diferentes.'
+        ? 'Nenhum perfil encontrado no LinkedIn. Verifique se a variável APIFY_API_TOKEN está configurada no servidor e tente novamente com filtros diferentes.'
         : `Nenhuma empresa real encontrada para "${niche}" em "${location}". Tente refinar os filtros (nicho mais específico ou outra localização).`;
       return res.status(400).json({ error: msg });
     }

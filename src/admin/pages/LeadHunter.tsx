@@ -76,8 +76,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [savingCopy, setSavingCopy] = useState(false);
 
-  // Mining parameters & Apify Token
-  const [apifyToken, setApifyToken] = useState<string>(() => localStorage.getItem('apify_token') || '');
+  // Mining parameters
   const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'auto'>('google');
   const [niche, setNiche] = useState('SaaS B2B');
   const [location, setLocation] = useState('Brasil');
@@ -97,11 +96,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
   // HTML Report Preview Modal
   const [htmlPreviewModal, setHtmlPreviewModal] = useState<{ url: string; title: string } | null>(null);
-
-  const handleTokenChange = (val: string) => {
-    setApifyToken(val);
-    localStorage.setItem('apify_token', val);
-  };
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -148,7 +142,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          apifyToken,
           source: miningSource,
           niche,
           location,
@@ -660,7 +653,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div className="flex items-center gap-2">
             <IconBot className="w-5 h-5 text-zinc-800" />
-            <h2 className="font-bold text-sm font-display text-zinc-900">Parâmetros de Mineração Autônoma (Apify API)</h2>
+            <h2 className="font-bold text-sm font-display text-zinc-900">Parâmetros de Mineração Autônoma</h2>
           </div>
           <span className="text-xs font-mono text-zinc-400">Fase 1: Captação de Decisores por Fonte</span>
         </div>
@@ -743,32 +736,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
             </div>
           </div>
 
-          {/* Apify API Token Input Bar */}
-          <div className="pt-3 border-t border-zinc-100 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs bg-zinc-50/80 p-3 rounded-xl border border-zinc-200/60">
-            <div className="flex items-center gap-2 flex-1">
-              <span className="font-bold text-zinc-800 whitespace-nowrap flex items-center gap-1">
-                <span>🔑 Token API Apify:</span>
-              </span>
-              <input
-                type="password"
-                value={apifyToken}
-                onChange={e => handleTokenChange(e.target.value)}
-                placeholder="Insira seu Token apify_api_... para raspagem em tempo real no Google/LinkedIn"
-                className="w-full px-3 py-1.5 rounded-lg border border-zinc-300 font-mono text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
-              />
-            </div>
-            <div className="shrink-0">
-              <a 
-                href="https://console.apify.com/account/integrations" 
-                target="_blank" 
-                rel="noreferrer" 
-                className="text-blue-600 hover:underline font-mono text-[11px] font-bold"
-              >
-                Obter Token na Apify Console ↗
-              </a>
-            </div>
-          </div>
-
         </form>
       </div>
 
@@ -791,7 +758,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           <div className="p-12 bg-white rounded-2xl border border-zinc-200 text-center text-zinc-400 text-xs space-y-2">
             <IconTarget className="w-10 h-10 mx-auto text-zinc-300" />
             <p className="font-semibold text-zinc-700">Nenhum lead nesta lista</p>
-            <p>Preencha os parâmetros acima e insira seu Token Apify para trazer novas empresas qualificadas.</p>
+            <p>Preencha os parâmetros acima e clique em Minerar para trazer novas empresas qualificadas.</p>
           </div>
         ) : (
           <div className="space-y-3.5">
