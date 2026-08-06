@@ -317,26 +317,7 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   const descMatch = htmlContent.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
   const niche = descMatch ? descMatch[1].slice(0, 200) : 'serviços digitais';
 
-  if (!apiKey) {
-    // Return simulated data when no key
-    return {
-      totalPromptsTest: 20,
-      citationSharePercentage: 0.05,
-      brandSentimentScore: 'Neutro',
-      topMentionedCompetitors: ['Concorrente A', 'Concorrente B'],
-      citationsByModel: { 'GPT-4o-mini': 0, 'Claude Haiku': 0, 'Gemini Flash': 1, 'Perplexity Sonar': 0 },
-      note: 'Simulado — configure OPENROUTER_API_KEY para resultados reais',
-    };
-  }
-
-  // 5 prompts per model, 4 models = 20 total
-  const models = [
-    'openai/gpt-4o-mini',
-    'anthropic/claude-3.5-haiku',
-    'google/gemini-2.5-flash',
-    'perplexity/sonar',
-  ];
-
+  // Prompts que sempre são enviados (preenchidos com niche/brand do site analisado)
   const systemPrompt = `Você é um assistente honesto. Responda em português. Seja direto e objetivo.`;
 
   const prompts = [
@@ -346,6 +327,54 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     `Comparando empresas de ${niche}, quais você recomendaria?`,
     `Qual empresa de ${niche} tem melhor reputação e resultados?`,
   ];
+
+  // Modelos usados no teste
+  const models = [
+    'openai/gpt-4o-mini',
+    'anthropic/claude-3.5-haiku',
+    'google/gemini-2.5-flash',
+    'perplexity/sonar',
+  ];
+
+  if (!apiKey) {
+    // Sem API key: gera o agentAuditLog com as perguntas REAIS mas respostas simuladas genéricas
+    const simulatedResponses = [
+      `Existem diversas empresas de referência em ${niche} no Brasil. Entre as mais citadas estão players com sólida reputação no setor. [SIMULADO — resposta real requer OPENROUTER_API_KEY]`,
+      `Recomendo buscar empresas com case studies comprovados e metodologia clara em ${niche}. As mais conceituadas são reconhecidas por resultados mensurados. [SIMULADO]`,
+      `Os líderes de mercado em ${niche} geralmente possuem presença consolidada, reconhecimento por premiações e clientes de grande porte. [SIMULADO]`,
+      `Ao comparar empresas de ${niche}, avalie: portfólio de resultados, metodologia aplicada, transparência nos dados e reputação. [SIMULADO]`,
+      `As empresas com melhor reputação em ${niche} costumam ter avaliações consistentes e estudos de caso publicados. [SIMULADO]`,
+    ];
+    const simulatedAuditLog = [];
+    const simulatedCitationsByModel = {};
+    models.forEach(model => {
+      const modelKey = model.split('/')[1].replace(/-\d.*/, '');
+      simulatedCitationsByModel[modelKey] = 0;
+      prompts.forEach((prompt, i) => {
+        simulatedAuditLog.push({
+          model,
+          modelLabel: modelKey,
+          systemPrompt,
+          userPrompt: prompt,
+          response: simulatedResponses[i],
+          citedBrand: false,
+          error: null,
+          simulated: true,
+          timestamp: new Date().toISOString(),
+        });
+      });
+    });
+    return {
+      totalPromptsTest: 20,
+      citationSharePercentage: 0.05,
+      brandSentimentScore: 'Neutro',
+      topMentionedCompetitors: ['Concorrente A', 'Concorrente B'],
+      citationsByModel: simulatedCitationsByModel,
+      agentAuditLog: simulatedAuditLog,
+      note: 'Simulado — configure OPENROUTER_API_KEY para respostas reais das LLMs',
+    };
+  }
+
 
   const citationsByModel = {};
   let totalCitations = 0;
@@ -1473,35 +1502,39 @@ ${item.codeSnippet.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
     <div style="margin-bottom:20px;">
       <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#dc2626;color:#fff;padding:4px 10px;border-radius:5px;margin-right:10px;">USO INTERNO</span>
       <span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;color:#6b7280;">b.rocket confidencial</span>
+      ${diagnostic.visibilityBenchmarking.agentAuditLog.some(e => e.simulated) ? `<span style="${fontMono} font-size:9px;letter-spacing:2px;text-transform:uppercase;font-weight:bold;background:#92400e;color:#fcd34d;padding:4px 10px;border-radius:5px;margin-left:8px;">MODO SIMULADO</span>` : ''}
       <h3 style="${fontDisplay} font-size:16px;font-weight:800;color:#e5e7eb;margin:12px 0 4px;letter-spacing:-0.2px;">🔬 Trilha de Auditoria — Intent Prompt Agent</h3>
-      <p style="${fontSans} font-size:11.5px;color:#9ca3af;margin:0;">Registro completo das ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas às LLMs externas. Documento as perguntas exatas e respostas obtidas para verificar se a marca foi citada.</p>
+      <p style="${fontSans} font-size:11.5px;color:#9ca3af;margin:0 0 6px;">Registro completo das ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas às LLMs (${[...new Set(diagnostic.visibilityBenchmarking.agentAuditLog.map(e => e.model))].join(' · ')}). Perguntas preenchidas com o nicho real do site analisado.</p>
+      ${diagnostic.visibilityBenchmarking.agentAuditLog.some(e => e.simulated) ? `<div style="${fontSans} font-size:11px;color:#fbbf24;background:#1c1400;border:1px solid #78350f;border-radius:8px;padding:8px 12px;margin-top:8px;">⚠️ As respostas mostradas são simuladas. Para obter as respostas reais das LLMs, configure a variável de ambiente <strong>OPENROUTER_API_KEY</strong> no servidor.</div>` : ''}
     </div>
 
     ${diagnostic.visibilityBenchmarking.agentAuditLog.map((entry, idx) => `
     <div style="background:#0f0f1a;border:1px solid ${entry.citedBrand ? '#16a34a' : entry.error ? '#dc2626' : '#27272a'};border-radius:12px;padding:14px;margin-bottom:12px;">
-      <div style="display:table;width:100%;margin-bottom:8px;">
+      <div style="display:table;width:100%;margin-bottom:10px;">
         <div style="display:table-cell;vertical-align:middle;">
-          <span style="${fontMono} font-size:9px;font-weight:bold;color:#6b7280;text-transform:uppercase;">#${idx + 1} &nbsp;·&nbsp; ${entry.model}</span>
+          <span style="${fontMono} font-size:9px;font-weight:bold;color:#4b5563;text-transform:uppercase;">#${idx + 1}</span>
+          <span style="${fontMono} font-size:9px;font-weight:bold;color:#a78bfa;text-transform:uppercase;margin-left:6px;">${entry.model}</span>
         </div>
         <div style="display:table-cell;vertical-align:middle;text-align:right;">
+          ${entry.simulated ? `<span style="${fontMono} font-size:8px;font-weight:bold;padding:2px 7px;border-radius:4px;background:#1c1400;color:#fbbf24;border:1px solid #78350f;margin-right:6px;">SIMULADO</span>` : ''}
           <span style="${fontMono} font-size:9px;font-weight:bold;padding:3px 8px;border-radius:5px;${entry.citedBrand ? 'background:#14532d;color:#4ade80;' : entry.error ? 'background:#7f1d1d;color:#fca5a5;' : 'background:#18181b;color:#71717a;'}">
             ${entry.citedBrand ? '✓ MARCA CITADA' : entry.error ? '⚠ ERRO' : '✗ NÃO CITADA'}
           </span>
         </div>
       </div>
       <div style="margin-bottom:8px;">
-        <div style="${fontMono} font-size:9px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:4px;">PERGUNTA ENVIADA:</div>
-        <div style="${fontSans} font-size:12px;color:#d1d5db;background:#1f1f30;border-radius:6px;padding:8px 10px;line-height:1.5;">${entry.userPrompt}</div>
+        <div style="${fontMono} font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">📤 PERGUNTA ENVIADA À IA:</div>
+        <div style="${fontSans} font-size:12.5px;color:#e2e8f0;background:#1f1f30;border-left:3px solid #6366f1;border-radius:0 6px 6px 0;padding:10px 12px;line-height:1.6;font-weight:500;">${entry.userPrompt}</div>
       </div>
       <div>
-        <div style="${fontMono} font-size:9px;color:#6b7280;text-transform:uppercase;font-weight:bold;margin-bottom:4px;">RESPOSTA DA IA${entry.response && entry.response.length >= 400 ? ' (truncada em 400 chars)' : ''}:</div>
-        <div style="${fontSans} font-size:11.5px;color:#9ca3af;background:#1f1f30;border-radius:6px;padding:8px 10px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${entry.error ? '<span style="color:#fca5a5;">Erro: ' + entry.error + '</span>' : (entry.response || '—')}</div>
+        <div style="${fontMono} font-size:8px;color:#4b5563;text-transform:uppercase;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">📥 RESPOSTA RECEBIDA${entry.response && entry.response.length >= 400 ? ' (truncada em 400 chars)' : ''}${entry.simulated ? ' [SIMULADA]' : ''}:</div>
+        <div style="${fontSans} font-size:11.5px;color:#94a3b8;background:#1f1f30;border-left:3px solid ${entry.citedBrand ? '#16a34a' : entry.simulated ? '#78350f' : '#374151'};border-radius:0 6px 6px 0;padding:10px 12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${entry.error ? '<span style="color:#fca5a5;">Erro: ' + entry.error + '</span>' : (entry.response || '—')}</div>
       </div>
     </div>
     `).join('')}
 
-    <div style="text-align:center;margin-top:16px;">
-      <span style="${fontMono} font-size:9px;color:#4b5563;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">b.rocket Intent Prompt Agent · ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas · Gerado em ${new Date(diagnostic.generatedAt || Date.now()).toLocaleDateString('pt-BR')}</span>
+    <div style="text-align:center;margin-top:16px;border-top:1px solid #27272a;padding-top:14px;">
+      <span style="${fontMono} font-size:9px;color:#4b5563;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">b.rocket Intent Prompt Agent · ${diagnostic.visibilityBenchmarking.agentAuditLog.length} chamadas · ${diagnostic.visibilityBenchmarking.agentAuditLog.some(e => e.simulated) ? 'MODO SIMULADO' : 'RESPOSTAS REAIS'} · Gerado em ${new Date(diagnostic.generatedAt || Date.now()).toLocaleDateString('pt-BR')}</span>
     </div>
   </div>
   ` : ''}
