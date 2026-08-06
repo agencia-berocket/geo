@@ -2427,48 +2427,10 @@ function parseFirestoreDoc(doc) {
 }
 
 function getSampleHunterLeads() {
-  return [
-    {
-      id: 'hunter_sample_1',
-      domain: 'cloudtechsaas.com.br',
-      company: 'CloudTech Solutions',
-      contactName: 'Marcelo Andrade',
-      contactRole: 'CEO & Founder',
-      linkedinUrl: 'https://linkedin.com/in/marcelo-cloudtech',
-      email: 'marcelo@cloudtechsaas.com.br',
-      niche: 'SaaS B2B',
-      location: 'São Paulo, SP',
-      companySize: '20-200 funcionários',
-      status: 'audited',
-      aiCrawlersBlocked: true,
-      hasBlog: true,
-      hasAnswerFirst: false,
-      citedCompetitor: 'Totvs ERP SaaS',
-      geoScoreEstimado: 32,
-      outreachCopies: {
-        pasLinkedin: `Olá Marcelo! Notei que a CloudTech está investindo forte em conteúdo, mas identifiquei um ponto cego crítico: o seu robots.txt está bloqueando o GPTBot e o OAI-SearchBot.\n\nEnquanto você publica no blog, o ChatGPT está recomendando a Totvs ERP SaaS para buscas de alta intenção no seu nicho.\n\nMontei um mini-diagnóstico em PDF mostrando como liberar a indexação IA sem alterar o seu SEO tradicional. Quer que eu te envie?`,
-        pasEmail: `Assunto: Ponto cego na visibilidade IA da CloudTech (Totvs sendo recomendada)\n\nOlá Marcelo,\n\nEstava analisando as empresas de SaaS B2B em SP e notei algo importante no domínio cloudtechsaas.com.br.\n\nSua equipe está produzindo artigos no blog, mas o arquivo robots.txt de vocês contém diretivas de bloqueio aos rastreadores de IA (GPTBot e OAI-SearchBot). Na prática, o ChatGPT e a Perplexity estão completamente "cegos" para as soluções da CloudTech — e recomendando diretamente a Totvs para potenciais clientes.\n\nCriamos na b.rocket uma metodologia de GEO (Generative Engine Optimization) que corrige esse vazamento de tráfego de IA em menos de 48h.\n\nPosso te enviar o diagnóstico preliminar em PDF para você dar uma olhada?\n\nAbraços,\nGuilherme Rossi | b.rocket`,
-        babLinkedin: `Marcelo, sabia que hoje quando um tomador de decisão pergunta ao ChatGPT por plataformas SaaS B2B como a CloudTech, o modelo cita a Totvs?\n\nIsso acontece porque a estrutura do seu site não possui marcadores AEO e bloqueia robôs de IA.\n\nCom a otimização de GEO (Generative Engine Optimization), a CloudTech passa a ser a resposta recomendada em 1ª posição nas LLMs. Quer ver como funciona?`,
-        babEmail: `Assunto: Como colocar a CloudTech na 1ª resposta do ChatGPT e Perplexity\n\nOlá Marcelo, tudo bem?\n\nImagine a seguinte situação: um diretor de tecnologia pesquisa no ChatGPT "qual o melhor SaaS B2B para gestão corporativa no Brasil?". Hoje, a IA recomenda seus concorrentes diretos (como a Totvs) e a CloudTech sequer aparece nas citações.\n\nAgora imagine o cenário inverso: a CloudTech sendo a fonte autoritativa primária citada em 100% das buscas de IA com link direto para o seu trial.\n\nNós da b.rocket desenvolvemos o motor de GEO (Generative Engine Optimization) que faz exatamente essa transição para empresas SaaS de 20 a 200 funcionários.\n\nSe fizer sentido, posso compartilhar uma análise rápida do domínio de vocês nesta semana.\n\nAtenciosamente,\nGuilherme Rossi | b.rocket`
-      },
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'hunter_sample_2',
-      domain: 'advocaciacorporativa.com.br',
-      company: 'Oliveira & Associados Advocacia',
-      contactName: 'Dra. Fernanda Oliveira',
-      contactRole: 'Sócia-Diretora / CMO',
-      linkedinUrl: 'https://linkedin.com/in/fernanda-oliveira-adv',
-      email: 'fernanda@advocaciacorporativa.com.br',
-      niche: 'Advocacia Corporate',
-      location: 'Goiânia, GO',
-      companySize: '20-200 funcionários',
-      status: 'unscanned',
-      createdAt: new Date().toISOString()
-    }
-  ];
+  // Não injetamos dados fictícios — lista começa vazia
+  return [];
 }
+
 
 // GET /api/admin/lead-hunter/leads
 app.get('/api/admin/lead-hunter/leads', verifyAdminToken, async (req, res) => {
@@ -2510,10 +2472,9 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
     // ─── 1. FONTE GOOGLE: Busca Direta Gratuita (R$0 no Apify) ─────────────────
     if (miningSource === 'google') {
       try {
-        console.log(`🌐 Buscando empresas reais no Google (Nativo / R$0 Apify) para [${niche}] em [${location}]...`);
+        console.log(`🌐 Buscando empresas reais via DuckDuckGo para [${niche}] em [${location}]...`);
         const queryText = `empresas de ${niche || 'serviços'} em ${location || 'Brasil'} contato telefone`;
         
-        // Requisição para busca pública de resultados do Google (Sem gastar saldo Apify)
         const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(queryText)}`;
         const searchRes = await fetch(searchUrl, {
           headers: {
@@ -2547,17 +2508,50 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
               extractedDomains.add(dom);
               const cleanTitle = rawTitle.replace(/<[^>]+>/g, '').split('-')[0].split('|')[0].trim() || dom;
               const companyName = cleanTitle;
-              const ceoName = `Decisor ${companyName.split(' ')[0]}`;
+
+              // ── Extrai dados reais do site (telefone, e-mail, linkedin) ──
+              let realPhone = '';
+              let realEmail = '';
+              let realLinkedinUrl = '';
+
+              try {
+                const siteRes = await fetch(`https://${dom}`, {
+                  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GoogleBot/2.1)' },
+                  signal: AbortSignal.timeout(5000)
+                });
+                if (siteRes.ok) {
+                  const siteHtml = await siteRes.text();
+
+                  // Telefone via href="tel:..."
+                  const telTagMatch = siteHtml.match(/href="tel:([^"]+)"/i);
+                  if (telTagMatch) {
+                    realPhone = telTagMatch[1].replace(/\s+/g, '').trim();
+                  } else {
+                    const rawPhoneMatch = siteHtml.match(/(?:\+55[\s\-.]?)?(?:\(?\d{2}\)?[\s\-.]?)(?:9\d{4}[\s\-.]?\d{4}|\d{4}[\s\-.]?\d{4})/);
+                    if (rawPhoneMatch) realPhone = rawPhoneMatch[0].trim();
+                  }
+
+                  // E-mail via href="mailto:..."
+                  const emailMatch = siteHtml.match(/href="mailto:([^"?]+)"/i);
+                  if (emailMatch) realEmail = emailMatch[1].toLowerCase().split('?')[0].trim();
+
+                  // LinkedIn via href real no HTML
+                  const linkedinMatch = siteHtml.match(/href="(https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[^"?#\s]+)"/i);
+                  if (linkedinMatch) realLinkedinUrl = linkedinMatch[1];
+                }
+              } catch (_siteErr) {
+                // Site pode estar offline ou bloqueado — ignora silenciosamente
+              }
 
               const leadObj = {
                 id: `google_native_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
                 domain: dom,
                 company: companyName,
-                contactName: ceoName,
+                contactName: '',
                 contactRole: targetRole || 'Diretor / CEO',
-                linkedinUrl: `https://linkedin.com/company/${dom.replace(/\..*$/, '')}`,
-                email: `contato@${dom}`,
-                phone: '(11) 3045-8899',
+                linkedinUrl: realLinkedinUrl || '',
+                email: realEmail || '',
+                phone: realPhone || '',
                 address: `${location || 'Brasil'}`,
                 niche: niche || 'Geral',
                 location: location || 'Brasil',
@@ -2571,100 +2565,91 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           }
         }
       } catch (gErr) {
-        console.warn('Erro na busca nativa do Google:', gErr.message);
+        console.warn('Erro na busca via DuckDuckGo:', gErr.message);
       }
     }
 
-    // ─── 2. FONTE LINKEDIN: Apify API (Scraping de Perfis & Executivos Reais) ───
+    // ─── 2. FONTE LINKEDIN: harvestapi/linkedin-profile-search (Melhor actor — 35K usuários, sem cookies) ───
     if (miningSource === 'linkedin' || (miningSource === 'auto' && newLeads.length === 0)) {
       if (effectiveApifyToken) {
         try {
-          console.log(`💼 Conectando à Apify API para raspagem real do LinkedIn [Token: ${effectiveApifyToken.slice(0, 8)}...]...`);
-          const queryText = `site:linkedin.com/in/ "${targetRole || 'CEO'}" "${niche || 'B2B'}" "${location || 'Brasil'}"`;
-          
+          console.log(`💼 Conectando ao Apify actor harvestapi/linkedin-profile-search [Token: ${effectiveApifyToken.slice(0, 8)}...]`);
+
+          // Actor oficial: https://apify.com/harvestapi/linkedin-profile-search
+          // Parâmetros: keywords (cargo), location (cidade/país), limit (máx. resultados)
+          // Retorna: fullName, headline, currentCompany, profileUrl, location, photoUrl
           const apifyRes = await fetch(
-            `https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=${effectiveApifyToken}`,
+            `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                queries: queryText,
-                maxPagesPerQuery: 1,
-                resultsPerPage: Math.max(count * 3, 15)
+                // Campo principal de busca: cargo + nicho
+                keywords: `${targetRole || 'CEO'} ${niche || ''}`.trim(),
+                // Localização: cidade, estado ou país
+                location: location || 'Brazil',
+                // Quantidade máxima de perfis a retornar
+                limit: Math.min(count * 2, 50),
+                // Proxy — usa o pool do Apify (residencial)
+                proxyConfiguration: { useApifyProxy: true }
               })
             }
           );
 
           if (apifyRes.ok) {
-            const apifyItems = await apifyRes.json();
-            if (Array.isArray(apifyItems) && apifyItems.length > 0) {
-              const extractedDomains = new Set();
-              for (const item of apifyItems) {
-                const organicResults = item.organicResults || [];
-                for (const r of organicResults) {
-                  const link = r.url || r.link || '';
-                  if (!link || !link.includes('linkedin.com/in/')) continue;
-                  
-                  const title = r.title || '';
-                  const snippet = r.snippet || r.description || '';
-                  
-                  // Parse de Nome do Executivo e Cargo Real no LinkedIn
-                  // Ex de título: "Rodrigo Mendes - Sócio Fundador - Veirano Advogados | LinkedIn"
-                  const titleParts = title.split('-').map(p => p.trim());
-                  const realPersonName = titleParts[0] ? titleParts[0].replace(/\s*\|\s*LinkedIn$/i, '') : 'Executivo LinkedIn';
-                  let realRole = targetRole || 'CEO / Diretor';
-                  let realCompany = 'Empresa';
+            const profiles = await apifyRes.json();
+            const extractedLinks = new Set();
 
-                  if (titleParts.length >= 2) {
-                    realRole = titleParts[1].replace(/\s*\|\s*LinkedIn$/i, '');
-                  }
-                  if (titleParts.length >= 3) {
-                    realCompany = titleParts[2].replace(/\s*\|\s*LinkedIn$/i, '');
-                  } else if (snippet.includes(' na ') || snippet.includes(' no ')) {
-                    const companyMatch = snippet.match(/(?:na|no)\s+([A-Z][A-Za-z0-9\s]+)/);
-                    if (companyMatch) realCompany = companyMatch[1].trim();
-                  }
+            if (Array.isArray(profiles) && profiles.length > 0) {
+              for (const p of profiles) {
+                // Campos retornados pelo harvestapi/linkedin-profile-search:
+                const realPersonName = p.fullName || p.name || '';
+                const realRole = p.headline || p.title || targetRole || 'CEO';
+                const realCompany = p.currentCompany?.name || p.company || '';
+                const linkedinUrl = p.profileUrl || p.linkedinUrl || p.url || '';
 
-                  let dom = `${realCompany.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
-                  if (dom === 'empresa.com.br') dom = `${realPersonName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com.br`;
+                if (!linkedinUrl || extractedLinks.has(linkedinUrl)) continue;
+                extractedLinks.add(linkedinUrl);
 
-                  if (!extractedDomains.has(link)) {
-                    extractedDomains.add(link);
+                // Domínio inferido (sem inventar — será completado pelo Audit real)
+                const domBase = realCompany.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const dom = domBase ? `${domBase}.com.br` : '';
 
-                    const leadObj = {
-                      id: `apify_linkedin_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
-                      domain: dom,
-                      company: realCompany,
-                      contactName: realPersonName,
-                      contactRole: realRole,
-                      linkedinUrl: link,
-                      email: `${realPersonName.toLowerCase().split(' ')[0]}@${dom}`,
-                      phone: '(11) 98412-3040',
-                      address: `${location || 'Brasil'}`,
-                      niche: niche || 'Geral',
-                      location: location || 'Brasil',
-                      companySize: companySize || '20-200 funcionários',
-                      source: 'linkedin',
-                      status: 'unscanned',
-                      createdAt: new Date().toISOString()
-                    };
-                    newLeads.push(leadObj);
-                    if (newLeads.length >= count) break;
-                  }
-                }
+                const leadObj = {
+                  id: `apify_linkedin_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+                  domain: dom,
+                  company: realCompany,
+                  contactName: realPersonName,
+                  contactRole: realRole,
+                  linkedinUrl: linkedinUrl, // ✅ URL real do perfil LinkedIn
+                  photoUrl: p.photoUrl || p.profilePicture || '',
+                  email: '',   // ⬅️ Nunca inventamos — preenchido via Audit ou manualmente
+                  phone: '',
+                  address: p.location || location || 'Brasil',
+                  niche: niche || 'Geral',
+                  location: location || 'Brasil',
+                  companySize: companySize || '20-200 funcionários',
+                  source: 'linkedin',
+                  status: 'unscanned',
+                  createdAt: new Date().toISOString()
+                };
+                newLeads.push(leadObj);
                 if (newLeads.length >= count) break;
               }
+            } else {
+              apifyErrorMsg = `Nenhum perfil encontrado para "${targetRole}" + "${niche}" em "${location}". Tente ajustar os filtros.`;
             }
           } else {
-            apifyErrorMsg = `Apify API retornou erro status ${apifyRes.status} ao buscar no LinkedIn.`;
+            const errText = await apifyRes.text().catch(() => '');
+            apifyErrorMsg = `Apify API erro ${apifyRes.status}: ${errText.slice(0, 200)}. Verifique seu token em https://console.apify.com/account/integrations`;
             console.warn(apifyErrorMsg);
           }
         } catch (apifyErr) {
-          apifyErrorMsg = `Erro na Apify API: ${apifyErr.message}`;
+          apifyErrorMsg = `Erro ao chamar Apify: ${apifyErr.message}`;
           console.error(apifyErrorMsg);
         }
       } else {
-        apifyErrorMsg = 'Para minerar no LinkedIn, insira seu Token API da Apify.';
+        apifyErrorMsg = 'Para minerar no LinkedIn, insira seu Token API da Apify (gratuito em https://console.apify.com/account/integrations).';
       }
     }
 
@@ -2673,41 +2658,12 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
       return res.status(400).json({ error: apifyErrorMsg });
     }
 
-    // Fallback: Apenas para demonstração/auto se nenhum token foi passado
+    // Sem resultado real: retorna erro em vez de gerar dados fictícios
     if (newLeads.length === 0) {
-      const prefix = (niche || 'Empresa').split(' ')[0];
-      const companies = [
-        { name: `${prefix} Master Group`, dom: `${prefix.toLowerCase().replace(/[^a-z]/g, '')}master.com.br`, ceo: 'Carlos Eduardo Silva', phone: '(11) 99842-1020', address: `Av. Paulista, 1000 - ${location}` },
-        { name: `Apex ${prefix} Brasil`, dom: `apex${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Juliana Mendes', phone: '(11) 98765-4321', address: `Rua Funchal, 418 - ${location}` },
-        { name: `Vanguard ${prefix}`, dom: `vanguard${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Roberto Fonseca', phone: '(21) 99123-8899', address: `Av. Rio Branco, 156 - ${location}` },
-        { name: `Nexus ${prefix} Corp`, dom: `nexus${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Luciana Alencar', phone: '(31) 98444-5511', address: `Av. Afonso Pena, 2000 - ${location}` },
-        { name: `Prime ${prefix} Solutions`, dom: `prime${prefix.toLowerCase().replace(/[^a-z]/g, '')}.com.br`, ceo: 'Gustavo Borges', phone: '(41) 99777-1234', address: `Rua XV de Novembro, 500 - ${location}` },
-      ];
-
-      for (let i = 0; i < Math.min(count, companies.length); i++) {
-        const c = companies[i];
-        const leadId = `hunter_lead_${Date.now()}_${i}_${crypto.randomBytes(2).toString('hex')}`;
-        
-        const leadObj = {
-          id: leadId,
-          domain: c.dom,
-          company: c.name,
-          contactName: c.ceo,
-          contactRole: targetRole || 'CEO / Diretor',
-          linkedinUrl: `https://linkedin.com/in/${c.ceo.toLowerCase().replace(/\s+/g, '-')}`,
-          email: `contato@${c.dom}`,
-          phone: c.phone,
-          address: c.address,
-          niche: niche || 'Geral',
-          location: location || 'Brasil',
-          companySize: companySize || '20-200 funcionários',
-          source: miningSource,
-          status: 'unscanned',
-          createdAt: new Date().toISOString()
-        };
-
-        newLeads.push(leadObj);
-      }
+      const msg = miningSource === 'linkedin'
+        ? 'Nenhum perfil encontrado no LinkedIn. Verifique seu Token Apify e tente novamente com filtros diferentes.'
+        : `Nenhuma empresa real encontrada para "${niche}" em "${location}". Tente refinar os filtros (nicho mais específico ou outra localização).`;
+      return res.status(400).json({ error: msg });
     }
 
     // Salva os novos leads no Firestore
@@ -3038,8 +2994,17 @@ app.get('/api/admin/lead-hunter/pdf/:leadId', verifyAdminToken, async (req, res)
     const pdfBuffer = await generatePdfReport(leadObj, diagnostic || { overallGeoScore: 35 }, true);
     const domain = (diagnostic?.clientUrl || leadId).replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || 'relatorio';
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.pdf"`);
+    // Detecta se é um PDF real (inicia com %PDF) ou HTML fallback
+    const isRealPdf = pdfBuffer.slice(0, 4).toString() === '%PDF';
+
+    if (isRealPdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.pdf"`);
+    } else {
+      // Fallback: HTML visualmente idêntico — entregar como .html para o usuário imprimir via browser
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="Relatorio_GEO_${domain}.html"`);
+    }
     res.send(pdfBuffer);
   } catch (err) {
     console.error('PDF download error:', err);
@@ -3082,7 +3047,7 @@ app.patch('/api/admin/lead-hunter/leads/:leadId', verifyAdminToken, async (req, 
       body: JSON.stringify({ fields })
     });
 
-    res.json({ success: true, leadId, updatedFields });
+    res.json({ success: true, leadId, updatedFields: updateFields });
   } catch (err) {
     console.error('Error updating hunter lead:', err);
     res.status(500).json({ error: err.message });

@@ -38,6 +38,7 @@ export interface HunterLead {
   email: string;
   phone?: string;
   address?: string;
+  photoUrl?: string;
   niche: string;
   location: string;
   companySize?: string;
@@ -830,9 +831,16 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
                       {/* Decisor & Contacts */}
                       <div className="flex items-center gap-3 text-xs text-zinc-600 flex-wrap pt-0.5">
-                        <span>👤 <strong>{lead.contactName || 'Decisor Principal'}</strong> ({lead.contactRole || 'CEO'})</span>
+                        <span className="inline-flex items-center gap-1.5">
+                          {lead.photoUrl ? (
+                            <img src={lead.photoUrl} alt={lead.contactName} className="w-5 h-5 rounded-full object-cover border border-zinc-200" />
+                          ) : (
+                            <span>👤</span>
+                          )}
+                          <strong>{lead.contactName || 'Contato a confirmar'}</strong> ({lead.contactRole || 'CEO'})
+                        </span>
                         <span className="text-zinc-300">•</span>
-                        <span>✉️ <span className="font-mono text-zinc-800">{lead.email}</span></span>
+                        <span>✉️ <span className="font-mono text-zinc-800">{lead.email || <em className="text-zinc-400 font-sans">E-mail a confirmar</em>}</span></span>
                         
                         {/* Phone & WhatsApp 1-Click Link */}
                         {lead.phone && (
