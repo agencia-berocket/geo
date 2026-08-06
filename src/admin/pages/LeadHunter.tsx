@@ -11,7 +11,8 @@ import {
   IconWarning, 
   IconActivity, 
   IconSend, 
-  IconSettings,
+  IconTrash,
+  IconMail,
   IconX 
 } from '../components/icons';
 import { getAuth } from 'firebase/auth';
@@ -53,18 +54,15 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [auditingId, setAuditingId] = useState<string | null>(null);
   const [generatingCopyId, setGeneratingCopyId] = useState<string | null>(null);
   const [promotingId, setPromotingId] = useState<string | null>(null);
-  
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
+
   // Mining parameters
   const [niche, setNiche] = useState('SaaS B2B');
   const [location, setLocation] = useState('Brasil');
   const [targetRole, setTargetRole] = useState('CEO / CMO / Founder');
   const [companySize, setCompanySize] = useState('20-200 funcionários');
   const [limit, setLimit] = useState(5);
-  
-  // API Tokens
-  const [apifyToken, setApifyToken] = useState(() => localStorage.getItem('APIFY_API_TOKEN') || '');
-  const [openrouterKey, setOpenrouterKey] = useState(() => localStorage.getItem('OPENROUTER_API_KEY') || '');
-  const [showConfigModal, setShowConfigModal] = useState(false);
 
   // Copy View Modal
   const [selectedLeadForCopy, setSelectedLeadForCopy] = useState<HunterLead | null>(null);
@@ -75,13 +73,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const showToastMsg = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3500);
-  };
-
-  const saveApiTokens = () => {
-    localStorage.setItem('APIFY_API_TOKEN', apifyToken);
-    localStorage.setItem('OPENROUTER_API_KEY', openrouterKey);
-    setShowConfigModal(false);
-    showToastMsg('Configurações de API salvas com sucesso!');
   };
 
   const getAdminToken = async () => {
@@ -100,9 +91,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
       if (res.ok) {
         const data = await res.json();
         setLeads(data.leads || []);
-      } else {
-        // Fallback sample data if collection empty or route warming up
-        console.warn('API lead-hunter/leads returned status', res.status);
       }
     } catch (err) {
       console.error('Error fetching hunter leads:', err);
@@ -131,8 +119,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           location,
           targetRole,
           companySize,
-          limit,
-          apifyToken
+          limit
         })
       });
 
@@ -164,8 +151,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         body: JSON.stringify({
           leadId: lead.id,
           domain: lead.domain,
-          niche: lead.niche || niche,
-          openrouterKey
+          niche: lead.niche || niche
         })
       });
 
@@ -195,8 +181,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         },
         body: JSON.stringify({
           leadId: lead.id,
-          leadData: lead,
-          openrouterKey
+          leadData: lead
         })
       });
 
@@ -231,7 +216,9 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Lead ${lead.company} promovido para a esteira principal de Diagnósticos GEO!`);
+        showToastMsg(`Lead ${lead.company} promovido e transferido para a aba Leads!`);
+        // Remove da lista do Lead Hunter para não poluir
+        setLeads(prev => prev.filter(l => l.id !== lead.id));
         if (onNavigate && data.mainLeadId) {
           onNavigate('leads', data.mainLeadId);
         }
@@ -242,6 +229,83 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
       showToastMsg(`Erro ao promover lead: ${err.message}`);
     } finally {
       setPromotingId(null);
+    }
+  };
+
+  const handleDeleteLead = async (leadId: string, companyName: string) => {
+    if (!confirm(`Deseja realmente remover o lead "${companyName}" da lista?`)) return;
+    setDeletingId(leadId);
+    try {
+      const token = await getAdminToken();
+      const res = await fetch(`/api/admin/lead-hunter/leads/${leadId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        showToastMsg(`Lead "${companyName}" removido da lista.`);
+        setLeads(prev => prev.filter(l => l.id !== leadId));
+      } else {
+        showToastMsg('Erro ao excluir lead');
+      }
+    } catch (err: any) {
+      showToastMsg(`Erro ao excluir: ${err.message}`);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleSendDirectEmail = async () => {
+    if (!selectedLeadForCopy) return;
+    const recipientEmail = selectedLeadForCopy.email;
+    const currentEmailCopy = copyTab === 'PAS' 
+      ? selectedLeadForCopy.outreachCopies?.pasEmail 
+      : selectedLeadForCopy.outreachCopies?.babEmail;
+
+    if (!currentEmailCopy) {
+      showToastMsg('Gere primeiro a copy antes de enviar o e-mail');
+      return;
+    }
+
+    // Extract subject line from copy text if present
+    const lines = currentEmailCopy.split('\n');
+    let subject = `Ponto cego na visibilidade IA da ${selectedLeadForCopy.company}`;
+    let body = currentEmailCopy;
+
+    if (lines[0].toLowerCase().startsWith('assunto:')) {
+      subject = lines[0].replace(/^assunto:\s*/i, '');
+      body = lines.slice(1).join('\n').trim();
+    }
+
+    setSendingEmail(true);
+    try {
+      const token = await getAdminToken();
+      const res = await fetch('/api/admin/lead-hunter/send-email', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          leadId: selectedLeadForCopy.id,
+          recipientEmail,
+          subject,
+          emailBody: body
+        })
+      });
+
+      if (res.ok) {
+        showToastMsg(`🚀 E-mail enviado com sucesso para ${recipientEmail}!`);
+        setCopiedField('sent');
+        setLeads(prev => prev.map(l => l.id === selectedLeadForCopy.id ? { ...l, status: 'contacted' } : l));
+        setSelectedLeadForCopy(prev => prev ? { ...prev, status: 'contacted' } : null);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToastMsg(`Erro ao enviar e-mail: ${errData.error || 'Falha na conexão SMTP'}`);
+      }
+    } catch (err: any) {
+      showToastMsg(`Erro no envio: ${err.message}`);
+    } finally {
+      setSendingEmail(false);
     }
   };
 
@@ -284,25 +348,18 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               Lead Hunter — Inteligência Comercial Outbound
             </h1>
             <p className="text-zinc-400 text-xs mt-1 max-w-2xl leading-relaxed">
-              Agente autônomo para mineração de ICPs via Apify & Google, micro-auditoria técnica de bloqueios de robôs de IA, e redação cirúrgica de abordagens PAS/BAB para LinkedIn e E-mail.
+              Agente autônomo para mineração de ICPs via Apify & Google, micro-auditoria técnica de robôs (ChatGPT, Gemini, Claude e Perplexity) e envio de abordagens diretas.
             </p>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={() => setShowConfigModal(true)}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-            >
-              <IconSettings className="w-4 h-4 text-zinc-400" />
-              <span>Chaves de API</span>
-            </button>
             <button
               onClick={fetchLeads}
               disabled={loading}
               className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-white text-zinc-950 hover:bg-zinc-100 transition-all flex items-center gap-2 cursor-pointer shadow-md font-mono"
             >
               <IconRefresh className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Atualizar</span>
+              <span>Atualizar Lista</span>
             </button>
           </div>
         </div>
@@ -356,13 +413,13 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
           <div className="flex items-center gap-2">
             <IconBot className="w-5 h-5 text-zinc-800" />
-            <h2 className="font-bold text-sm font-display text-zinc-900">Parâmetros de Mineração Autônoma (Apify & Google)</h2>
+            <h2 className="font-bold text-sm font-display text-zinc-900">Parâmetros de Mineração Autônoma (Apify API)</h2>
           </div>
           <span className="text-xs font-mono text-zinc-400">Fase 1: Inteligência Comercial</span>
         </div>
 
-        <form onSubmit={handleStartMining} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-          <div>
+        <form onSubmit={handleStartMining} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+          <div className="md:col-span-2">
             <label className="block text-xs font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
             <input
               type="text"
@@ -399,15 +456,18 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-700 mb-1">Porte da Empresa</label>
+            <label className="block text-xs font-semibold text-zinc-700 mb-1">Qtd. de Leads</label>
             <select
-              value={companySize}
-              onChange={e => setCompanySize(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
+              value={limit}
+              onChange={e => setLimit(Number(e.target.value))}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium font-mono"
             >
-              <option value="10-50 funcionários">10-50 funcionários</option>
-              <option value="20-200 funcionários">20-200 funcionários (Recomendado)</option>
-              <option value="200-500 funcionários">200-500 funcionários</option>
+              <option value={5}>5 leads</option>
+              <option value={10}>10 leads</option>
+              <option value={15}>15 leads</option>
+              <option value={20}>20 leads</option>
+              <option value={30}>30 leads</option>
+              <option value={50}>50 leads</option>
             </select>
           </div>
 
@@ -425,7 +485,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               ) : (
                 <>
                   <IconRocket className="w-4 h-4 text-emerald-400" />
-                  <span>Disparar Mineração</span>
+                  <span>Minerar</span>
                 </>
               )}
             </button>
@@ -453,8 +513,8 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         ) : leads.length === 0 ? (
           <div className="p-12 text-center text-zinc-400 text-xs space-y-2">
             <IconTarget className="w-10 h-10 mx-auto text-zinc-300" />
-            <p className="font-semibold text-zinc-700">Nenhum lead minerado ainda</p>
-            <p>Preencha o formulário acima e clique em "Disparar Mineração" para capturar os primeiros alvos B2B.</p>
+            <p className="font-semibold text-zinc-700">Nenhum lead nesta lista</p>
+            <p>Preencha os parâmetros acima e clique em "Minerar" para trazer novas empresas qualificadas.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -463,7 +523,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 <tr>
                   <th className="py-3 px-4">Empresa / Dominio</th>
                   <th className="py-3 px-4">Decisor / Cargo</th>
-                  <th className="py-3 px-4">Diagnóstico Expresso GEO</th>
+                  <th className="py-3 px-4">Diagnóstico Expresso (IAs)</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Ações do Agente</th>
                 </tr>
@@ -526,12 +586,12 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                           </div>
                           <div className="flex items-center gap-1.5 text-zinc-600">
                             <span className={lead.aiCrawlersBlocked ? 'text-red-600 font-bold' : 'text-emerald-600'}>
-                              {lead.aiCrawlersBlocked ? '⚠️ robots.txt Bloqueia IA' : '✓ Robôs IA permitidos'}
+                              {lead.aiCrawlersBlocked ? '⚠️ Bloqueia IAs (ChatGPT/Gemini)' : '✓ Robôs IA permitidos'}
                             </span>
                           </div>
                           {lead.citedCompetitor && (
                             <p className="text-[10px] text-zinc-500">
-                              <span className="text-zinc-400 font-mono">Citado na IA:</span> <strong className="text-zinc-700">{lead.citedCompetitor}</strong>
+                              <span className="text-zinc-400 font-mono">Citado nas IAs:</span> <strong className="text-zinc-700">{lead.citedCompetitor}</strong>
                             </p>
                           )}
                         </div>
@@ -557,23 +617,23 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                       )}
                       {lead.status === 'contacted' && (
                         <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-blue-100 text-blue-800">
-                          Abordado
+                          E-mail Enviado
                         </span>
                       )}
                     </td>
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         {/* Quick Audit Button */}
                         <button
                           onClick={() => handleRunQuickAudit(lead)}
                           disabled={auditingId === lead.id}
-                          title="Rodar micro-auditoria técnica de robôs e AEO"
+                          title="Rodar micro-auditoria técnica de robôs (ChatGPT, Gemini, Claude, Perplexity)"
                           className="p-2 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
                         >
                           <IconActivity className={`w-3.5 h-3.5 ${auditingId === lead.id ? 'animate-spin' : ''}`} />
-                          <span className="hidden sm:inline">Quick Audit</span>
+                          <span className="hidden sm:inline">Audit</span>
                         </button>
 
                         {/* Generate / View Copy Button */}
@@ -596,11 +656,21 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                         <button
                           onClick={() => handlePromoteToMainPipeline(lead)}
                           disabled={promotingId === lead.id}
-                          title="Promover lead para a esteira completa de Diagnóstico GEO"
+                          title="Promover lead e transferir para a aba de Leads do painel"
                           className="p-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[11px] font-semibold border border-emerald-200 transition-all cursor-pointer flex items-center gap-1"
                         >
                           <IconRocket className={`w-3.5 h-3.5 ${promotingId === lead.id ? 'animate-spin' : ''}`} />
                           <span className="hidden md:inline">Promover GEO</span>
+                        </button>
+
+                        {/* Delete Lead Button */}
+                        <button
+                          onClick={() => handleDeleteLead(lead.id, lead.company)}
+                          disabled={deletingId === lead.id}
+                          title="Excluir este lead da lista"
+                          className="p-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 transition-all cursor-pointer"
+                        >
+                          <IconTrash className={`w-3.5 h-3.5 ${deletingId === lead.id ? 'animate-spin' : ''}`} />
                         </button>
                       </div>
                     </td>
@@ -613,7 +683,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         )}
       </div>
 
-      {/* Copy Viewer Modal */}
+      {/* Copy Viewer & Email Dispatcher Modal */}
       {selectedLeadForCopy && (
         <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-zinc-200 space-y-4 max-h-[90vh] overflow-y-auto">
@@ -621,7 +691,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
                 <span className="text-[10px] font-mono uppercase bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                  Copys Geradas pelo Agente Lead Hunter
+                  Copys Geradas pelo Agente Lead Hunter (ChatGPT, Gemini, Claude & Perplexity)
                 </span>
                 <h3 className="text-lg font-bold text-zinc-900 font-display mt-1">
                   Abordagem para {selectedLeadForCopy.contactName || selectedLeadForCopy.company} ({selectedLeadForCopy.company})
@@ -688,24 +758,50 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 </div>
               </div>
 
-              {/* Email Cold Outreach */}
+              {/* Email Cold Outreach + Direct Send Button */}
               <div className="tactile-raised p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-bold text-zinc-800 font-display flex items-center gap-1.5">
-                    <span>✉️ Cold E-mail Corporativo (PAS / BAB)</span>
+                    <span>✉️ Cold E-mail Corporativo ({copyTab})</span>
                   </span>
-                  <button
-                    onClick={() => copyToClipboard(
-                      copyTab === 'PAS' 
-                        ? selectedLeadForCopy.outreachCopies?.pasEmail || '' 
-                        : selectedLeadForCopy.outreachCopies?.babEmail || '',
-                      'email'
-                    )}
-                    className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                  >
-                    {copiedField === 'email' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
-                    <span>{copiedField === 'email' ? 'Copiado!' : 'Copiar E-mail'}</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => copyToClipboard(
+                        copyTab === 'PAS' 
+                          ? selectedLeadForCopy.outreachCopies?.pasEmail || '' 
+                          : selectedLeadForCopy.outreachCopies?.babEmail || '',
+                        'email'
+                      )}
+                      className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                    >
+                      {copiedField === 'email' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
+                      <span>{copiedField === 'email' ? 'Copiado!' : 'Copiar Texto'}</span>
+                    </button>
+
+                    {/* Direct Email Dispatch Button */}
+                    <button
+                      onClick={handleSendDirectEmail}
+                      disabled={sendingEmail}
+                      className="px-3.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md disabled:opacity-50"
+                    >
+                      {sendingEmail ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Enviando...</span>
+                        </>
+                      ) : copiedField === 'sent' ? (
+                        <>
+                          <IconCheck className="w-3.5 h-3.5" />
+                          <span>✓ Enviado!</span>
+                        </>
+                      ) : (
+                        <>
+                          <IconMail className="w-3.5 h-3.5" />
+                          <span>🚀 Enviar E-mail pela Plataforma</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-zinc-200 text-xs text-zinc-800 whitespace-pre-wrap font-sans leading-relaxed">
                   {copyTab === 'PAS' 
@@ -725,67 +821,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               </button>
             </div>
 
-          </div>
-        </div>
-      )}
-
-      {/* API Config Modal */}
-      {showConfigModal && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-              <h3 className="text-base font-bold text-zinc-900 font-display flex items-center gap-2">
-                <IconSettings className="w-5 h-5 text-zinc-700" />
-                Configurações de Integridade de API
-              </h3>
-              <button onClick={() => setShowConfigModal(false)} className="text-zinc-400 hover:text-zinc-800 p-1 cursor-pointer">
-                <IconX className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">Apify API Token</label>
-                <input
-                  type="password"
-                  value={apifyToken}
-                  onChange={e => setApifyToken(e.target.value)}
-                  placeholder="Definido no .env (Coolify) ou informe o seu token..."
-                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                />
-                <div className="flex items-center gap-1.5 mt-1.5 text-[10px] text-emerald-700 font-medium">
-                  <IconCheck className="w-3 h-3 text-emerald-600 shrink-0" />
-                  <span>Integrado automaticamente à variável <code>APIFY_API_TOKEN</code> do Coolify.</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-zinc-700 mb-1">OpenRouter API Key (Opcional)</label>
-                <input
-                  type="password"
-                  value={openrouterKey}
-                  onChange={e => setOpenrouterKey(e.target.value)}
-                  placeholder="sk-or-v1-xxxxxxxx..."
-                  className="w-full px-3 py-2 text-xs font-mono rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                />
-                <p className="text-[10px] text-zinc-400 mt-1">Usado para simulação de IA nas LLMs (ChatGPT/Perplexity).</p>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setShowConfigModal(false)}
-                className="px-4 py-2 text-xs font-semibold bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl cursor-pointer"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={saveApiTokens}
-                className="px-4 py-2 text-xs font-bold bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl cursor-pointer shadow-sm"
-              >
-                Salvar Configurações
-              </button>
-            </div>
           </div>
         </div>
       )}
