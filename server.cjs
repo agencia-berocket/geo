@@ -2457,6 +2457,89 @@ app.get('/api/admin/lead-hunter/leads', verifyAdminToken, async (req, res) => {
   }
 });
 
+// Função utilitária para varredura profunda de e-mail, telefone e LinkedIn no site da empresa
+async function extractLeadContactFromSite(domain) {
+  let email = '';
+  let phone = '';
+  let linkedinUrl = '';
+
+  if (!domain) return { email, phone, linkedinUrl };
+
+  const cleanDom = domain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
+  const pagesToCrawl = [
+    `https://${cleanDom}`,
+    `https://${cleanDom}/contato`,
+    `https://${cleanDom}/fale-conosco`,
+    `https://${cleanDom}/sobre`,
+    `https://${cleanDom}/contact`
+  ];
+
+  for (const pageUrl of pagesToCrawl) {
+    if (email && phone && linkedinUrl) break;
+
+    try {
+      const res = await fetch(pageUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (compatible; GoogleBot/2.1)'
+        },
+        signal: AbortSignal.timeout(4000)
+      });
+
+      if (res.ok) {
+        const html = await res.text();
+
+        // 1. E-mail via href="mailto:..."
+        if (!email) {
+          const mailtoMatch = html.match(/href="mailto:([^"?#\s]+)"/i);
+          if (mailtoMatch) {
+            const rawMail = mailtoMatch[1].toLowerCase().trim();
+            const isInvalid = rawMail.includes('wix.com') || rawMail.includes('example.com') || rawMail.includes('sentry.io') || rawMail.endsWith('.png') || rawMail.endsWith('.jpg');
+            if (!isInvalid) email = rawMail;
+          }
+        }
+
+        // 2. E-mail via Regex no HTML bruto
+        if (!email) {
+          const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+          const matches = html.match(emailRegex) || [];
+          for (const m of matches) {
+            const cleanM = m.toLowerCase();
+            const isInvalid = cleanM.endsWith('.png') || cleanM.endsWith('.jpg') || cleanM.endsWith('.svg') || cleanM.endsWith('.webp') || cleanM.includes('example') || cleanM.includes('domain') || cleanM.includes('schema.org') || cleanM.includes('sentry') || cleanM.includes('wixpress') || cleanM.includes('bootstrap');
+            if (!isInvalid) {
+              email = cleanM;
+              break;
+            }
+          }
+        }
+
+        // 3. Telefone via href="tel:..." ou Regex BR
+        if (!phone) {
+          const telMatch = html.match(/href="tel:([^"]+)"/i);
+          if (telMatch) {
+            phone = telMatch[1].replace(/\s+/g, '').trim();
+          } else {
+            const rawPhoneMatch = html.match(/(?:\+55[\s\-.]?)?(?:\(?\d{2}\)?[\s\-.]?)(?:9\d{4}[\s\-.]?\d{4}|\d{4}[\s\-.]?\d{4})/);
+            if (rawPhoneMatch) phone = rawPhoneMatch[0].trim();
+          }
+        }
+
+        // 4. LinkedIn via URL no HTML
+        if (!linkedinUrl) {
+          const linkedinMatch = html.match(/href="(https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[^"?#\s]+)"/i);
+          if (linkedinMatch) {
+            linkedinUrl = linkedinMatch[1];
+          }
+        }
+      }
+    } catch (_err) {
+      // Ignora timeouts / 404 de subpáginas
+    }
+  }
+
+  return { email, phone, linkedinUrl };
+}
+
+
 // POST /api/admin/lead-hunter/mine
 app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
   const { niche, location, targetRole, companySize, limit, source } = req.body;
@@ -2520,15 +2603,18 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 const realPhone = place.phone || place.phoneUnformatted || '';
                 const realAddress = place.address || place.street || `${location}, Brasil`;
 
+                // ── Varredura profunda de e-mail e contatos diretamente no site oficial ──
+                const contacts = await extractLeadContactFromSite(dom);
+
                 const leadObj = {
                   id: `google_maps_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
                   domain: dom,
                   company: placeTitle,
                   contactName: '',
                   contactRole: targetRole || 'Diretor / CEO',
-                  linkedinUrl: place.socialMediaProfiles?.linkedIn || '',
-                  email: '',
-                  phone: realPhone,
+                  linkedinUrl: place.socialMediaProfiles?.linkedIn || contacts.linkedinUrl || '',
+                  email: contacts.email || '',
+                  phone: realPhone || contacts.phone || '',
                   address: realAddress,
                   niche: niche || 'Geral',
                   location: location || 'Brasil',
@@ -2605,10 +2691,8 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 cleanTitle = cleanTitle.charAt(0).toUpperCase() + cleanTitle.slice(1);
               }
 
-              // ── 3. Validação do site e localização real ──
-              let realPhone = '';
-              let realEmail = '';
-              let realLinkedinUrl = '';
+              // ── 3. Varredura profunda de e-mail e contatos ──
+              const contacts = await extractLeadContactFromSite(dom);
               let hasLocationMatch = false;
 
               try {
@@ -2626,23 +2710,6 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                   if (!locTerm || locTerm === 'brasil' || locTerm === 'brazil' || siteText.includes(locTerm) || dom.includes(locTerm)) {
                     hasLocationMatch = true;
                   }
-
-                  // Telefone via href="tel:..." ou regex
-                  const telTagMatch = siteHtml.match(/href="tel:([^"]+)"/i);
-                  if (telTagMatch) {
-                    realPhone = telTagMatch[1].replace(/\s+/g, '').trim();
-                  } else {
-                    const rawPhoneMatch = siteHtml.match(/(?:\+55[\s\-.]?)?(?:\(?\d{2}\)?[\s\-.]?)(?:9\d{4}[\s\-.]?\d{4}|\d{4}[\s\-.]?\d{4})/);
-                    if (rawPhoneMatch) realPhone = rawPhoneMatch[0].trim();
-                  }
-
-                  // E-mail via href="mailto:..."
-                  const emailMatch = siteHtml.match(/href="mailto:([^"?]+)"/i);
-                  if (emailMatch) realEmail = emailMatch[1].toLowerCase().split('?')[0].trim();
-
-                  // LinkedIn via href real
-                  const linkedinMatch = siteHtml.match(/href="(https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[^"?#\s]+)"/i);
-                  if (linkedinMatch) realLinkedinUrl = linkedinMatch[1];
                 }
               } catch (_siteErr) {
                 // Se site offline, permite se o domínio for limpo
@@ -2659,9 +2726,9 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                 company: cleanTitle,
                 contactName: '',
                 contactRole: targetRole || 'Diretor / CEO',
-                linkedinUrl: realLinkedinUrl || '',
-                email: realEmail || '',
-                phone: realPhone || '',
+                linkedinUrl: contacts.linkedinUrl || '',
+                email: contacts.email || '',
+                phone: contacts.phone || '',
                 address: `${location || 'Brasil'}`,
                 niche: niche || 'Geral',
                 location: location || 'Brasil',
