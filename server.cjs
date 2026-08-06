@@ -2755,25 +2755,33 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           const primaryRole = rawRoles[0] || 'CEO';
           const cleanNiche = (niche || 'SaaS').replace(/[/,;|]+/g, ' ').trim();
 
-          // Tenta combinações progressivas de busca para garantir que retorne perfis reais
+          // Tenta combinações progressivas de busca para garantir que retorne perfis reais no LinkedIn
           const searchQueries = [
-            `${primaryRole} ${cleanNiche}`.trim(),
-            rawRoles[1] ? `${rawRoles[1]} ${cleanNiche}`.trim() : null,
             `${cleanNiche}`.trim(),
+            `${primaryRole} ${cleanNiche}`.trim(),
+            `Sócio ${cleanNiche}`.trim(),
+            `Founder ${cleanNiche}`.trim(),
             `${primaryRole}`.trim()
-          ].filter(Boolean);
+          ].filter((q, idx, arr) => q && arr.indexOf(q) === idx);
+
+          // Normaliza localização sem acentos para compatibilidade com os filtros do LinkedIn (ex: "São Paulo" -> "Sao Paulo")
+          const locClean = (location || 'Brazil')
+            .replace(/[ãáàâä]/gi, 'a')
+            .replace(/[éèêë]/gi, 'e')
+            .replace(/[íìîï]/gi, 'i')
+            .replace(/[óòôöõ]/gi, 'o')
+            .replace(/[úùûü]/gi, 'u')
+            .replace(/ç/gi, 'c')
+            .trim();
+
+          const locArray = [locClean, 'Brazil'].filter((l, i, a) => l && a.indexOf(l) === i);
 
           let profiles = [];
           let lastApifyStatus = 200;
           let lastErrText = '';
 
           for (const queryKw of searchQueries) {
-            console.log(`💼 Conectando ao Apify harvestapi/linkedin-profile-search [searchQuery: "${queryKw}"] [locations: "${location}"]...`);
-
-            const locArray = location ? [location] : ['Brazil'];
-            if (location && location.toLowerCase() === 'brasil' && !locArray.includes('Brazil')) {
-              locArray.push('Brazil');
-            }
+            console.log(`💼 Conectando ao Apify harvestapi/linkedin-profile-search [searchQuery: "${queryKw}"] [locations: "${locArray.join(', ')}"]...`);
 
             const apifyRes = await fetch(
               `https://api.apify.com/v2/acts/harvestapi~linkedin-profile-search/run-sync-get-dataset-items?token=${effectiveApifyToken}&timeout=120&memory=512`,
