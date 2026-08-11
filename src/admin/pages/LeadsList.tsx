@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLeads, type Lead } from '../hooks/useFirestore';
-import StatusBadge from '../components/StatusBadge';
-import GeoScoreGauge from '../components/GeoScoreGauge';
+import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS } from '../lib/pipeline';
 import {
   IconCheck, IconX, IconTrash, IconPlay, IconTarget,
   IconShield, IconSearch, IconRefresh, IconPlus, IconSparkles, IconLock,
@@ -14,8 +13,14 @@ interface LeadsListProps {
   selectedLeadId?: string;
 }
 
+function getGeoScoreColor(score: number) {
+  if (score >= 70) return 'text-emerald-600';
+  if (score >= 40) return 'text-amber-600';
+  return 'text-red-600';
+}
+
 export default function LeadsList({ onNavigate }: LeadsListProps) {
-  const { leads, loading, error, fetchLeads, deleteLead } = useLeads();
+  const { leads, loading, error, fetchLeads, deleteLead, addLead } = useLeads();
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -32,6 +37,11 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
   const [companySize, setCompanySize] = useState('20-200 funcionários');
   const [limit, setLimit] = useState(5);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Manual lead registration modal
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addingLead, setAddingLead] = useState(false);
+  const [newLead, setNewLead] = useState({ url: '', email: '', company: '', contactName: '', contactRole: '', phone: '' });
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -95,22 +105,34 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
     }
   };
 
-  // Helper for source badge styling
-  const getSourceBadge = (lead: Lead) => {
+  const handleAddLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLead.url || !newLead.email) {
+      showToastMsg('URL e e-mail são obrigatórios.');
+      return;
+    }
+    setAddingLead(true);
+    try {
+      await addLead(newLead);
+      showToastMsg('✅ Lead cadastrado com sucesso!');
+      setShowAddModal(false);
+      setNewLead({ url: '', email: '', company: '', contactName: '', contactRole: '', phone: '' });
+    } catch (err: any) {
+      showToastMsg(`Erro ao cadastrar lead: ${err.message}`);
+    } finally {
+      setAddingLead(false);
+    }
+  };
+
+  // Rótulo textual simples da origem do lead (sem ícones/emojis)
+  const getSourceLabel = (lead: Lead) => {
     const src = lead.source || 'lp';
-    if (src === 'lp') {
-      return { label: '🟢 LP Direct', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    }
-    if (src === 'mining_google' || src === 'google') {
-      return { label: '🔵 Google Search', color: 'bg-blue-50 text-blue-700 border-blue-200' };
-    }
-    if (src === 'mining_linkedin' || src === 'linkedin') {
-      return { label: '🟣 LinkedIn', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
-    }
-    if (src === 'mining_import' || src === 'import') {
-      return { label: '🟧 Importação', color: 'bg-amber-50 text-amber-700 border-amber-200' };
-    }
-    return { label: '⚡ Mineração IA', color: 'bg-purple-50 text-purple-700 border-purple-200' };
+    if (src === 'lp') return 'Landing Page';
+    if (src === 'mining_google' || src === 'google') return 'Google Search';
+    if (src === 'mining_linkedin' || src === 'linkedin') return 'LinkedIn';
+    if (src === 'mining_import' || src === 'import') return 'Importação';
+    if (src === 'direct') return 'Cadastro Manual';
+    return 'Mineração IA';
   };
 
   // Filtering leads
@@ -156,7 +178,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
         <div>
           <h1 className="font-display font-black text-2xl text-zinc-950 tracking-tight flex items-center gap-2">
             <IconTarget className="w-6 h-6 text-zinc-900" />
-            Central Unificada de Leads & Prospecting
+            Leads
           </h1>
           <p className="text-xs text-zinc-500 mt-1 font-mono">
             Gerenciamento completo de prospecção, origem do lead, termos de pesquisa e diagnósticos GEO.
@@ -170,6 +192,14 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
             title="Atualizar lista"
           >
             <IconRefresh className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-5 py-2.5 bg-white hover:bg-zinc-100 text-zinc-900 font-display font-bold text-xs rounded-xl shadow-sm border border-zinc-300 transition-all flex items-center gap-2 cursor-pointer"
+          >
+            <IconPlus className="w-4 h-4" />
+            <span>Cadastrar Lead</span>
           </button>
 
           <button
@@ -306,6 +336,101 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
         </div>
       )}
 
+      {/* ADD LEAD MODAL */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-zinc-200 flex items-center justify-between bg-zinc-50">
+              <span className="font-display font-bold text-sm text-zinc-900 flex items-center gap-2">
+                <IconPlus className="w-4 h-4" /> Cadastrar Novo Lead
+              </span>
+              <button onClick={() => setShowAddModal(false)} className="text-zinc-400 hover:text-zinc-950 cursor-pointer p-1">
+                <IconX className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAddLead} className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">URL / DOMÍNIO *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newLead.url}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="empresa.com.br"
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">E-MAIL DE CONTATO *</label>
+                  <input
+                    type="email"
+                    required
+                    value={newLead.email}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="contato@empresa.com.br"
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">EMPRESA</label>
+                  <input
+                    type="text"
+                    value={newLead.company}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, company: e.target.value }))}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">TELEFONE</label>
+                  <input
+                    type="text"
+                    value={newLead.phone}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, phone: e.target.value }))}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">NOME DO DECISOR</label>
+                  <input
+                    type="text"
+                    value={newLead.contactName}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, contactName: e.target.value }))}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">CARGO DO DECISOR</label>
+                  <input
+                    type="text"
+                    value={newLead.contactRole}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, contactRole: e.target.value }))}
+                    placeholder="CEO / Diretor..."
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+              </div>
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={addingLead}
+                  className="px-6 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold font-display shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  {addingLead ? 'Cadastrando...' : 'Cadastrar Lead'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* OVERVIEW STATS CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-xs">
@@ -400,13 +525,15 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                   <th className="p-4">Decisor & Nicho</th>
                   <th className="p-4">Termos de Pesquisa</th>
                   <th className="p-4 text-center">Score GEO</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Ação</th>
+                  <th className="p-4">Status do Pipeline</th>
+                  <th className="p-4 text-right">Excluir</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-xs">
                 {filteredLeads.map((lead) => {
-                  const badge = getSourceBadge(lead);
+                  const score = lead.geoScore || lead.geoScoreEstimado || 0;
+                  const stage = getPipelineStage(lead);
+                  const followupLabel = formatFollowupLabel(lead);
                   return (
                     <tr
                       key={lead.id}
@@ -423,10 +550,10 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                         </div>
                       </td>
 
-                      {/* Origem Badge */}
+                      {/* Origem */}
                       <td className="p-4">
-                        <span className={`text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border ${badge.color}`}>
-                          {badge.label}
+                        <span className="text-[11px] font-mono font-medium text-zinc-600">
+                          {lead.sourceLabel || getSourceLabel(lead)}
                         </span>
                       </td>
 
@@ -453,36 +580,34 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                         )}
                       </td>
 
-                      {/* Score GEO */}
+                      {/* Score GEO — apenas número e cor, sem gráfico */}
                       <td className="p-4 text-center">
-                        <div className="inline-flex items-center justify-center">
-                          <GeoScoreGauge score={lead.geoScore || lead.geoScoreEstimado || 0} size="sm" />
-                        </div>
+                        <span className={`font-display font-black text-lg ${getGeoScoreColor(score)}`}>
+                          {score}%
+                        </span>
                       </td>
 
-                      {/* Status */}
+                      {/* Status do Pipeline */}
                       <td className="p-4">
-                        <StatusBadge status={lead.status} />
+                        <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full border ${PIPELINE_STAGE_COLORS[stage]}`}>
+                          {PIPELINE_STAGE_LABELS[stage]}
+                        </span>
+                        {followupLabel && (
+                          <div className="text-[10px] text-zinc-400 font-mono mt-1">
+                            Follow-up: e-mail {followupLabel}
+                          </div>
+                        )}
                       </td>
 
                       {/* Action */}
                       <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => onNavigate('leads', lead.id)}
-                            className="px-3 py-1.5 bg-zinc-950 text-white text-[11px] font-bold font-display rounded-lg hover:bg-zinc-800 transition-colors shadow-xs"
-                          >
-                            Abrir Página →
-                          </button>
-
-                          <button
-                            onClick={() => handleDelete(lead.id, lead.company || lead.domain || lead.id)}
-                            className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                            title="Excluir Lead"
-                          >
-                            <IconTrash className="w-4 h-4" />
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => handleDelete(lead.id, lead.company || lead.domain || lead.id)}
+                          className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                          title="Excluir Lead"
+                        >
+                          <IconTrash className="w-4 h-4" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -494,7 +619,9 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
           {/* Mobile & Tablet Cards View */}
           <div className="lg:hidden divide-y divide-zinc-100">
             {filteredLeads.map((lead) => {
-              const badge = getSourceBadge(lead);
+              const score = lead.geoScore || lead.geoScoreEstimado || 0;
+              const stage = getPipelineStage(lead);
+              const followupLabel = formatFollowupLabel(lead);
               return (
                 <div
                   key={lead.id}
@@ -506,8 +633,8 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                       <h4 className="font-display font-bold text-zinc-950 text-sm">{lead.company || lead.domain}</h4>
                       <p className="text-xs text-zinc-400 font-mono">{lead.url}</p>
                     </div>
-                    <span className={`text-[9px] font-mono font-bold px-2 py-0.5 rounded-full border ${badge.color}`}>
-                      {badge.label}
+                    <span className="text-[10px] font-mono font-medium text-zinc-500">
+                      {lead.sourceLabel || getSourceLabel(lead)}
                     </span>
                   </div>
 
@@ -515,27 +642,34 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                     <div>
                       <span className="text-zinc-400 block text-[9px] font-mono">TERMOS</span>
                       <span className={`font-bold ${lead.searchTermsStatus === 'approved' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {lead.searchTermsStatus === 'approved' ? '✓ Aprovados' : '⏳ Pendente'}
+                        {lead.searchTermsStatus === 'approved' ? 'Aprovados' : 'Pendente'}
                       </span>
                     </div>
 
                     <div>
                       <span className="text-zinc-400 block text-[9px] font-mono text-center">SCORE GEO</span>
-                      <span className="font-mono font-bold text-zinc-900">{lead.geoScore || lead.geoScoreEstimado || 0}%</span>
+                      <span className={`font-display font-black ${getGeoScoreColor(score)}`}>{score}%</span>
                     </div>
 
-                    <StatusBadge status={lead.status} />
+                    <div>
+                      <span className="text-zinc-400 block text-[9px] font-mono text-right">PIPELINE</span>
+                      <span className={`inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border ${PIPELINE_STAGE_COLORS[stage]}`}>
+                        {PIPELINE_STAGE_LABELS[stage]}
+                      </span>
+                    </div>
                   </div>
 
                   <div className="pt-2 flex items-center justify-between border-t border-zinc-100" onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-zinc-400 font-mono">
                       {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+                      {followupLabel && ` · e-mail ${followupLabel}`}
                     </span>
                     <button
-                      onClick={() => onNavigate('leads', lead.id)}
-                      className="px-3 py-1 bg-zinc-950 text-white rounded-lg text-xs font-bold font-display"
+                      onClick={() => handleDelete(lead.id, lead.company || lead.domain || lead.id)}
+                      className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      title="Excluir Lead"
                     >
-                      Abrir Detalhes →
+                      <IconTrash className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

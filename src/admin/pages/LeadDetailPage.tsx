@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLeads, useDiagnostic, type Lead, type SentHistoryItem } from '../hooks/useFirestore';
 import GeoScoreGauge from '../components/GeoScoreGauge';
 import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
-import StatusBadge from '../components/StatusBadge';
+import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS } from '../lib/pipeline';
 import {
   IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
   IconShield, IconFolder, IconClipboard, IconChat, IconBot, IconHourglass,
@@ -15,14 +15,34 @@ interface LeadDetailPageProps {
   onNavigate: (page: string, id?: string) => void;
 }
 
-type TabType = 'search_terms' | 'diagnostic' | 'outreach' | 'contact_notes';
+type TabType = 'contact' | 'search_terms' | 'diagnostic' | 'pipeline';
 type CopyFramework = 'PAS' | 'BAB' | 'PASTOR' | 'QUEST' | '4Ps' | 'FAB' | 'ACCA' | '4Us' | 'Falsa Lógica';
+
+// Espelha server.cjs OUTREACH_FRAMEWORK_KEYS — as chaves persistidas em outreachCopies não são o label da UI
+const OUTREACH_FRAMEWORK_KEYS: Record<CopyFramework, string> = {
+  PAS: 'pas',
+  BAB: 'bab',
+  PASTOR: 'pastor',
+  QUEST: 'quest',
+  '4Ps': 'ps4',
+  FAB: 'fab',
+  ACCA: 'acca',
+  '4Us': 'us4',
+  'Falsa Lógica': 'falsaLogica',
+};
 
 export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPageProps) {
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<TabType>('search_terms');
+  const [activeTab, setActiveTab] = useState<TabType>('contact');
+
+  // Contact tab — editable fields
+  const [contactForm, setContactForm] = useState({
+    company: '', email: '', contactName: '', contactRole: '', linkedinUrl: '', phone: '', niche: '',
+  });
+  const [savingContact, setSavingContact] = useState(false);
+  const [contactDirty, setContactDirty] = useState(false);
 
   // Search terms management state
   const [terms, setTerms] = useState<string[]>(Array(14).fill(''));
@@ -31,13 +51,14 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   const [termsError, setTermsError] = useState<string | null>(null);
 
   // Diagnostic hooks & state
-  const { runDiagnostic: triggerDiagnostic } = useLeads();
+  const { runDiagnostic: triggerDiagnostic, editLead } = useLeads();
   const { diagnostic: hookDiagnostic, fetchDiagnostic } = useDiagnostic(leadId);
   const [runningDiagnostic, setRunningDiagnostic] = useState(false);
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
+  const [diagnosticErrorMsg, setDiagnosticErrorMsg] = useState<string | null>(null);
   const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
 
-  // Outreach state
+  // Pipeline / Outreach state
   const [copyTab, setCopyTab] = useState<CopyFramework>('PAS');
   const [generatingCopy, setGeneratingCopy] = useState(false);
   const [editedEmailText, setEditedEmailText] = useState('');
@@ -45,6 +66,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   const [sendingEmail, setSendingEmail] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [attachReportLink, setAttachReportLink] = useState(true);
+  const [markingSent, setMarkingSent] = useState(false);
 
   // Toast state
   const [toast, setToast] = useState<string | null>(null);
@@ -73,13 +95,25 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
       const found = (data.leads || []).find((l: Lead) => l.id === leadId);
       if (found) {
         setLead(found);
+        setContactForm({
+          company: found.company || '',
+          email: found.email || '',
+          contactName: found.contactName || found.name || '',
+          contactRole: found.contactRole || '',
+          linkedinUrl: found.linkedinUrl || '',
+          phone: found.phone || '',
+          niche: found.niche || '',
+        });
+        setContactDirty(false);
         if (found.searchTerms && found.searchTerms.length > 0) {
           const filled = [...found.searchTerms];
           while (filled.length < 14) filled.push('');
           setTerms(filled.slice(0, 14));
         }
-        if (found.outreachCopies && found.outreachCopies[copyTab]) {
-          setEditedEmailText(found.outreachCopies[copyTab]);
+        const frameworkKey = OUTREACH_FRAMEWORK_KEYS[copyTab];
+        if (found.outreachCopies && found.outreachCopies[`${frameworkKey}Email`]) {
+          setEditedEmailText(found.outreachCopies[`${frameworkKey}Email`]);
+          setEditedLinkedinText(found.outreachCopies[`${frameworkKey}Linkedin`] || '');
         }
       } else {
         setError('Lead não encontrado.');
@@ -120,8 +154,9 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   // Sync copy texts when framework changes
   useEffect(() => {
     if (lead?.outreachCopies) {
-      setEditedEmailText(lead.outreachCopies[copyTab] || '');
-      setEditedLinkedinText(lead.outreachCopies[`${copyTab}_linkedin`] || lead.outreachCopies[copyTab] || '');
+      const frameworkKey = OUTREACH_FRAMEWORK_KEYS[copyTab];
+      setEditedEmailText(lead.outreachCopies[`${frameworkKey}Email`] || '');
+      setEditedLinkedinText(lead.outreachCopies[`${frameworkKey}Linkedin`] || '');
     }
   }, [copyTab, lead?.outreachCopies]);
 
@@ -205,6 +240,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
       return;
     }
 
+    setDiagnosticErrorMsg(null);
     setRunningDiagnostic(true);
     try {
       await triggerDiagnostic(lead.id);
@@ -215,9 +251,31 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
         setRunningDiagnostic(false);
       }, 3000);
     } catch (err: any) {
+      setDiagnosticErrorMsg(err.message);
       showToast(`Erro ao rodar diagnóstico: ${err.message}`);
       setRunningDiagnostic(false);
     }
+  };
+
+  // Save Contact Info
+  const handleSaveContact = async () => {
+    if (!lead) return;
+    setSavingContact(true);
+    try {
+      await editLead(lead.id, contactForm);
+      setLead(prev => prev ? { ...prev, ...contactForm } : null);
+      setContactDirty(false);
+      showToast('✅ Dados de contato salvos com sucesso!');
+    } catch (err: any) {
+      showToast(`Erro ao salvar contato: ${err.message}`);
+    } finally {
+      setSavingContact(false);
+    }
+  };
+
+  const updateContactField = (field: keyof typeof contactForm, value: string) => {
+    setContactForm(prev => ({ ...prev, [field]: value }));
+    setContactDirty(true);
   };
 
   // Update Lead Temperature
@@ -262,14 +320,10 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
 
       setEditedEmailText(data.emailText || '');
       setEditedLinkedinText(data.linkedinText || '');
-      
+
       setLead(prev => prev ? {
         ...prev,
-        outreachCopies: {
-          ...(prev.outreachCopies || {}),
-          [copyTab]: data.emailText,
-          [`${copyTab}_linkedin`]: data.linkedinText
-        }
+        outreachCopies: data.outreachCopies || prev.outreachCopies,
       } : null);
 
       showToast(`✨ Copy no framework ${copyTab} gerada com sucesso!`);
@@ -300,7 +354,8 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
           email: lead.email,
           subject: `Diagnóstico GEO // Otimização de Inteligência Artificial para ${lead.company || lead.domain}`,
           bodyHtml: editedEmailText,
-          attachPdf: attachReportLink
+          attachPdf: attachReportLink,
+          framework: copyTab,
         })
       });
       const data = await res.json();
@@ -312,6 +367,34 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
       showToast(`Erro ao enviar e-mail: ${err.message}`);
     } finally {
       setSendingEmail(false);
+    }
+  };
+
+  // Marcação manual de envio (ex.: copy enviada por fora, como LinkedIn) — alimenta o Status do Pipeline
+  const handleToggleSent = async (checked: boolean) => {
+    if (!lead) return;
+    setMarkingSent(true);
+    try {
+      if (checked) {
+        const sentAt = new Date().toISOString();
+        const sentHistory: SentHistoryItem[] = [
+          ...(lead.sentHistory || []),
+          { copyKey: copyTab, sentAt, channel: 'linkedin' },
+        ];
+        await editLead(lead.id, { sentHistory, emailSentAt: sentAt, pipelineStage: 'email_sent', status: 'contacted' } as Partial<Lead>);
+        setLead(prev => prev ? { ...prev, sentHistory, emailSentAt: sentAt, pipelineStage: 'email_sent', status: 'contacted' } : null);
+        showToast('✅ Marcado como enviado — cronômetro de follow-up zerado.');
+      } else {
+        // Remove a marcação: limpa o histórico de envio e volta o Pipeline ao estágio anterior (derivado dos demais dados)
+        const sentHistory: SentHistoryItem[] = [];
+        await editLead(lead.id, { sentHistory, emailSentAt: '', pipelineStage: '' } as unknown as Partial<Lead>);
+        setLead(prev => prev ? { ...prev, sentHistory, emailSentAt: '', pipelineStage: undefined } : null);
+        showToast('Marcação de envio removida.');
+      }
+    } catch (err: any) {
+      showToast(`Erro ao atualizar status de envio: ${err.message}`);
+    } finally {
+      setMarkingSent(false);
     }
   };
 
@@ -395,7 +478,14 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
               <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${sourceBadge.color}`}>
                 {sourceBadge.label}
               </span>
-              <StatusBadge status={lead.status} />
+              {(() => {
+                const stage = getPipelineStage(lead);
+                return (
+                  <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${PIPELINE_STAGE_COLORS[stage]}`}>
+                    {PIPELINE_STAGE_LABELS[stage]}
+                  </span>
+                );
+              })()}
             </div>
             <p className="text-xs text-zinc-500 font-mono mt-0.5 flex items-center gap-2 flex-wrap">
               <span>{lead.url}</span>
@@ -449,6 +539,18 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
       <div className="border-b border-zinc-200 overflow-x-auto scrollbar-none">
         <nav className="flex space-x-6 min-w-max">
           <button
+            onClick={() => setActiveTab('contact')}
+            className={`py-3 px-1 border-b-2 font-display text-sm font-bold flex items-center gap-2 cursor-pointer transition-colors ${
+              activeTab === 'contact'
+                ? 'border-zinc-950 text-zinc-950'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
+            }`}
+          >
+            <IconChat className="w-4 h-4" />
+            <span>1. Contato</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('search_terms')}
             className={`py-3 px-1 border-b-2 font-display text-sm font-bold flex items-center gap-2 cursor-pointer transition-colors ${
               activeTab === 'search_terms'
@@ -457,7 +559,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
             }`}
           >
             <IconSparkles className="w-4 h-4" />
-            <span>1. Termos de Pesquisa Estratégicos</span>
+            <span>2. Termos de Pesquisa Estratégicos</span>
             {lead.searchTermsStatus === 'approved' ? (
               <span className="w-2 h-2 rounded-full bg-emerald-500" title="Aprovados" />
             ) : (
@@ -474,7 +576,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
             }`}
           >
             <IconShield className="w-4 h-4" />
-            <span>2. Diagnóstico GEO & Auditorias</span>
+            <span>3. Diagnóstico GEO & Auditorias</span>
             {lead.geoScore !== undefined && (
               <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-800 font-bold">
                 {lead.geoScore}%
@@ -483,34 +585,138 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
           </button>
 
           <button
-            onClick={() => setActiveTab('outreach')}
+            onClick={() => setActiveTab('pipeline')}
             className={`py-3 px-1 border-b-2 font-display text-sm font-bold flex items-center gap-2 cursor-pointer transition-colors ${
-              activeTab === 'outreach'
+              activeTab === 'pipeline'
                 ? 'border-zinc-950 text-zinc-950'
                 : 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
             }`}
           >
             <IconSend className="w-4 h-4" />
-            <span>3. Outreach & Copys (9 Frameworks)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('contact_notes')}
-            className={`py-3 px-1 border-b-2 font-display text-sm font-bold flex items-center gap-2 cursor-pointer transition-colors ${
-              activeTab === 'contact_notes'
-                ? 'border-zinc-950 text-zinc-950'
-                : 'border-transparent text-zinc-500 hover:text-zinc-900 hover:border-zinc-300'
-            }`}
-          >
-            <IconChat className="w-4 h-4" />
-            <span>4. Contato & Notas</span>
+            <span>4. Pipeline</span>
+            {(() => {
+              const stage = getPipelineStage(lead);
+              return (
+                <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full border font-bold ${PIPELINE_STAGE_COLORS[stage]}`}>
+                  {PIPELINE_STAGE_LABELS[stage]}
+                </span>
+              );
+            })()}
           </button>
         </nav>
       </div>
 
       {/* TAB CONTENT AREA */}
       <div>
-        {/* TAB 1: STRATEGIC SEARCH TERMS */}
+        {/* TAB 1: CONTACT (editable) */}
+        {activeTab === 'contact' && (
+          <div className="space-y-6">
+            <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
+                <div>
+                  <h3 className="font-display font-bold text-zinc-950 text-base flex items-center gap-2">
+                    <IconChat className="w-5 h-5 text-blue-600" />
+                    Informações de Contato
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
+                    Edite os dados cadastrais do lead e salve as alterações.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">EMPRESA / DOMÍNIO</label>
+                  <input
+                    type="text"
+                    value={contactForm.company}
+                    onChange={(e) => updateContactField('company', e.target.value)}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">E-MAIL DE CONTATO</label>
+                  <input
+                    type="email"
+                    value={contactForm.email}
+                    onChange={(e) => updateContactField('email', e.target.value)}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">NOME DO DECISOR / CONTATO</label>
+                  <input
+                    type="text"
+                    value={contactForm.contactName}
+                    onChange={(e) => updateContactField('contactName', e.target.value)}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">CARGO DO DECISOR</label>
+                  <input
+                    type="text"
+                    value={contactForm.contactRole}
+                    onChange={(e) => updateContactField('contactRole', e.target.value)}
+                    placeholder="CEO / Diretor..."
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">LINKEDIN</label>
+                  <input
+                    type="text"
+                    value={contactForm.linkedinUrl}
+                    onChange={(e) => updateContactField('linkedinUrl', e.target.value)}
+                    placeholder="https://linkedin.com/in/..."
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">TELEFONE</label>
+                  <input
+                    type="text"
+                    value={contactForm.phone}
+                    onChange={(e) => updateContactField('phone', e.target.value)}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">NICHO / SETOR</label>
+                  <input
+                    type="text"
+                    value={contactForm.niche}
+                    onChange={(e) => updateContactField('niche', e.target.value)}
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200 sm:col-span-2">
+                  <span className="text-zinc-400 block text-[10px] font-mono">CRIADO EM</span>
+                  <span className="font-bold text-zinc-900 text-xs">{new Date(lead.createdAt).toLocaleString('pt-BR')}</span>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-zinc-100 flex items-center justify-end gap-3">
+                <button
+                  onClick={handleSaveContact}
+                  disabled={savingContact || !contactDirty}
+                  className="px-6 py-2.5 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-40 text-white text-xs font-bold font-display rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {savingContact ? (
+                    <span>Salvando...</span>
+                  ) : (
+                    <>
+                      <IconCheck className="w-4 h-4" />
+                      <span>Salvar Alterações</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: STRATEGIC SEARCH TERMS */}
         {activeTab === 'search_terms' && (
           <div className="space-y-6">
             {/* Status card */}
@@ -629,15 +835,30 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                 <IconShield className="w-12 h-12 text-zinc-400 mx-auto" />
                 <h3 className="font-display font-bold text-zinc-900 text-lg">Nenhum Diagnóstico Executado Ainda</h3>
                 <p className="text-xs text-zinc-500 max-w-md mx-auto leading-relaxed">
-                  Para gerar o relatório completo com GeoScore, auditoria técnica de robots.txt, schema.org e visibilidade nos modelos de IA, certifique-se de aprovar os Termos de Pesquisa na aba 1 e clique em "Iniciar Diagnóstico GEO".
+                  Para gerar o relatório completo com GeoScore, auditoria técnica de robots.txt, schema.org e visibilidade nos modelos de IA, certifique-se de aprovar os Termos de Pesquisa na aba 2 e clique em "Executar Diagnóstico GEO Agora".
                 </p>
+                {diagnosticErrorMsg && (
+                  <div className="max-w-md mx-auto p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium text-left flex items-start gap-2">
+                    <IconWarning className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>{diagnosticErrorMsg}</span>
+                  </div>
+                )}
                 <button
                   onClick={handleRunDiagnostic}
                   disabled={runningDiagnostic}
                   className="px-6 py-3 bg-zinc-950 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all cursor-pointer shadow-md inline-flex items-center gap-2"
                 >
-                  <IconPlay className="w-4 h-4" />
-                  <span>Executar Diagnóstico GEO Agora</span>
+                  {runningDiagnostic ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Processando Agentes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconPlay className="w-4 h-4" />
+                      <span>Executar Diagnóstico GEO Agora</span>
+                    </>
+                  )}
                 </button>
               </div>
             ) : (
@@ -677,15 +898,15 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
           </div>
         )}
 
-        {/* TAB 3: OUTREACH & COPIES */}
-        {activeTab === 'outreach' && (
+        {/* TAB 4: PIPELINE */}
+        {activeTab === 'pipeline' && (
           <div className="space-y-6">
             <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
                 <div>
                   <h3 className="font-display font-bold text-zinc-950 text-base flex items-center gap-2">
                     <IconSend className="w-5 h-5 text-blue-600" />
-                    Gerador de Abordagens (9 Frameworks de Copywriting)
+                    Pipeline de Abordagem (9 Frameworks de Copywriting)
                   </h3>
                   <p className="text-xs text-zinc-500 mt-1">
                     Copys calibradas dinamicamente com as falhas técnicas encontradas no diagnóstico do lead.
@@ -748,6 +969,27 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                 />
               </div>
 
+              {/* LinkedIn Text Box */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs font-mono font-bold text-zinc-600">
+                  <span>TEXTO PARA LINKEDIN</span>
+                  <button
+                    onClick={() => copyToClipboard(editedLinkedinText, 'linkedin')}
+                    className="text-zinc-500 hover:text-zinc-950 flex items-center gap-1 cursor-pointer"
+                  >
+                    <IconClipboard className="w-3.5 h-3.5" />
+                    <span>{copiedField === 'linkedin' ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+                <textarea
+                  value={editedLinkedinText}
+                  onChange={(e) => setEditedLinkedinText(e.target.value)}
+                  rows={5}
+                  placeholder="Selecione um framework e clique em Gerar Copy..."
+                  className="w-full p-4 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-mono leading-relaxed focus:outline-none focus:border-zinc-950 focus:bg-white"
+                />
+              </div>
+
               {/* Send Email Action Bar */}
               <div className="pt-4 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <label className="flex items-center gap-2 text-xs text-zinc-700 cursor-pointer">
@@ -775,46 +1017,27 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                   )}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* TAB 4: CONTACT & NOTES */}
-        {activeTab === 'contact_notes' && (
-          <div className="space-y-6">
-            <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="font-display font-bold text-zinc-950 text-base">Informações Cadastrais do Lead</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
-                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <span className="text-zinc-400 block text-[10px]">EMPRESA / DOMÍNIO</span>
-                  <span className="font-bold text-zinc-900">{lead.company || lead.domain || 'N/A'}</span>
-                </div>
-                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <span className="text-zinc-400 block text-[10px]">E-MAIL DE CONTATO</span>
-                  <span className="font-bold text-zinc-900">{lead.email || 'Não informado'}</span>
-                </div>
-                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <span className="text-zinc-400 block text-[10px]">NOME DO DECISOR / CONTATO</span>
-                  <span className="font-bold text-zinc-900">{lead.contactName || lead.name || 'Não informado'}</span>
-                </div>
-                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <span className="text-zinc-400 block text-[10px]">CARGO DO DECISOR</span>
-                  <span className="font-bold text-zinc-900">{lead.contactRole || 'CEO / Diretor'}</span>
-                </div>
-                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <span className="text-zinc-400 block text-[10px]">LINKEDIN</span>
-                  {lead.linkedinUrl ? (
-                    <a href={lead.linkedinUrl} target="_blank" rel="noreferrer" className="text-blue-600 underline font-bold">
-                      {lead.linkedinUrl}
-                    </a>
-                  ) : (
-                    <span className="text-zinc-400">Não cadastrado</span>
-                  )}
-                </div>
-                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200">
-                  <span className="text-zinc-400 block text-[10px]">CRIADO EM</span>
-                  <span className="font-bold text-zinc-900">{new Date(lead.createdAt).toLocaleString('pt-BR')}</span>
-                </div>
+              {/* Manual "sent" checkbox — feeds the pipeline status independently of the send button (e.g. sent via LinkedIn copy/paste) */}
+              <div className="pt-4 border-t border-zinc-100 space-y-2">
+                <label className="flex items-center gap-2.5 text-xs text-zinc-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!lead.emailSentAt}
+                    disabled={markingSent}
+                    onChange={(e) => handleToggleSent(e.target.checked)}
+                    className="w-4 h-4 rounded text-zinc-950 focus:ring-zinc-950"
+                  />
+                  <span className="font-bold">Já enviei esta abordagem para o lead ({copyTab})</span>
+                </label>
+                <p className="text-[11px] text-zinc-400 pl-6">
+                  Marque manualmente se enviou por fora da plataforma (ex: copiou o texto e mandou pelo LinkedIn). Isso atualiza o Status do Pipeline e zera o cronômetro de follow-up.
+                </p>
+                {lead.emailSentAt && (
+                  <p className="text-[11px] text-zinc-500 pl-6 font-mono">
+                    Último envio: {new Date(lead.emailSentAt).toLocaleString('pt-BR')} ({formatFollowupLabel(lead)})
+                  </p>
+                )}
               </div>
             </div>
           </div>

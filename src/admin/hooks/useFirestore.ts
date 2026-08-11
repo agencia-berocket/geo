@@ -94,7 +94,11 @@ export interface Lead {
   hasBlog?: boolean;
   hasAnswerFirst?: boolean;
   citedCompetitor?: string;
+  emailSentAt?: string;
+  pipelineStage?: PipelineStage;
 }
+
+export type PipelineStage = 'new' | 'terms_approved' | 'diagnosed' | 'email_sent' | 'responded' | 'converted';
 
 export interface DiagnosticReport {
   id: string;
@@ -191,6 +195,10 @@ export function useLeads() {
     architecture?: string;
     scale?: string;
     status?: string;
+    contactName?: string;
+    contactRole?: string;
+    niche?: string;
+    linkedinUrl?: string;
   }) => {
     const result = await apiFetch<{ success: boolean; leadId: string }>('/admin/leads', {
       method: 'POST',

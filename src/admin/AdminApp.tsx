@@ -20,7 +20,7 @@ export default function AdminApp() {
   // Set browser tab title dynamically
   useEffect(() => {
     if (authState === 'authorized') {
-      const pageTitle = selectedId ? 'Detalhes do Lead' : currentPage === 'lead_hunter' || currentPage === 'leads' ? 'Lead Hunter & Leads' : currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
+      const pageTitle = selectedId ? 'Detalhes do Lead' : currentPage === 'lead_hunter' || currentPage === 'leads' ? 'Leads' : currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
       document.title = `Admin GEO | b.rocket - ${pageTitle}`;
     } else {
       document.title = 'Admin GEO | b.rocket - Restrito';

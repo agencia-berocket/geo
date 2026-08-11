@@ -798,7 +798,7 @@ app.post('/api/leads/capture', async (req, res) => {
 
 // ─── CREATE LEAD MANUALLY (ADMIN) ─────────────────────────────────────────
 app.post('/api/admin/leads', verifyAdminToken, async (req, res) => {
-  const { url, email, name, company, phone, architecture, scale, status } = req.body;
+  const { url, email, name, company, phone, architecture, scale, status, contactName, contactRole, niche, linkedinUrl } = req.body;
   if (!url || !email) {
     return res.status(400).json({ error: 'URL e e-mail são obrigatórios' });
   }
@@ -815,7 +815,11 @@ app.post('/api/admin/leads', verifyAdminToken, async (req, res) => {
         id: { stringValue: leadId },
         url: { stringValue: cleanUrl },
         email: { stringValue: email },
-        name: { stringValue: name || '' },
+        name: { stringValue: name || contactName || '' },
+        contactName: { stringValue: contactName || name || '' },
+        contactRole: { stringValue: contactRole || '' },
+        niche: { stringValue: niche || '' },
+        linkedinUrl: { stringValue: linkedinUrl || '' },
         company: { stringValue: company || domain },
         domain: { stringValue: domain },
         phone: { stringValue: phone || '' },
@@ -823,6 +827,7 @@ app.post('/api/admin/leads', verifyAdminToken, async (req, res) => {
         scale: { stringValue: scale || '' },
         createdAt: { stringValue: new Date().toISOString() },
         status: { stringValue: status || 'new' },
+        source: { stringValue: 'direct' },
         geoScore: { integerValue: 0 },
       }
     };
@@ -915,6 +920,8 @@ app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
             attachPdf: item.attachPdf?.booleanValue || false,
           };
         }),
+        emailSentAt: f.emailSentAt?.stringValue || '',
+        pipelineStage: f.pipelineStage?.stringValue || '',
       };
     };
 
@@ -946,25 +953,15 @@ app.patch('/api/admin/leads/:id', verifyAdminToken, async (req, res) => {
   const fieldsToUpdate = req.body;
   try {
     const accessToken = await getGoogleAccessToken();
-    
-    // Buscar o docName real do lead
-    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-    
-    let leadDocPath = null;
-    for (const doc of (leadsData.documents || [])) {
-      const docId = doc.name.split('/').pop();
-      const f = doc.fields || {};
-      if (docId === id || f.id?.stringValue === id) {
-        leadDocPath = doc.name;
-        break;
-      }
-    }
-    
-    if (!leadDocPath) {
+
+    // Buscar o docName real do lead (procura em leads e hunter_leads)
+    const found = await findLeadDoc(accessToken, id);
+
+    if (!found) {
       return res.status(404).json({ error: 'Lead não encontrado' });
     }
-    
+    const leadDocPath = found.docPath;
+
     const updateMask = Object.keys(fieldsToUpdate).map(k => `updateMask.fieldPaths=${k}`).join('&');
     const firestoreUrl = `https://firestore.googleapis.com/v1/${leadDocPath}?${updateMask}`;
     
@@ -990,27 +987,16 @@ app.delete('/api/admin/leads/:id', verifyAdminToken, async (req, res) => {
   const { id } = req.params;
   try {
     const accessToken = await getGoogleAccessToken();
-    
-    // Buscar o docName real do lead
-    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-    
-    let leadDocPath = null;
-    for (const doc of (leadsData.documents || [])) {
-      const docId = doc.name.split('/').pop();
-      const f = doc.fields || {};
-      if (docId === id || f.id?.stringValue === id) {
-        leadDocPath = doc.name;
-        break;
-      }
-    }
-    
-    if (!leadDocPath) {
+
+    // Buscar o docName real do lead (procura em leads e hunter_leads)
+    const found = await findLeadDoc(accessToken, id);
+
+    if (!found) {
       return res.status(404).json({ error: 'Lead não encontrado' });
     }
-    
-    const firestoreUrl = `https://firestore.googleapis.com/v1/${leadDocPath}`;
-    
+
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${found.docPath}`;
+
     await fetchFirestore(firestoreUrl, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${accessToken}` },
@@ -1027,27 +1013,19 @@ app.post('/api/admin/leads/:leadId/analyze-search-terms', verifyAdminToken, asyn
   const { leadId } = req.params;
   try {
     const accessToken = await getGoogleAccessToken();
-    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const found = await findLeadDoc(accessToken, leadId);
 
     let lead = null;
     let leadDocPath = null;
-    for (const doc of (leadsData.documents || [])) {
-      const docId = doc.name.split('/').pop();
-      const f = doc.fields || {};
-      if (docId === leadId || f.id?.stringValue === leadId) {
-        lead = {
-          id: f.id?.stringValue || docId,
-          url: f.url?.stringValue || '',
-        };
-        leadDocPath = doc.name;
-        break;
-      }
+    if (found) {
+      lead = found.fields;
+      leadDocPath = found.docPath;
     }
 
     if (!lead || !leadDocPath) return res.status(404).json({ error: 'Lead não encontrado' });
 
-    const baseUrl = lead.url.startsWith('http') ? lead.url : `https://${lead.url}`;
+    const leadUrl = lead.url || (lead.domain ? `https://${lead.domain}` : '');
+    const baseUrl = leadUrl.startsWith('http') ? leadUrl : `https://${leadUrl}`;
     let htmlContent = '';
     try {
       const siteRes = await fetchUrl(baseUrl);
@@ -1100,20 +1078,10 @@ app.post('/api/admin/leads/:leadId/save-search-terms', verifyAdminToken, async (
 
   try {
     const accessToken = await getGoogleAccessToken();
-    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const found = await findLeadDoc(accessToken, leadId);
 
-    let leadDocPath = null;
-    for (const doc of (leadsData.documents || [])) {
-      const docId = doc.name.split('/').pop();
-      const f = doc.fields || {};
-      if (docId === leadId || f.id?.stringValue === leadId) {
-        leadDocPath = doc.name;
-        break;
-      }
-    }
-
-    if (!leadDocPath) return res.status(404).json({ error: 'Lead não encontrado' });
+    if (!found) return res.status(404).json({ error: 'Lead não encontrado' });
+    const leadDocPath = found.docPath;
 
     const updateMask = 'updateMask.fieldPaths=searchTerms&updateMask.fieldPaths=searchTermsStatus&updateMask.fieldPaths=searchTermsApprovedAt';
     const firestoreUrl = `https://firestore.googleapis.com/v1/${leadDocPath}?${updateMask}`;
@@ -1153,26 +1121,21 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
   try {
     accessToken = await getGoogleAccessToken();
 
-    // Fetch lead data
-    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    // Fetch lead data (busca em ambas as coleções: leads (LP) e hunter_leads (Lead Hunter))
+    const found = await findLeadDoc(accessToken, leadId);
 
-    for (const doc of (leadsData.documents || [])) {
-      const docId = doc.name.split('/').pop();
-      const f = doc.fields || {};
-      if (f.id?.stringValue === leadId || docId === leadId) {
-        lead = {
-          id: f.id?.stringValue || leadId,
-          url: f.url?.stringValue || '',
-          email: f.email?.stringValue || '',
-          name: f.name?.stringValue || '',
-          company: f.company?.stringValue || '',
-          searchTerms: (f.searchTerms?.arrayValue?.values || []).map(v => v.stringValue || '').filter(Boolean),
-          searchTermsStatus: f.searchTermsStatus?.stringValue || 'pending',
-        };
-        leadDocPath = doc.name;
-        break;
-      }
+    if (found) {
+      const f = found.fields;
+      lead = {
+        id: f.id || leadId,
+        url: f.url || (f.domain ? `https://${f.domain}` : ''),
+        email: f.email || '',
+        name: f.name || '',
+        company: f.company || '',
+        searchTerms: (f.searchTerms || []).filter(Boolean),
+        searchTermsStatus: f.searchTermsStatus || 'pending',
+      };
+      leadDocPath = found.docPath;
     }
 
     if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
@@ -1363,19 +1326,10 @@ app.post('/api/admin/diagnostic/send-report', verifyAdminToken, async (req, res)
   try {
     const accessToken = await getGoogleAccessToken();
 
-    // Fetch lead
-    const leadsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    let lead = null;
-    for (const doc of (leadsData.documents || [])) {
-      const f = doc.fields || {};
-      if (f.id?.stringValue === leadId) {
-        lead = { url: f.url?.stringValue, email: f.email?.stringValue, name: f.name?.stringValue };
-        break;
-      }
-    }
-    if (!lead) throw new Error('Lead não encontrado');
+    // Fetch lead (busca em leads e hunter_leads)
+    const found = await findLeadDoc(accessToken, leadId);
+    if (!found) throw new Error('Lead não encontrado');
+    const lead = { url: found.fields.url, email: found.fields.email, name: found.fields.name };
 
     // Fetch diagnostic
     const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
@@ -1703,36 +1657,20 @@ app.post('/api/admin/leads/send-followup', verifyAdminToken, async (req, res) =>
 
   try {
     const accessToken = await getGoogleAccessToken();
-    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
 
-    function fromFs(val) {
-      if (!val) return null;
-      if ('stringValue' in val) return val.stringValue;
-      if ('integerValue' in val) return parseInt(val.integerValue);
-      if ('booleanValue' in val) return val.booleanValue;
-      return null;
-    }
+    // Busca em leads e hunter_leads
+    const found = await findLeadDoc(accessToken, leadId);
+    if (!found) return res.status(404).json({ error: 'Lead não encontrado' });
 
-    let leadDocPath = null;
-    let lead = null;
-    for (const doc of (leadsData.documents || [])) {
-      const f = doc.fields || {};
-      if (f.id?.stringValue === leadId || doc.name.split('/').pop() === leadId) {
-        leadDocPath = doc.name;
-        lead = {
-          id: f.id?.stringValue,
-          email: f.email?.stringValue,
-          name: f.name?.stringValue,
-          url: f.url?.stringValue,
-          company: f.company?.stringValue,
-          geoScore: f.geoScore?.integerValue || 0
-        };
-        break;
-      }
-    }
-
-    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+    const leadDocPath = found.docPath;
+    const lead = {
+      id: found.fields.id,
+      email: found.fields.email,
+      name: found.fields.name,
+      url: found.fields.url,
+      company: found.fields.company,
+      geoScore: found.fields.geoScore || 0,
+    };
 
     const firstName = lead.name ? lead.name.split(' ')[0] : 'Olá';
     const domain = (lead.url || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
@@ -2806,6 +2744,26 @@ function getSampleHunterLeads() {
   return [];
 }
 
+// Busca um lead pelo id em ambas as coleções unificadas (leads = LP, hunter_leads = Lead Hunter)
+async function findLeadDoc(accessToken, leadId) {
+  const collections = ['leads', 'hunter_leads'];
+  const results = await Promise.all(collections.map(collection => {
+    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${collection}?pageSize=100`;
+    return fetchFirestore(url, { headers: { 'Authorization': `Bearer ${accessToken}` } }).catch(() => ({ documents: [] }));
+  }));
+
+  for (let i = 0; i < collections.length; i++) {
+    for (const doc of (results[i].documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === leadId || f.id?.stringValue === leadId) {
+        return { docPath: doc.name, collection: collections[i], fields: parseFirestoreDoc(doc) };
+      }
+    }
+  }
+  return null;
+}
+
 
 // GET /api/admin/lead-hunter/leads
 app.get('/api/admin/lead-hunter/leads', verifyAdminToken, async (req, res) => {
@@ -3655,17 +3613,46 @@ app.post('/api/admin/lead-hunter/audit', verifyAdminToken, async (req, res) => {
   }
 });
 
+// Mapa entre o framework selecionado na UI e as chaves geradas em outreachCopies
+const OUTREACH_FRAMEWORK_KEYS = {
+  PAS: 'pas',
+  BAB: 'bab',
+  PASTOR: 'pastor',
+  QUEST: 'quest',
+  '4Ps': 'ps4',
+  FAB: 'fab',
+  ACCA: 'acca',
+  '4Us': 'us4',
+  'Falsa Lógica': 'falsaLogica',
+};
+
 // POST /api/admin/lead-hunter/outreach (9 Frameworks de Copywriting Calibrados com Diagnóstico Real)
 app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) => {
-  const { leadId, leadData } = req.body;
-  const lead = leadData || {};
+  const { leadId, leadData, framework } = req.body;
+
+  let lead = leadData || {};
+  let accessToken = null;
+  let foundLead = null;
+  try {
+    accessToken = await getGoogleAccessToken();
+    if (leadId) {
+      foundLead = await findLeadDoc(accessToken, leadId);
+      if (foundLead) {
+        // Dados reais do lead têm prioridade sobre o que veio no body
+        lead = { ...lead, ...foundLead.fields };
+      }
+    }
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+
   const company = lead.company || 'Empresa';
-  const name = lead.contactName || 'Decisor';
-  const domain = lead.domain || 'site.com.br';
+  const name = lead.contactName || lead.name || 'Decisor';
+  const domain = lead.domain || (lead.url ? lead.url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '') : 'site.com.br');
   const competitor = lead.citedCompetitor || 'Concorrente Direto';
   const niche = lead.niche || 'tecnologia e serviços corporativos';
   const robotsBlocked = lead.aiCrawlersBlocked !== false;
-  const score = lead.geoScoreEstimado || 30;
+  const score = lead.geoScoreEstimado || lead.geoScore || 30;
 
   // 1. Framework PAS (Problema, Agitação, Solução)
   const pasLinkedin = robotsBlocked
@@ -3718,8 +3705,8 @@ app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) =
 
   const falsaLogicaEmail = `Assunto: A verdadeira razão técnica da ${competitor} estar em 1º lugar nas IAs\n\nOlá ${name},\n\nAo analisar as buscas por ${niche} no ChatGPT, Gemini, Claude e Perplexity, uma coisa chama a atenção: a ${competitor} aparece como primeira indicação.\n\nMas a verdade é que o produto deles não é superior ao da ${company}, nem eles investem milhões em mídia para isso.\n\nA razão é 100% técnica: o site deles possui diretivas limpas no robots.txt, Schemas JSON-LD estruturados e parágrafos formatados em AEO (Answer-First).\n\nA conclusão lógica é simples: se implementarmos essas mesmas 3 camadas técnicas no site ${domain}, a ${company} passa a capturar a preferência e as citações primárias em todas as IAs.\n\nElaboramos a auditoria completa mostrando cada linha de código necessária. Confira em anexo.\n\nAbraços,\nGuilherme Rossi | b.rocket`;
 
-  const outreachCopies = { 
-    pasLinkedin, pasEmail, 
+  const outreachCopies = {
+    pasLinkedin, pasEmail,
     babLinkedin, babEmail,
     pastorLinkedin, pastorEmail,
     questLinkedin, questEmail,
@@ -3730,38 +3717,29 @@ app.post('/api/admin/lead-hunter/outreach', verifyAdminToken, async (req, res) =
     falsaLogicaLinkedin, falsaLogicaEmail
   };
 
-  try {
-    const accessToken = await getGoogleAccessToken();
-    if (leadId) {
-      try {
-        const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?pageSize=100`;
-        const listData = await fetchFirestore(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-        let docPath = null;
-        for (const doc of (listData.documents || [])) {
-          const f = parseFirestoreDoc(doc);
-          if (f.id === leadId || f.domain === domain) {
-            docPath = doc.name;
-            break;
-          }
-        }
+  // Framework selecionado na UI (ex: 'PAS', '4Ps', 'Falsa Lógica') -> textos específicos pedidos pelo front
+  const frameworkKey = OUTREACH_FRAMEWORK_KEYS[framework] || 'pas';
+  const emailText = outreachCopies[`${frameworkKey}Email`] || '';
+  const linkedinText = outreachCopies[`${frameworkKey}Linkedin`] || '';
 
-        if (docPath) {
-          const fields = {
-            outreachCopies: toFirestoreValue(outreachCopies),
-            status: { stringValue: 'outreach_ready' }
-          };
-          await fetchFirestore(`https://firestore.googleapis.com/v1/${docPath}?updateMask.fieldPaths=outreachCopies&updateMask.fieldPaths=status`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields })
-          });
-        }
+  try {
+    if (foundLead) {
+      try {
+        const fields = {
+          outreachCopies: toFirestoreValue(outreachCopies),
+          status: { stringValue: 'outreach_ready' }
+        };
+        await fetchFirestore(`https://firestore.googleapis.com/v1/${foundLead.docPath}?updateMask.fieldPaths=outreachCopies&updateMask.fieldPaths=status`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields })
+        });
       } catch (fsErr) {
         console.warn('Firestore patch outreach copies warning:', fsErr.message);
       }
     }
 
-    res.json({ success: true, outreachCopies });
+    res.json({ success: true, outreachCopies, emailText, linkedinText, framework: framework || 'PAS' });
   } catch (err) {
     console.error('Error generating outreach copy:', err);
     res.status(500).json({ error: err.message });
@@ -3919,7 +3897,12 @@ app.delete('/api/admin/lead-hunter/leads/:leadId', verifyAdminToken, async (req,
 
 // POST /api/admin/lead-hunter/send-email (Enviar E-mail com Opção de Anexo PDF)
 app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res) => {
-  const { leadId, recipientEmail, subject, emailBody, attachPdf = false } = req.body;
+  const { leadId, framework } = req.body;
+  const recipientEmail = req.body.recipientEmail || req.body.email;
+  const emailBody = req.body.emailBody || req.body.bodyHtml;
+  const subject = req.body.subject;
+  const attachPdf = req.body.attachPdf ?? req.body.attachReportLink ?? false;
+
   if (!recipientEmail || !emailBody) {
     return res.status(400).json({ error: 'E-mail de destino e corpo do e-mail são obrigatórios' });
   }
@@ -3964,6 +3947,38 @@ app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res)
     }
 
     await transporter.sendMail(mailOptions);
+
+    // Registra o envio no histórico do lead e zera o cronômetro de follow-up
+    if (leadId) {
+      try {
+        const accessToken = await getGoogleAccessToken();
+        const found = await findLeadDoc(accessToken, leadId);
+        if (found) {
+          const sentAt = new Date().toISOString();
+          const sentHistory = [...(found.fields.sentHistory || []), {
+            copyKey: framework || 'PAS',
+            sentAt,
+            channel: 'email',
+            subject: subject || '',
+            attachPdf: !!attachPdf,
+          }];
+          const fields = {
+            sentHistory: toFirestoreValue(sentHistory),
+            emailSentAt: toFirestoreValue(sentAt),
+            pipelineStage: toFirestoreValue('email_sent'),
+            status: { stringValue: 'contacted' },
+          };
+          await fetchFirestore(`https://firestore.googleapis.com/v1/${found.docPath}?updateMask.fieldPaths=sentHistory&updateMask.fieldPaths=emailSentAt&updateMask.fieldPaths=pipelineStage&updateMask.fieldPaths=status`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields })
+          });
+        }
+      } catch (fsErr) {
+        console.warn('Aviso: falha ao registrar histórico de envio de e-mail:', fsErr.message);
+      }
+    }
+
     res.json({ success: true, recipientEmail });
   } catch (err) {
     console.error('Error sending outreach email:', err);
