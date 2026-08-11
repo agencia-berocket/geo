@@ -61,12 +61,22 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   // Pipeline / Outreach state
   const [copyTab, setCopyTab] = useState<CopyFramework>('PAS');
   const [generatingCopy, setGeneratingCopy] = useState(false);
+  const [editedSubject, setEditedSubject] = useState('');
   const [editedEmailText, setEditedEmailText] = useState('');
   const [editedLinkedinText, setEditedLinkedinText] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [attachReportLink, setAttachReportLink] = useState(true);
   const [markingSent, setMarkingSent] = useState(false);
+
+  // A copy gerada traz "Assunto: ..." na 1ª linha do corpo — separa isso em um campo próprio editável
+  const splitSubjectFromBody = (text: string): { subject: string; body: string } => {
+    const match = text.match(/^Assunto:\s*(.+?)\n+([\s\S]*)$/i);
+    if (match) {
+      return { subject: match[1].trim(), body: match[2].trim() };
+    }
+    return { subject: '', body: text };
+  };
 
   // Toast state
   const [toast, setToast] = useState<string | null>(null);
@@ -113,7 +123,9 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
         }
         const frameworkKey = OUTREACH_FRAMEWORK_KEYS[copyTab];
         if (found.outreachCopies && found.outreachCopies[`${frameworkKey}Email`]) {
-          setEditedEmailText(found.outreachCopies[`${frameworkKey}Email`]);
+          const { subject, body } = splitSubjectFromBody(found.outreachCopies[`${frameworkKey}Email`]);
+          setEditedSubject(subject || `Diagnóstico GEO // Otimização de Inteligência Artificial para ${found.company || found.domain}`);
+          setEditedEmailText(body);
           setEditedLinkedinText(found.outreachCopies[`${frameworkKey}Linkedin`] || '');
         }
       } else {
@@ -156,7 +168,10 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   useEffect(() => {
     if (lead?.outreachCopies) {
       const frameworkKey = OUTREACH_FRAMEWORK_KEYS[copyTab];
-      setEditedEmailText(lead.outreachCopies[`${frameworkKey}Email`] || '');
+      const rawEmail = lead.outreachCopies[`${frameworkKey}Email`] || '';
+      const { subject, body } = splitSubjectFromBody(rawEmail);
+      setEditedSubject(subject || `Diagnóstico GEO // Otimização de Inteligência Artificial para ${lead.company || lead.domain}`);
+      setEditedEmailText(body);
       setEditedLinkedinText(lead.outreachCopies[`${frameworkKey}Linkedin`] || '');
     }
   }, [copyTab, lead?.outreachCopies]);
@@ -342,7 +357,9 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erro ao gerar copy');
 
-      setEditedEmailText(data.emailText || '');
+      const { subject, body } = splitSubjectFromBody(data.emailText || '');
+      setEditedSubject(subject || `Diagnóstico GEO // Otimização de Inteligência Artificial para ${lead.company || lead.domain}`);
+      setEditedEmailText(body);
       setEditedLinkedinText(data.linkedinText || '');
 
       setLead(prev => prev ? {
@@ -376,7 +393,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
         body: JSON.stringify({
           leadId: lead.id,
           email: lead.email,
-          subject: `Diagnóstico GEO // Otimização de Inteligência Artificial para ${lead.company || lead.domain}`,
+          subject: editedSubject || `Diagnóstico GEO // Otimização de Inteligência Artificial para ${lead.company || lead.domain}`,
           bodyHtml: editedEmailText,
           attachPdf: attachReportLink,
           framework: copyTab,
@@ -988,6 +1005,27 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                     {fw}
                   </button>
                 ))}
+              </div>
+
+              {/* Subject Field */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-xs font-mono font-bold text-zinc-600">
+                  <span>ASSUNTO DO E-MAIL</span>
+                  <button
+                    onClick={() => copyToClipboard(editedSubject, 'subject')}
+                    className="text-zinc-500 hover:text-zinc-950 flex items-center gap-1 cursor-pointer"
+                  >
+                    <IconClipboard className="w-3.5 h-3.5" />
+                    <span>{copiedField === 'subject' ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={editedSubject}
+                  onChange={(e) => setEditedSubject(e.target.value)}
+                  placeholder="Selecione um framework e clique em Gerar Copy..."
+                  className="w-full p-3 bg-zinc-50 border border-zinc-200 rounded-xl text-xs text-zinc-900 font-medium focus:outline-none focus:border-zinc-950 focus:bg-white"
+                />
               </div>
 
               {/* Email Text Box */}
