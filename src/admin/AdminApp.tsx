@@ -8,6 +8,7 @@ import ClientsList from './pages/ClientsList';
 import Newsletter from './pages/Newsletter';
 import AgentConfig from './pages/AgentConfig';
 import LeadDetailPage from './pages/LeadDetailPage';
+import { useAuth } from './hooks/useAuth';
 
 type Page = 'dashboard' | 'lead_hunter' | 'leads' | 'clients' | 'newsletter' | 'configs';
 
