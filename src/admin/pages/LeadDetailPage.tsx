@@ -39,7 +39,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
 
   // Contact tab — editable fields
   const [contactForm, setContactForm] = useState({
-    company: '', email: '', contactName: '', contactRole: '', linkedinUrl: '', phone: '', niche: '',
+    company: '', email: '', url: '', contactName: '', contactRole: '', linkedinUrl: '', phone: '', niche: '',
   });
   const [savingContact, setSavingContact] = useState(false);
   const [contactDirty, setContactDirty] = useState(false);
@@ -98,6 +98,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
         setContactForm({
           company: found.company || '',
           email: found.email || '',
+          url: found.url || '',
           contactName: found.contactName || found.name || '',
           contactRole: found.contactRole || '',
           linkedinUrl: found.linkedinUrl || '',
@@ -244,12 +245,35 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
     setRunningDiagnostic(true);
     try {
       await triggerDiagnostic(lead.id);
-      showToast('🚀 Diagnóstico de 8 Agentes iniciado em segundo plano!');
-      setTimeout(() => {
-        fetchLeadDetails();
-        fetchDiagnostic();
-        setRunningDiagnostic(false);
-      }, 3000);
+      showToast('🚀 Diagnóstico de 8 Agentes iniciado em segundo plano. Isso pode levar de 1 a 3 minutos...');
+
+      // Faz polling do status do lead até os agentes terminarem (status muda de 'processing' para 'completed')
+      // em vez de assumir um tempo fixo, já que o diagnóstico real roda em background no servidor.
+      const startedAt = Date.now();
+      const maxWaitMs = 5 * 60 * 1000;
+      const poll = async () => {
+        const token = await getAdminToken();
+        const res = await fetch('/api/admin/leads', { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        const updated = (data.leads || []).find((l: Lead) => l.id === lead.id);
+
+        if (updated?.status === 'completed' && updated?.diagnosticId) {
+          setLead(updated);
+          await fetchDiagnostic();
+          setRunningDiagnostic(false);
+          showToast('✅ Diagnóstico GEO concluído com sucesso!');
+          return;
+        }
+
+        if (Date.now() - startedAt > maxWaitMs) {
+          setRunningDiagnostic(false);
+          setDiagnosticErrorMsg('O diagnóstico está demorando mais que o esperado. Atualize a página em alguns instantes para verificar o resultado.');
+          return;
+        }
+
+        setTimeout(poll, 5000);
+      };
+      setTimeout(poll, 5000);
     } catch (err: any) {
       setDiagnosticErrorMsg(err.message);
       showToast(`Erro ao rodar diagnóstico: ${err.message}`);
@@ -663,6 +687,16 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                   />
                 </div>
                 <div>
+                  <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">URL DO LEAD (SITE)</label>
+                  <input
+                    type="text"
+                    value={contactForm.url}
+                    onChange={(e) => updateContactField('url', e.target.value)}
+                    placeholder="https://empresa.com.br"
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium text-zinc-900 focus:outline-none focus:border-zinc-950 focus:bg-white"
+                  />
+                </div>
+                <div>
                   <label className="block text-[10px] font-mono font-bold text-zinc-500 mb-1">LINKEDIN</label>
                   <input
                     type="text"
@@ -830,7 +864,25 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
         {/* TAB 2: DIAGNOSTIC & AUDITS */}
         {activeTab === 'diagnostic' && (
           <div className="space-y-6">
-            {!diagnosticData ? (
+            {runningDiagnostic ? (
+              <div className="bg-white border-2 border-zinc-950 rounded-2xl p-8 text-center space-y-5 shadow-md animate-fadeIn">
+                <div className="w-14 h-14 border-4 border-zinc-200 border-t-zinc-950 rounded-full animate-spin mx-auto" />
+                <div>
+                  <h3 className="font-display font-bold text-zinc-950 text-lg">Os 8 Agentes de IA estão trabalhando...</h3>
+                  <p className="text-xs text-zinc-500 mt-2 max-w-md mx-auto leading-relaxed">
+                    Analisando robots.txt, schema.org, conteúdo, semântica, off-page, SEO e visibilidade nos modelos de IA (ChatGPT, Claude, Gemini, Perplexity). Isso pode levar de 1 a 3 minutos — não é necessário atualizar a página, o resultado aparece automaticamente aqui.
+                  </p>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto pt-2">
+                  {['Gatekeeper', 'Metadados', 'Conteúdo', 'Semântica', 'Off-page', 'SEO', 'Intent/Visibilidade', 'Checklist'].map(agent => (
+                    <span key={agent} className="text-[10px] font-mono font-bold px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      {agent}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : !diagnosticData ? (
               <div className="bg-white border border-zinc-200 rounded-2xl p-8 text-center space-y-4 shadow-sm">
                 <IconShield className="w-12 h-12 text-zinc-400 mx-auto" />
                 <h3 className="font-display font-bold text-zinc-900 text-lg">Nenhum Diagnóstico Executado Ainda</h3>
@@ -845,20 +897,10 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                 )}
                 <button
                   onClick={handleRunDiagnostic}
-                  disabled={runningDiagnostic}
                   className="px-6 py-3 bg-zinc-950 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all cursor-pointer shadow-md inline-flex items-center gap-2"
                 >
-                  {runningDiagnostic ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Processando Agentes...</span>
-                    </>
-                  ) : (
-                    <>
-                      <IconPlay className="w-4 h-4" />
-                      <span>Executar Diagnóstico GEO Agora</span>
-                    </>
-                  )}
+                  <IconPlay className="w-4 h-4" />
+                  <span>Executar Diagnóstico GEO Agora</span>
                 </button>
               </div>
             ) : (

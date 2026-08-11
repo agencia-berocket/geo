@@ -41,7 +41,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
   // Manual lead registration modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [addingLead, setAddingLead] = useState(false);
-  const [newLead, setNewLead] = useState({ url: '', email: '', company: '', contactName: '', contactRole: '', phone: '' });
+  const [newLead, setNewLead] = useState({ url: '', email: '', company: '', contactName: '', contactRole: '', phone: '', linkedinUrl: '', niche: '' });
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -116,7 +116,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
       await addLead(newLead);
       showToastMsg('✅ Lead cadastrado com sucesso!');
       setShowAddModal(false);
-      setNewLead({ url: '', email: '', company: '', contactName: '', contactRole: '', phone: '' });
+      setNewLead({ url: '', email: '', company: '', contactName: '', contactRole: '', phone: '', linkedinUrl: '', niche: '' });
     } catch (err: any) {
       showToastMsg(`Erro ao cadastrar lead: ${err.message}`);
     } finally {
@@ -406,6 +406,26 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                     value={newLead.contactRole}
                     onChange={(e) => setNewLead(prev => ({ ...prev, contactRole: e.target.value }))}
                     placeholder="CEO / Diretor..."
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">LINKEDIN</label>
+                  <input
+                    type="text"
+                    value={newLead.linkedinUrl}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, linkedinUrl: e.target.value }))}
+                    placeholder="https://linkedin.com/in/..."
+                    className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-mono font-bold text-zinc-600 mb-1">NICHO / SETOR</label>
+                  <input
+                    type="text"
+                    value={newLead.niche}
+                    onChange={(e) => setNewLead(prev => ({ ...prev, niche: e.target.value }))}
+                    placeholder="Ex: SaaS B2B..."
                     className="w-full p-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950"
                   />
                 </div>
