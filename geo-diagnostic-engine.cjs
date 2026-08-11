@@ -1,9 +1,12 @@
 const http = require('http');
 const https = require('https');
 
-// Helper to fetch URL content
-function fetchUrl(url, options = {}) {
+// Helper to fetch URL content (com suporte automático a redirecionamentos 301/302)
+function fetchUrl(url, options = {}, redirectCount = 0) {
   return new Promise((resolve, reject) => {
+    if (redirectCount > 5) {
+      return reject(new Error('Too many redirects'));
+    }
     let parsedUrl;
     try {
       parsedUrl = new URL(url);
@@ -20,14 +23,26 @@ function fetchUrl(url, options = {}) {
       port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
       method: options.method || 'GET',
       headers: {
-        'User-Agent': 'b.rocket-GEO-Auditor/1.0',
-        'Accept': 'text/html,application/json,*/*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 b.rocket-GEO-Auditor/1.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
         ...options.headers,
       },
-      timeout: 10000,
+      timeout: 12000,
     };
 
     const req = lib.request(reqOptions, (res) => {
+      // Segue redirecionamentos HTTP (301, 302, 303, 307, 308)
+      if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
+        let redirectUrl;
+        try {
+          redirectUrl = new URL(res.headers.location, url).href;
+        } catch (e) {
+          redirectUrl = res.headers.location;
+        }
+        return fetchUrl(redirectUrl, options, redirectCount + 1).then(resolve).catch(reject);
+      }
+
       let data = '';
       res.on('data', chunk => { data += chunk; });
       res.on('end', () => {
@@ -36,6 +51,7 @@ function fetchUrl(url, options = {}) {
           headers: res.headers,
           body: data,
           latencyMs: Date.now() - start,
+          finalUrl: url,
         });
       });
     });
@@ -1505,11 +1521,14 @@ function extractCleanBrandName(domain, lead, htmlContent = '') {
       const titleMatch = htmlContent.match(/<title[^>]*>([^<]+)<\/title>/i);
       if (titleMatch) {
         let rawTitle = titleMatch[1].trim();
-        if (rawTitle.toLowerCase().includes('geo | b.rocket') || rawTitle.toLowerCase().includes('b.rocket')) {
-          rawName = 'GEO | b.rocket';
-        } else {
-          const parts = rawTitle.split(/\s+[—–-]\s+/);
-          rawName = parts[0].trim();
+        const isHttpError = /^(301|302|303|307|308|403|404|500|502|503)\b|\bMoved Permanently\b|\bAccess Denied\b|\bAttention Required\b|\bCloudflare\b/i.test(rawTitle);
+        if (!isHttpError) {
+          if (rawTitle.toLowerCase().includes('geo | b.rocket') || rawTitle.toLowerCase().includes('b.rocket')) {
+            rawName = 'GEO | b.rocket';
+          } else {
+            const parts = rawTitle.split(/\s+[—–-]\s+/);
+            rawName = parts[0].trim();
+          }
         }
       }
     }
@@ -1523,6 +1542,8 @@ function extractCleanBrandName(domain, lead, htmlContent = '') {
       .replace(/[^a-zA-Z0-9\s_-]/g, ' ')
       .trim();
   }
+
+  rawName = rawName.replace(/0\d+$/, '').trim();
 
   if (!rawName || rawName.toLowerCase() === 'www') {
     rawName = 'Empresa';
@@ -1567,10 +1588,9 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
   const niches = [
     // ── GEO / Marketing IA ──────────────────────────────────────────────────
     {
-      match: () => content.includes('geo') || content.includes('generative engine') ||
-        content.includes('otimização de ia') || content.includes('rag') ||
-        content.includes('aeo') || content.includes('llms.txt') || content.includes('berocket') ||
-        domainOrBrandIncludes('berocket', 'rocket'),
+      match: () => (content.includes('generative engine') || content.includes('otimização de ia') ||
+        (content.includes('llms.txt') && content.includes('rag')) ||
+        domainOrBrandIncludes('berocket')),
       nicheName: 'Generative Engine Optimization (GEO) & Marketing de IA',
       intentType: 'service',
       description: `A **${brandName}** atua no segmento de **Generative Engine Optimization (GEO)** e otimização de RAG para recomendação nas principais inteligências artificiais do mercado.`,
@@ -1579,6 +1599,39 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
         'Auditoria de Citation Share e Visibilidade nas LLMs',
         'Engenharia de Conteúdo AEO & Schema JSON-LD',
         'Estratégias Off-Page de Co-ocorrência Vetorial'
+      ],
+    },
+    // ── Turismo, Hospedagem e Guia Local ─────────────────────────────────────
+    {
+      match: () => content.includes('turismo') || content.includes('pousada') || content.includes('hotel') ||
+        content.includes('praias') || content.includes('passeios') || content.includes('guia de viagem') ||
+        content.includes('hospedagem') || content.includes('fila da balsa') || content.includes('roteiros') ||
+        domainOrBrandIncludes('ilhabela', 'lhabela', 'turismo', 'pousada', 'hotel', 'viagem', 'travel', 'guia'),
+      nicheName: 'Turismo, Hospedagem e Guia Local',
+      intentType: 'service',
+      description: `A **${brandName}** atua no segmento de turismo e hospedagem, oferecendo guias de viagem, informações de destinos e opções de lazer.`,
+      services: [
+        'Hospedagem em Pousadas e Hotéis',
+        'Passeios Turísticos e Roteiros de Lazer',
+        'Guia de Gastronomia e Pontos Turísticos',
+        'Pacotes de Viagem e Ecoturismo'
+      ],
+    },
+    // ── Martech, Marketing Digital, CRM e Growth ─────────────────────────────
+    {
+      match: () => content.includes('martech') || content.includes('agência de marketing') ||
+        content.includes('marketing digital') || content.includes('automação de marketing') ||
+        (content.includes('crm') && content.includes('marketing')) || content.includes('tráfego pago') ||
+        content.includes('performance digital') || content.includes('comunicação digital') ||
+        domainOrBrandIncludes('muntz', 'martech', 'agencia', 'agência', 'marketing', 'crm'),
+      nicheName: 'Marketing Digital, Martech e CRM',
+      intentType: 'service',
+      description: `A **${brandName}** é uma martech especializada em marketing digital, estratégias de alta performance, automação e integração de CRM.`,
+      services: [
+        'Estratégias de Marketing Digital e Performance',
+        'Implementação de CRM e Automação de Vendas',
+        'Gestão de Tráfego Pago e Mídia Performance',
+        'Inbound Marketing e Martech Integration'
       ],
     },
     // ── Escola de Música / Artes / Instrumentos ──────────────────────────────
@@ -1752,23 +1805,6 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
         'Planejamento Tributário e Financeiro'
       ],
     },
-    // ── Agência de Marketing / Publicidade ───────────────────────────────────
-    {
-      match: () => content.includes('agência de marketing') || content.includes('marketing digital') ||
-        content.includes('publicidade') || content.includes('tráfego pago') ||
-        content.includes('gestão de redes sociais') || content.includes('seo') ||
-        content.includes('identidade visual') || content.includes('branding') ||
-        domainOrBrandIncludes('agency', 'agencia', 'agência', 'marketing', 'publicidade', 'brand', 'criativ', 'design'),
-      nicheName: 'Agência de Marketing Digital e Publicidade',
-      intentType: 'service',
-      description: `A **${brandName}** é uma agência de marketing digital especializada em estratégias de crescimento online e branding para empresas.`,
-      services: [
-        'Gestão de Tráfego Pago (Google Ads, Meta Ads)',
-        'SEO e Otimização de Presença Orgânica',
-        'Gestão de Redes Sociais e Conteúdo',
-        'Criação de Identidade Visual e Branding'
-      ],
-    },
     // ── Construção Civil / Arquitetura / Engenharia ──────────────────────────
     {
       match: () => content.includes('construção civil') || content.includes('construtora') ||
@@ -1789,8 +1825,8 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
     {
       match: () => content.includes('saas') || content.includes('software as a service') ||
         (content.includes('desenvolvimento de software') && content.includes('nuvem')) ||
-        content.includes('sistema de gestão') || content.includes('erp') || content.includes('crm') ||
-        domainOrBrandIncludes('tech', 'soft', 'sistema', 'digital', 'plataforma', 'app', 'saas'),
+        content.includes('sistema de gestão') || content.includes('erp') ||
+        domainOrBrandIncludes('tech', 'soft', 'sistema', 'plataforma', 'saas'),
       nicheName: 'Tecnologia e Software (SaaS)',
       intentType: 'product',
       description: `A **${brandName}** atua no desenvolvimento de plataformas SaaS e softwares para automação de processos operacionais.`,
