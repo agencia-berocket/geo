@@ -2017,12 +2017,110 @@ function generateContextualPrompts(brandName, nicheName, services, locationHints
   return prompts;
 }
 
+// ─── Extração de Sinais SEO do HTML (para inferência de nicho via LLM) ───────
+function extractSeoSignals(htmlContent, brandName, domain) {
+  const html = htmlContent || '';
+
+  const getTag = (regex) => {
+    const m = html.match(regex);
+    return m ? m[1].trim().slice(0, 300) : '';
+  };
+
+  const title     = getTag(/<title[^>]*>([^<]+)<\/title>/i);
+  const metaDesc  = getTag(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
+                 || getTag(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i);
+  const metaKw    = getTag(/<meta[^>]*name=["']keywords["'][^>]*content=["']([^"']+)["']/i)
+                 || getTag(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']keywords["']/i);
+  const ogTitle   = getTag(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
+  const ogDesc    = getTag(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
+
+  const h1 = (html.match(/<h1[^>]*>([^<]+)<\/h1>/gi) || [])
+    .map(h => h.replace(/<[^>]+>/g, '').trim()).slice(0, 3).join(' | ');
+  const h2 = (html.match(/<h2[^>]*>([^<]+)<\/h2>/gi) || [])
+    .map(h => h.replace(/<[^>]+>/g, '').trim()).slice(0, 5).join(' | ');
+
+  const visibleText = extractVisibleText(html).replace(/\s+/g, ' ').trim().slice(0, 1500);
+
+  return [
+    title        && `Título: ${title}`,
+    ogTitle      && ogTitle !== title && `OG Title: ${ogTitle}`,
+    metaDesc     && `Meta Description: ${metaDesc}`,
+    ogDesc       && ogDesc !== metaDesc && `OG Description: ${ogDesc}`,
+    metaKw       && `Keywords: ${metaKw}`,
+    h1           && `H1: ${h1}`,
+    h2           && `H2: ${h2}`,
+                    `Domínio: ${domain}`,
+                    `Nome da Marca: ${brandName}`,
+    visibleText  && `Conteúdo visível: ${visibleText}`,
+  ].filter(Boolean).join('\n');
+}
+
+// ─── Inferência de Nicho via LLM (entende qualquer negócio sem lista fixa) ───
+async function runNicheInferenceAgent(htmlContent, brandName, domain, apiKey) {
+  if (!apiKey) return null;
+
+  const seoSignals = extractSeoSignals(htmlContent, brandName, domain);
+  if (!seoSignals) return null;
+
+  const system = `Você é um especialista em inteligência de negócios. Analise os dados de um site e identifique precisamente o nicho e serviços da empresa. Responda APENAS com um objeto JSON válido, sem markdown, sem explicações.`;
+
+  const prompt = `Analise os dados abaixo de um site e responda com este JSON exato:
+{
+  "nicheName": "nome curto e específico do nicho (máximo 4 palavras, ex: Escola de Música, Produtora Audiovisual, Clínica Odontológica, Advocacia Trabalhista, Academia de Lutas, Padaria Artesanal, Loja de Roupas Femininas)",
+  "intentType": "service ou product",
+  "services": ["serviço ou produto principal 1", "serviço ou produto principal 2", "serviço ou produto principal 3"],
+  "city": "cidade onde está a empresa (string vazia se não encontrar)",
+  "neighborhood": "bairro onde está (string vazia se não encontrar)",
+  "state": "sigla do estado como SP, RJ, MG (string vazia se não encontrar)"
+}
+
+DADOS DO SITE:
+${seoSignals}`;
+
+  try {
+    const raw = await callOpenRouter('openai/gpt-4o-mini', system, prompt, apiKey);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+    const parsed = JSON.parse(jsonMatch[0]);
+    if (!parsed.nicheName || !Array.isArray(parsed.services)) return null;
+
+    return {
+      nicheName:    parsed.nicheName.trim(),
+      intentType:   parsed.intentType === 'product' ? 'product' : 'service',
+      services:     parsed.services.filter(Boolean).slice(0, 5),
+      locationHints: {
+        city:         parsed.city         || '',
+        neighborhood: parsed.neighborhood || '',
+        state:        parsed.state        || '',
+      },
+      inferredByLLM: true,
+    };
+  } catch (e) {
+    return null; // Cai no fallback heurístico silenciosamente
+  }
+}
+
 // ─── AGENTE 5: Intent Prompt Agent (OpenRouter) ──────────────────────────────
 async function runIntentAgent(url, htmlContent, apiKey) {
   const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
   const brandName = extractCleanBrandName(domain, {}, htmlContent);
-  const nicheInfo = extractNicheAndServices(htmlContent, brandName, domain);
-  const niche = nicheInfo.nicheName;
+  // 1º: Inferência de nicho via LLM — entende qualquer negócio lendo o site
+  const llmNicheInfo = await runNicheInferenceAgent(htmlContent, brandName, domain, apiKey);
+
+  // 2º: Fallback heurístico (lista de nichos) se LLM falhar ou API não estiver disponível
+  const heuristicNicheInfo = extractNicheAndServices(htmlContent, brandName, domain);
+  const heuristicLocation  = extractLocationHints(htmlContent, domain);
+
+  const nicheResolved = llmNicheInfo || {
+    nicheName:     heuristicNicheInfo.nicheName,
+    intentType:    heuristicNicheInfo.intentType || 'service',
+    services:      heuristicNicheInfo.services,
+    locationHints: heuristicLocation,
+    inferredByLLM: false,
+  };
+
+  const niche         = nicheResolved.nicheName;
+  const locationHints = nicheResolved.locationHints;
 
   const models = [
     'openai/gpt-4o-mini',
@@ -2033,13 +2131,12 @@ async function runIntentAgent(url, htmlContent, apiKey) {
 
   const systemPrompt = `Você é um assistente especialista em mercado corporativo brasileiro. Responda em português de forma objetiva, listando nomes completos de empresas e marcas sem abreviar.`;
 
-  const locationHints = extractLocationHints(htmlContent, domain);
   const prompts = generateContextualPrompts(
     brandName,
     niche,
-    nicheInfo.services,
+    nicheResolved.services,
     locationHints,
-    nicheInfo.intentType
+    nicheResolved.intentType
   );
 
   if (!apiKey) {
@@ -2150,7 +2247,8 @@ async function runIntentAgent(url, htmlContent, apiKey) {
     citationsByModel,
     agentAuditLog,
     dataSource: 'llm_real',
-    dataSourceDetail: `Citation Share medido via ${totalPrompts} chamadas reais a 4 LLMs (${models.map(m => m.split('/')[1]).join(', ')}) através da OpenRouter API.`,
+    dataSourceDetail: `Nicho: "${niche}" (${nicheResolved.inferredByLLM ? 'Inferido dinamicamente via LLM' : 'Mapeamento heurístico'}). Citation Share medido via ${totalPrompts} chamadas reais a 4 LLMs (${models.map(m => m.split('/')[1]).join(', ')}) através da OpenRouter API.`,
+    nicheInfo: nicheResolved,
   };
 }
 
@@ -2668,6 +2766,8 @@ module.exports = {
   sanitizeAssetUrl,
   extractNicheAndServices,
   extractLocationHints,
+  extractSeoSignals,
+  runNicheInferenceAgent,
   generateContextualPrompts,
   fetchUrl,
 };
