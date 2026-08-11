@@ -2222,19 +2222,19 @@ async function runSearchTermsAnalyzerAgent(url, htmlContent, apiKey) {
     const heuristicNiche = extractNicheAndServices(htmlContent, brandName, domain);
     const loc = extractLocationHints(htmlContent, domain);
     const defaultPrompts = generateContextualPrompts(brandName, heuristicNiche.nicheName, heuristicNiche.services, loc, heuristicNiche.intentType);
-    const terms = defaultPrompts.slice(0, 10);
-    while (terms.length < 10) {
+    const terms = defaultPrompts.slice(0, 14);
+    while (terms.length < 14) {
       terms.push(`Serviços de ${heuristicNiche.nicheName} oferecidos por ${brandName}`);
     }
     return {
       companyOverview: `Empresa atuante no nicho de ${heuristicNiche.nicheName}.`,
       nicheName: heuristicNiche.nicheName,
-      searchTerms: terms.slice(0, 10),
+      searchTerms: terms.slice(0, 14),
     };
   }
 
   const systemPrompt = `Você é um agente especialista em SEO, GEO (Generative Engine Optimization) e Inteligência de Mercado.
-Sua missão é analisar minuciosamente as informações do site de um lead/empresa, compreender quais produtos, serviços, soluções e proposta de valor ela oferece, e criar EXATAMENTE 10 termos de pesquisa (prompts de busca) ultra-realistas que potenciais clientes usariam nas IAs (ChatGPT, Gemini, Claude, Perplexity) ao procurar pela empresa ou por suas soluções no Brasil.`;
+Sua missão é analisar minuciosamente as informações do site de um lead/empresa, compreender quais produtos, serviços, soluções e proposta de valor ela oferece, e criar EXATAMENTE 14 termos de pesquisa (prompts de busca) ultra-realistas que potenciais clientes usariam nas IAs (ChatGPT, Gemini, Claude, Perplexity) ao procurar pela empresa ou por suas soluções no Brasil.`;
 
   const prompt = `Analise os dados extraídos do site abaixo e responda EXCLUSIVAMENTE com um objeto JSON válido no formato informado, sem markdown e sem textos adicionais.
 
@@ -2252,7 +2252,11 @@ FORMATO JSON ESPERADO:
     "Termo/Pergunta 7",
     "Termo/Pergunta 8",
     "Termo/Pergunta 9",
-    "Termo/Pergunta 10"
+    "Termo/Pergunta 10",
+    "Termo/Pergunta 11",
+    "Termo/Pergunta 12",
+    "Termo/Pergunta 13",
+    "Termo/Pergunta 14"
   ]
 }
 
@@ -2262,12 +2266,12 @@ DADOS DO SITE DA EMPRESA:
 - Nome da Marca: ${brandName}
 ${seoSignals}
 
-DIRETRIZES PARA OS 10 TERMOS DE PESQUISA:
+DIRETRIZES PARA OS 14 TERMOS DE PESQUISA:
 1. Inclua variações de descoberta (ex: "Onde encontrar [produto/serviço]...", "Melhores empresas de [nicho]...").
 2. Inclua perguntas de intenção de compra ou contratação (ex: "Quem contratar para [serviço] em [cidade/região]...").
 3. Inclua pesquisas institucionais/marca (ex: "A empresa [Marca] é boa para [serviço]?", "Quais os serviços oferecidos pela [Marca]?").
 4. Crie termos em português natural e fluido do Brasil.
-5. Garanta que a lista tenha EXATAMENTE 10 itens.`;
+5. Garanta que a lista tenha EXATAMENTE 14 itens.`;
 
   try {
     const raw = await callOpenRouter('openai/gpt-4o-mini', systemPrompt, prompt, apiKey);
@@ -2276,13 +2280,13 @@ DIRETRIZES PARA OS 10 TERMOS DE PESQUISA:
     const parsed = JSON.parse(jsonMatch[0]);
 
     let terms = Array.isArray(parsed.searchTerms) ? parsed.searchTerms.map(t => String(t).trim()).filter(Boolean) : [];
-    if (terms.length < 10) {
+    if (terms.length < 14) {
       const fallbackNiche = parsed.nicheName || 'serviços especializados';
-      while (terms.length < 10) {
+      while (terms.length < 14) {
         terms.push(`Onde contratar ${fallbackNiche} no Brasil com a ${brandName}?`);
       }
     }
-    terms = terms.slice(0, 10);
+    terms = terms.slice(0, 14);
 
     return {
       companyOverview: parsed.companyOverview || `Empresa do segmento de ${parsed.nicheName || brandName}.`,
@@ -2293,14 +2297,14 @@ DIRETRIZES PARA OS 10 TERMOS DE PESQUISA:
     const heuristicNiche = extractNicheAndServices(htmlContent, brandName, domain);
     const loc = extractLocationHints(htmlContent, domain);
     const defaultPrompts = generateContextualPrompts(brandName, heuristicNiche.nicheName, heuristicNiche.services, loc, heuristicNiche.intentType);
-    const terms = defaultPrompts.slice(0, 10);
-    while (terms.length < 10) {
+    const terms = defaultPrompts.slice(0, 14);
+    while (terms.length < 14) {
       terms.push(`Opções de ${heuristicNiche.nicheName} oferecidas por ${brandName}`);
     }
     return {
       companyOverview: `Empresa no segmento de ${heuristicNiche.nicheName}.`,
       nicheName: heuristicNiche.nicheName,
-      searchTerms: terms.slice(0, 10),
+      searchTerms: terms.slice(0, 14),
     };
   }
 }
@@ -2338,7 +2342,7 @@ async function runIntentAgent(url, htmlContent, apiKey, customSearchTerms = null
 
   let prompts;
   if (Array.isArray(customSearchTerms) && customSearchTerms.filter(t => t && t.trim()).length > 0) {
-    prompts = customSearchTerms.map(t => String(t).trim()).filter(Boolean).slice(0, 10);
+    prompts = customSearchTerms.map(t => String(t).trim()).filter(Boolean).slice(0, 14);
   } else {
     prompts = generateContextualPrompts(
       brandName,

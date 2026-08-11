@@ -1028,10 +1028,10 @@ app.post('/api/admin/leads/:leadId/save-search-terms', verifyAdminToken, async (
   const { searchTerms } = req.body;
 
   if (!Array.isArray(searchTerms) || searchTerms.length === 0 || searchTerms.some(t => !t || !t.trim())) {
-    return res.status(400).json({ error: 'É necessário fornecer os 10 termos de pesquisa devidamente preenchidos.' });
+    return res.status(400).json({ error: 'É necessário fornecer os 14 termos de pesquisa devidamente preenchidos.' });
   }
 
-  const cleanTerms = searchTerms.map(t => String(t).trim()).slice(0, 10);
+  const cleanTerms = searchTerms.map(t => String(t).trim()).slice(0, 14);
 
   try {
     const accessToken = await getGoogleAccessToken();
@@ -2859,10 +2859,72 @@ async function extractLeadContactFromSite(domain) {
   return { email, phone, linkedinUrl };
 }
 
+// Agente Extrator de Dados de Lead via IA (Gemini 2.5 Flash)
+async function extractLeadInfoWithAI(url, htmlContent, type = 'website') {
+  const geminiApiKey = process.env.GEMINI_API_KEY || '';
+  if (!geminiApiKey || !htmlContent) {
+    return null;
+  }
+
+  try {
+    const titleMatch = htmlContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const metaDescMatch = htmlContent.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"/i) || htmlContent.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/i);
+    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+    const metaDesc = metaDescMatch ? metaDescMatch[1].trim() : '';
+    const cleanText = htmlContent.replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .slice(0, 3500);
+
+    const systemPrompt = `Você é um agente especialista em inteligência comercial e prospecção B2B (SDR/BDR).
+Sua tarefa é analisar o título, descrição meta e texto extraído de uma URL (${type}: ${url}) e extrair os dados mais precisos possíveis sobre o lead/empresa.
+
+Título da Página: "${title}"
+Descrição Meta: "${metaDesc}"
+Texto Extraído: "${cleanText}"
+
+Retorne APENAS um JSON estrito (sem tags markdown nem explicações) no seguinte formato:
+{
+  "company": "Nome oficial ou fantasia da empresa",
+  "contactName": "Nome do decisor/fundador/diretor se citado, senão \"\"",
+  "contactRole": "Cargo do contato se identificado (ex: CEO, Founder, CMO), senão \"\"",
+  "email": "E-mail de contato se citado",
+  "phone": "Telefone de contato se citado",
+  "linkedinUrl": "URL de perfil ou página do LinkedIn se citada",
+  "domain": "Domínio oficial sem protocolo (ex: empresa.com.br)",
+  "niche": "Segmento ou nicho de mercado principal",
+  "location": "Cidade, Estado ou País principal"
+}`;
+
+    const payload = {
+      contents: [{ parts: [{ text: systemPrompt }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
+    };
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(12000)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleanJson = rawReply.replace(/```json/gi, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanJson);
+    }
+  } catch (err) {
+    console.warn('Gemini lead extraction error:', err.message);
+  }
+  return null;
+}
+
 
 // POST /api/admin/lead-hunter/mine
 app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
-  const { niche, location, targetRole, companySize, limit, source } = req.body;
+  const { niche, location, targetRole, companySize, limit, source, urls } = req.body;
   const miningSource = source || 'google';
   
   try {
@@ -2871,6 +2933,112 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
     const effectiveApifyToken = process.env.APIFY_API_TOKEN || '';
     let newLeads = [];
     let apifyErrorMsg = '';
+
+    // ─── 0. FONTE IMPORTAÇÃO POR LISTA DE URLS ────────────────────────────────────
+    if (miningSource === 'import') {
+      const rawUrls = urls || [];
+      let urlList = Array.isArray(rawUrls) ? rawUrls : String(rawUrls).split('\n');
+      urlList = urlList.map(u => u.trim()).filter(u => u && !u.startsWith('#'));
+
+      if (urlList.length === 0) {
+        return res.status(400).json({ error: 'Nenhuma URL válida fornecida para importação.' });
+      }
+
+      console.log(`📥 Importando e varrendo ${urlList.length} URLs fornecidas...`);
+
+      for (const itemUrl of urlList) {
+        try {
+          let targetUrl = itemUrl.startsWith('http://') || itemUrl.startsWith('https://') ? itemUrl : `https://${itemUrl}`;
+          let parsedUrl;
+          try {
+            parsedUrl = new URL(targetUrl);
+          } catch (_e) {
+            console.warn(`URL inválida ignorada na importação: ${itemUrl}`);
+            continue;
+          }
+
+          const rawHost = parsedUrl.hostname.toLowerCase();
+          const cleanDom = rawHost.replace(/^www\./i, '');
+          const isLinkedInProfile = /linkedin\.com\/in\//i.test(targetUrl);
+          const isLinkedInCompany = /linkedin\.com\/company\//i.test(targetUrl);
+          const isLinkedIn = isLinkedInProfile || isLinkedInCompany;
+
+          let htmlContent = '';
+          try {
+            const pageRes = await fetch(targetUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+              },
+              signal: AbortSignal.timeout(8000)
+            });
+            if (pageRes.ok) {
+              htmlContent = await pageRes.text();
+            }
+          } catch (_fetchErr) {
+            // Ignora timeout/fetch error e segue com fallbacks
+          }
+
+          // 1. Extração profunda por Regex se for site corporativo
+          const siteContacts = (!isLinkedIn && cleanDom)
+            ? await extractLeadContactFromSite(cleanDom)
+            : { email: '', phone: '', linkedinUrl: '' };
+
+          // 2. Extração via Agente IA (Gemini 2.5 Flash)
+          const aiExtracted = await extractLeadInfoWithAI(targetUrl, htmlContent, isLinkedInProfile ? 'linkedin_profile' : isLinkedInCompany ? 'linkedin_company' : 'website');
+
+          // 3. Consolidação dos dados extraídos com fallbacks inteligentes
+          let companyName = aiExtracted?.company || '';
+          if (!companyName) {
+            if (isLinkedInProfile) {
+              const titleMatch = htmlContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+              companyName = titleMatch ? titleMatch[1].split('|')[0].split('-')[0].trim() : 'Perfil LinkedIn';
+            } else {
+              const domTitle = cleanDom.split('.')[0];
+              companyName = domTitle.charAt(0).toUpperCase() + domTitle.slice(1);
+            }
+          }
+
+          let contactName = aiExtracted?.contactName || '';
+          if (!contactName && isLinkedInProfile) {
+            const titleMatch = htmlContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+            if (titleMatch) {
+              contactName = titleMatch[1].split('-')[0].split('|')[0].trim();
+            }
+          }
+
+          let contactRole = aiExtracted?.contactRole || targetRole || 'Diretor / CEO';
+          let finalEmail = siteContacts.email || aiExtracted?.email || '';
+          let finalPhone = siteContacts.phone || aiExtracted?.phone || '';
+          let finalLinkedin = isLinkedInProfile ? targetUrl : (siteContacts.linkedinUrl || aiExtracted?.linkedinUrl || '');
+          let finalNiche = aiExtracted?.niche || niche || 'Geral';
+          let finalLocation = aiExtracted?.location || location || 'Brasil';
+          let finalDomain = aiExtracted?.domain || cleanDom;
+
+          const leadObj = {
+            id: `import_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+            domain: finalDomain,
+            website: targetUrl,
+            company: companyName,
+            contactName: contactName,
+            contactRole: contactRole,
+            linkedinUrl: finalLinkedin,
+            email: finalEmail,
+            phone: finalPhone,
+            address: finalLocation,
+            niche: finalNiche,
+            location: finalLocation,
+            companySize: companySize || '20-200 funcionários',
+            source: 'import',
+            status: 'unscanned',
+            createdAt: new Date().toISOString()
+          };
+
+          newLeads.push(leadObj);
+        } catch (itemErr) {
+          console.warn(`Erro ao processar URL ${itemUrl}:`, itemErr.message);
+        }
+      }
+    }
 
     // ─── 1. FONTE GOOGLE / MAPS (Locais e Empresas Reais Validadas) ─────────────────
     if (miningSource === 'google') {

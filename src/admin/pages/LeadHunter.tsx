@@ -45,7 +45,7 @@ export interface HunterLead {
   niche: string;
   location: string;
   companySize?: string;
-  source?: 'linkedin' | 'google' | 'auto';
+  source?: 'linkedin' | 'google' | 'auto' | 'import';
   status: 'unscanned' | 'audited' | 'outreach_ready' | 'contacted' | 'converted';
   temperature?: LeadTemperature;
   sequenceStage?: number; // 0: Não iniciado, 1: Abordagem Inicial, 2: Follow-up Impacto, 3: Urgência, 4: Fechamento
@@ -79,7 +79,8 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [savingCopy, setSavingCopy] = useState(false);
 
   // Mining parameters
-  const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'auto'>('google');
+  const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'auto' | 'import'>('google');
+  const [importUrls, setImportUrls] = useState('');
   const [niche, setNiche] = useState('SaaS B2B');
   const [location, setLocation] = useState('Brasil');
   const [targetRole, setTargetRole] = useState('CEO / CMO / Founder');
@@ -149,6 +150,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         },
         body: JSON.stringify({
           source: miningSource,
+          urls: miningSource === 'import' ? importUrls.split('\n').map(u => u.trim()).filter(Boolean) : undefined,
           niche,
           location,
           targetRole,
@@ -749,6 +751,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 <option value="google">📍 Google (Business / Maps)</option>
                 <option value="linkedin">💼 LinkedIn (Decisores B2B)</option>
                 <option value="auto">⚡ Automático (Combinado)</option>
+                <option value="import">📥 Importação por Lista de URLs</option>
               </select>
             </div>
 
@@ -800,17 +803,42 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 {mining ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Minerando...</span>
+                    <span>{miningSource === 'import' ? 'Varrendo URLs...' : 'Minerando...'}</span>
                   </>
                 ) : (
                   <>
                     <IconRocket className="w-4 h-4 text-emerald-400" />
-                    <span>Minerar</span>
+                    <span>{miningSource === 'import' ? 'Importar & Varrer' : 'Minerar'}</span>
                   </>
                 )}
               </button>
             </div>
           </div>
+
+          {/* Se a fonte for Importação por Lista de URLs, exibe campo de texto multilinhas */}
+          {miningSource === 'import' && (
+            <div className="mt-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-2 transition-all">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <span>📥 Insira a Lista de URLs para Varredura Autônoma</span>
+                </label>
+                <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md font-semibold">
+                  1 URL por linha
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-600">
+                Cole abaixo links de sites de empresas (ex: <code className="bg-white px-1 py-0.5 rounded border border-zinc-200">https://empresa.com.br</code>) ou perfis/páginas do LinkedIn (ex: <code className="bg-white px-1 py-0.5 rounded border border-zinc-200">https://linkedin.com/in/decisor</code>). Nossos agentes de IA farão a varredura, extração dos dados e alimentará o seu Lead Hunter.
+              </p>
+              <textarea
+                value={importUrls}
+                onChange={e => setImportUrls(e.target.value)}
+                placeholder={"https://empresa1.com.br\nhttps://www.linkedin.com/in/decisor-exemplo\nhttps://www.linkedin.com/company/empresa-exemplo"}
+                rows={5}
+                className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono shadow-inner"
+                required={miningSource === 'import'}
+              />
+            </div>
+          )}
         </form>
       </div>
 
@@ -854,7 +882,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="bg-zinc-50/80 border-b border-zinc-200 text-zinc-500 font-mono uppercase text-[10px]">
-                  <th className="py-3 px-4 font-bold">Empresa / Contato</th>
+                  <th className="py-3 px-4 font-bold">Empresa</th>
                   <th className="py-3 px-3 font-bold">URL</th>
                   <th className="py-3 px-3 font-bold">Temperatura</th>
                   <th className="py-3 px-3 font-bold">Score</th>
@@ -879,21 +907,18 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                       }}
                       className="hover:bg-zinc-50/80 transition-colors cursor-pointer group"
                     >
-                      {/* Empresa & Contato */}
+                      {/* Empresa */}
                       <td className="py-3.5 px-4 font-medium text-zinc-950">
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-zinc-950 font-display text-sm group-hover:text-blue-600 transition-colors">
-                              {lead.company}
-                            </span>
-                            <span className={`px-1.5 py-0.2 text-[9px] font-mono rounded font-extrabold uppercase ${
-                              lead.source === 'google' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'
-                            }`}>
-                              {lead.source === 'google' ? 'Google' : 'LinkedIn'}
-                            </span>
-                          </div>
-                          <span className="text-[11px] text-zinc-500 font-sans mt-0.5">
-                            👤 {lead.contactName || 'Contato a confirmar'} {lead.contactRole ? `(${lead.contactRole})` : ''}
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-zinc-950 font-display text-sm group-hover:text-blue-600 transition-colors">
+                            {lead.company}
+                          </span>
+                          <span className={`px-1.5 py-0.2 text-[9px] font-mono rounded font-extrabold uppercase ${
+                            lead.source === 'google' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                            lead.source === 'import' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                            'bg-purple-50 text-purple-700 border border-purple-200'
+                          }`}>
+                            {lead.source === 'google' ? 'Google' : lead.source === 'import' ? 'Importação' : 'LinkedIn'}
                           </span>
                         </div>
                       </td>
