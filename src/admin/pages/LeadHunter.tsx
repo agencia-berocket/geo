@@ -740,103 +740,143 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         </div>
 
         <form onSubmit={handleStartMining} className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3 items-end">
-            <div className="md:col-span-2">
-              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Fonte de Mineração</label>
-              <select
-                value={miningSource}
-                onChange={e => setMiningSource(e.target.value as any)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-semibold"
-              >
-                <option value="google">📍 Google (Business / Maps)</option>
-                <option value="linkedin">💼 LinkedIn (Decisores B2B)</option>
-                <option value="auto">⚡ Automático (Combinado)</option>
-                <option value="import">📥 Importação por Lista de URLs</option>
-              </select>
-            </div>
+          {miningSource === 'import' ? (
+            /* Layout exclusivo e limpo para Importação por Lista de URLs */
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row items-end gap-3">
+                <div className="flex-1">
+                  <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Fonte de Mineração</label>
+                  <select
+                    value={miningSource}
+                    onChange={e => setMiningSource(e.target.value as any)}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-semibold h-9"
+                  >
+                    <option value="google">📍 Google (Business / Maps)</option>
+                    <option value="linkedin">💼 LinkedIn (Decisores B2B)</option>
+                    <option value="auto">⚡ Automático (Combinado)</option>
+                    <option value="import">📥 Importação por Lista de URLs</option>
+                  </select>
+                </div>
 
-            <div className="md:col-span-2">
-              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
-              <input
-                type="text"
-                value={niche}
-                onChange={e => setNiche(e.target.value)}
-                placeholder="Ex: SaaS B2B, Advocacia, Logística"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Localização</label>
-              <input
-                type="text"
-                value={location}
-                onChange={e => setLocation(e.target.value)}
-                placeholder="Ex: Brasil"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Qtd. Leads</label>
-              <select
-                value={limit}
-                onChange={e => setLimit(Number(e.target.value))}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium font-mono"
-              >
-                <option value={5}>5 leads</option>
-                <option value={10}>10 leads</option>
-                <option value={15}>15 leads</option>
-                <option value={20}>20 leads</option>
-                <option value={30}>30 leads</option>
-              </select>
-            </div>
-
-            <div>
-              <button
-                type="submit"
-                disabled={mining}
-                className="w-full py-2 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 h-9"
-              >
-                {mining ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>{miningSource === 'import' ? 'Varrendo URLs...' : 'Minerando...'}</span>
-                  </>
-                ) : (
-                  <>
-                    <IconRocket className="w-4 h-4 text-emerald-400" />
-                    <span>{miningSource === 'import' ? 'Importar & Varrer' : 'Minerar'}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Se a fonte for Importação por Lista de URLs, exibe campo de texto multilinhas */}
-          {miningSource === 'import' && (
-            <div className="mt-3 p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-2 transition-all">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                  <span>📥 Insira a Lista de URLs para Varredura Autônoma</span>
-                </label>
-                <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md font-semibold">
-                  1 URL por linha
-                </span>
+                <div>
+                  <button
+                    type="submit"
+                    disabled={mining}
+                    className="w-full sm:w-auto py-2 px-6 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 h-9 shrink-0"
+                  >
+                    {mining ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Varrendo URLs...</span>
+                      </>
+                    ) : (
+                      <>
+                        <IconRocket className="w-4 h-4 text-emerald-400" />
+                        <span>Importar & Varrer</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-              <p className="text-[11px] text-zinc-600">
-                Cole abaixo links de sites de empresas (ex: <code className="bg-white px-1 py-0.5 rounded border border-zinc-200">https://empresa.com.br</code>) ou perfis/páginas do LinkedIn (ex: <code className="bg-white px-1 py-0.5 rounded border border-zinc-200">https://linkedin.com/in/decisor</code>). Nossos agentes de IA farão a varredura, extração dos dados e alimentará o seu Lead Hunter.
-              </p>
-              <textarea
-                value={importUrls}
-                onChange={e => setImportUrls(e.target.value)}
-                placeholder={"https://empresa1.com.br\nhttps://www.linkedin.com/in/decisor-exemplo\nhttps://www.linkedin.com/company/empresa-exemplo"}
-                rows={5}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono shadow-inner"
-                required={miningSource === 'import'}
-              />
+
+              {/* Lista de URLs para Varredura Autônoma */}
+              <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-200/80 space-y-2 transition-all">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                    <span>📥 Insira a Lista de URLs para Varredura Autônoma</span>
+                  </label>
+                  <span className="text-[10px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md font-semibold">
+                    1 URL por linha
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-600">
+                  Cole abaixo links de sites de empresas (ex: <code className="bg-white px-1 py-0.5 rounded border border-zinc-200">https://empresa.com.br</code>) ou perfis/páginas do LinkedIn (ex: <code className="bg-white px-1 py-0.5 rounded border border-zinc-200">https://linkedin.com/in/decisor</code>). Nossos agentes de IA farão a varredura, extração dos dados e alimentará o seu Lead Hunter.
+                </p>
+                <textarea
+                  value={importUrls}
+                  onChange={e => setImportUrls(e.target.value)}
+                  placeholder={"https://empresa1.com.br\nhttps://www.linkedin.com/in/decisor-exemplo\nhttps://www.linkedin.com/company/empresa-exemplo"}
+                  rows={6}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-emerald-300 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 font-mono shadow-inner"
+                  required
+                />
+              </div>
+            </div>
+          ) : (
+            /* Layout padrão para Google / LinkedIn / Auto */
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3 items-end">
+              <div className="md:col-span-2">
+                <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Fonte de Mineração</label>
+                <select
+                  value={miningSource}
+                  onChange={e => setMiningSource(e.target.value as any)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-semibold"
+                >
+                  <option value="google">📍 Google (Business / Maps)</option>
+                  <option value="linkedin">💼 LinkedIn (Decisores B2B)</option>
+                  <option value="auto">⚡ Automático (Combinado)</option>
+                  <option value="import">📥 Importação por Lista de URLs</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
+                <input
+                  type="text"
+                  value={niche}
+                  onChange={e => setNiche(e.target.value)}
+                  placeholder="Ex: SaaS B2B, Advocacia, Logística"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Localização</label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={e => setLocation(e.target.value)}
+                  placeholder="Ex: Brasil"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Qtd. Leads</label>
+                <select
+                  value={limit}
+                  onChange={e => setLimit(Number(e.target.value))}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium font-mono"
+                >
+                  <option value={5}>5 leads</option>
+                  <option value={10}>10 leads</option>
+                  <option value={15}>15 leads</option>
+                  <option value={20}>20 leads</option>
+                  <option value={30}>30 leads</option>
+                </select>
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={mining}
+                  className="w-full py-2 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 h-9"
+                >
+                  {mining ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Minerando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <IconRocket className="w-4 h-4 text-emerald-400" />
+                      <span>Minerar</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </form>
