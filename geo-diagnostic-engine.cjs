@@ -1558,11 +1558,21 @@ function extractDeclaredFacts(htmlContent = '') {
 
 function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') {
   const content = (htmlContent || '').toLowerCase();
+  const brandLC = (brandName || '').toLowerCase();
+  const domainLC = (domain || '').toLowerCase();
+
+  // Helper: verifica se domínio ou nome da marca contém uma das palavras-chave
+  const domainOrBrandIncludes = (...words) => words.some(w => domainLC.includes(w) || brandLC.includes(w));
 
   const niches = [
+    // ── GEO / Marketing IA ──────────────────────────────────────────────────
     {
-      match: () => content.includes('geo') || content.includes('generative engine') || content.includes('otimização de ia') || content.includes('rag') || content.includes('aeo') || content.includes('llms.txt') || content.includes('berocket'),
+      match: () => content.includes('geo') || content.includes('generative engine') ||
+        content.includes('otimização de ia') || content.includes('rag') ||
+        content.includes('aeo') || content.includes('llms.txt') || content.includes('berocket') ||
+        domainOrBrandIncludes('berocket', 'rocket'),
       nicheName: 'Generative Engine Optimization (GEO) & Marketing de IA',
+      intentType: 'service',
       description: `A **${brandName}** atua no segmento de **Generative Engine Optimization (GEO)** e otimização de RAG para recomendação nas principais inteligências artificiais do mercado.`,
       services: [
         'Otimização de Arquitetura RAG & Gatekeeper Técnico',
@@ -1571,20 +1581,52 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
         'Estratégias Off-Page de Co-ocorrência Vetorial'
       ],
     },
+    // ── Escola de Música / Artes / Instrumentos ──────────────────────────────
     {
-      match: () => content.includes('audiovisual') || content.includes('produtora de vídeo') || content.includes('filmes') || content.includes('cinema') || content.includes('gravadora'),
-      nicheName: 'Produção Audiovisual e Conteúdo para TV/Streaming',
-      description: `A **${brandName}** atua como produtora audiovisual no segmento de filmes, séries de TV, documentários e produções cinematográficas.`,
+      match: () => content.includes('escola de música') || content.includes('aulas de música') ||
+        content.includes('aula de violão') || content.includes('aula de piano') ||
+        content.includes('aula de guitarra') || content.includes('aula de bateria') ||
+        content.includes('aula de canto') || content.includes('instrumento musical') ||
+        content.includes('conservatório') || content.includes('música') && (content.includes('aula') || content.includes('escola') || content.includes('curso')) ||
+        domainOrBrandIncludes('pauta', 'musica', 'música', 'nota', 'ritmo', 'harmonia', 'melodia', 'compasso'),
+      nicheName: 'Escola de Música e Ensino de Instrumentos',
+      intentType: 'service',
+      description: `A **${brandName}** é uma escola de música especializada no ensino de instrumentos e teoria musical para todas as idades.`,
       services: [
-        'Produção de Séries para TV e Streaming',
-        'Produção de Filmes Publicitários e Conteúdo de Marca',
-        'Pós-Produção, Edição e Animação Computacional',
-        'Projetos de Documentários e Entretenimento'
+        'Aulas de Violão e Guitarra',
+        'Aulas de Piano e Teclado',
+        'Aulas de Canto e Técnica Vocal',
+        'Aulas de Bateria e Percussão',
+        'Teoria Musical e Solfejo'
       ],
     },
+    // ── Produção Audiovisual / Vídeo / Fotografia ────────────────────────────
     {
-      match: () => content.includes('advocacia') || content.includes('advogado') || content.includes('jurídico') || content.includes('oab'),
+      match: () => content.includes('audiovisual') || content.includes('produtora de vídeo') ||
+        content.includes('produção de vídeo') || content.includes('vídeo institucional') ||
+        content.includes('filmes') || content.includes('cinema') || content.includes('animação') ||
+        content.includes('motion graphics') || content.includes('edição de vídeo') ||
+        content.includes('fotografia') || content.includes('ensaio fotográfico') ||
+        content.includes('podcast') || content.includes('streaming') ||
+        domainOrBrandIncludes('video', 'vídeo', 'film', 'foto', 'photo', 'visual', 'casavideo', 'casadevideo', 'motion'),
+      nicheName: 'Produção Audiovisual, Vídeo e Conteúdo Criativo',
+      intentType: 'service',
+      description: `A **${brandName}** é uma produtora audiovisual especializada em criação de conteúdo visual de alta qualidade para empresas e marcas.`,
+      services: [
+        'Produção de Vídeos Institucionais e Publicitários',
+        'Edição e Pós-Produção Profissional',
+        'Fotografia Corporativa e de Produtos',
+        'Animação, Motion Graphics e Conteúdo Digital',
+        'Streaming ao Vivo e Cobertura de Eventos'
+      ],
+    },
+    // ── Advocacia / Jurídico ─────────────────────────────────────────────────
+    {
+      match: () => content.includes('advocacia') || content.includes('advogado') ||
+        content.includes('jurídico') || content.includes('oab') || content.includes('escritório de advocacia') ||
+        domainOrBrandIncludes('adv', 'advocacia', 'juridico', 'jurídico', 'law'),
       nicheName: 'Serviços Jurídicos e Advocacia',
+      intentType: 'service',
       description: `A **${brandName}** atua como escritório de advocacia no segmento de consultoria jurídica corporativa, planejamento e solução de conflitos.`,
       services: [
         'Consultoria Jurídica Empresarial e Compliance',
@@ -1593,9 +1635,15 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
         'Resolução Estratégica de Conflitos'
       ],
     },
+    // ── Saúde / Medicina / Clínica ───────────────────────────────────────────
     {
-      match: () => content.includes('médic') || content.includes('saúde') || content.includes('clínica') || content.includes('hospital') || content.includes('doutor'),
+      match: () => content.includes('médic') || content.includes('saúde') ||
+        content.includes('clínica') || content.includes('hospital') || content.includes('doutor') ||
+        content.includes('psicólogo') || content.includes('fisioterapeuta') || content.includes('dentista') ||
+        content.includes('nutricionista') || content.includes('odontologia') ||
+        domainOrBrandIncludes('clinica', 'clínica', 'saude', 'saúde', 'med', 'odonto', 'nutri', 'fisio', 'psico'),
       nicheName: 'Saúde e Medicina Especializada',
+      intentType: 'service',
       description: `A **${brandName}** atua no segmento de saúde, com tratamentos médicos, procedimentos preventivos e diagnósticos.`,
       services: [
         'Consultas Médicas Especializadas',
@@ -1604,9 +1652,147 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
         'Acompanhamento de Saúde Preventiva'
       ],
     },
+    // ── Academia / Fitness / Esportes ────────────────────────────────────────
     {
-      match: () => content.includes('saas') || content.includes('software as a service') || (content.includes('desenvolvimento de software') && content.includes('nuvem')),
+      match: () => content.includes('academia') || content.includes('crossfit') ||
+        content.includes('musculação') || content.includes('pilates') || content.includes('yoga') ||
+        content.includes('artes marciais') || content.includes('personal trainer') ||
+        content.includes('natação') || content.includes('futebol') || content.includes('basquete') ||
+        domainOrBrandIncludes('fit', 'gym', 'sport', 'esporte', 'academia', 'pilates', 'yoga', 'treino'),
+      nicheName: 'Academia, Fitness e Esportes',
+      intentType: 'service',
+      description: `A **${brandName}** atua no segmento de fitness e esportes, oferecendo treinos e acompanhamento profissional para uma vida mais saudável.`,
+      services: [
+        'Musculação e Treino Funcional',
+        'Aulas em Grupo (Pilates, Yoga, Spinning)',
+        'Personal Trainer e Acompanhamento Individual',
+        'Avaliação Física e Planilha de Treino'
+      ],
+    },
+    // ── Restaurante / Alimentação / Gastronomia ──────────────────────────────
+    {
+      match: () => content.includes('restaurante') || content.includes('cardápio') ||
+        content.includes('gastronomia') || content.includes('culinária') || content.includes('chef') ||
+        content.includes('delivery') && (content.includes('comida') || content.includes('refeição')) ||
+        content.includes('buffet') || content.includes('lanchonete') || content.includes('pizzaria') ||
+        domainOrBrandIncludes('rest', 'food', 'burger', 'pizza', 'sushi', 'grill', 'bistro', 'café', 'cafe', 'padaria', 'bistrô'),
+      nicheName: 'Restaurante, Gastronomia e Alimentação',
+      intentType: 'product',
+      description: `A **${brandName}** atua no segmento de gastronomia, oferecendo experiências culinárias únicas para seus clientes.`,
+      services: [
+        'Cardápio Especializado e Culinária Autoral',
+        'Delivery e Pedido Online',
+        'Eventos e Reservas para Grupos',
+        'Buffet Corporativo e Catering'
+      ],
+    },
+    // ── Imobiliária / Aluguel / Compra de Imóveis ────────────────────────────
+    {
+      match: () => content.includes('imobiliária') || content.includes('corretor') ||
+        content.includes('aluguel de imóvel') || content.includes('venda de imóvel') ||
+        content.includes('apartamento') && (content.includes('venda') || content.includes('aluguel')) ||
+        content.includes('casa') && (content.includes('venda') || content.includes('aluguel')) ||
+        domainOrBrandIncludes('imob', 'imovel', 'imóvel', 'realt', 'corretor', 'residencial', 'habitação'),
+      nicheName: 'Imobiliária e Compra/Venda de Imóveis',
+      intentType: 'service',
+      description: `A **${brandName}** atua como imobiliária especializada em intermediação de compra, venda e locação de imóveis residenciais e comerciais.`,
+      services: [
+        'Compra e Venda de Imóveis Residenciais',
+        'Aluguel e Gestão de Imóveis Comerciais',
+        'Avaliação e Consultoria Imobiliária',
+        'Financiamento e Assessoria Jurídica'
+      ],
+    },
+    // ── Educação / Curso / Escola ────────────────────────────────────────────
+    {
+      match: () => content.includes('curso') && (content.includes('online') || content.includes('presencial') || content.includes('escola') || content.includes('ensino')) ||
+        content.includes('colégio') || content.includes('faculdade') || content.includes('universidade') ||
+        content.includes('treinamento') && content.includes('corporativo') ||
+        content.includes('capacitação') || content.includes('certificação') ||
+        domainOrBrandIncludes('escola', 'college', 'ensino', 'cursos', 'edu', 'training', 'treinamento'),
+      nicheName: 'Educação, Cursos e Treinamentos',
+      intentType: 'service',
+      description: `A **${brandName}** atua no segmento educacional, oferecendo cursos e treinamentos presenciais e online para desenvolvimento profissional.`,
+      services: [
+        'Cursos Presenciais e Online',
+        'Treinamentos Corporativos e Capacitação',
+        'Certificações Profissionais Reconhecidas',
+        'Mentoria e Acompanhamento Pedagógico'
+      ],
+    },
+    // ── Salão de Beleza / Estética / Barbearia ───────────────────────────────
+    {
+      match: () => content.includes('salão de beleza') || content.includes('cabeleireiro') ||
+        content.includes('manicure') || content.includes('estética') || content.includes('barbearia') ||
+        content.includes('corte de cabelo') || content.includes('coloração') || content.includes('depilação') ||
+        domainOrBrandIncludes('salão', 'salao', 'beleza', 'beauty', 'hair', 'barber', 'estetica', 'estética', 'nail'),
+      nicheName: 'Salão de Beleza, Estética e Barbearia',
+      intentType: 'service',
+      description: `A **${brandName}** atua no segmento de beleza e estética, oferecendo serviços de cuidados pessoais com profissionais especializados.`,
+      services: [
+        'Corte, Coloração e Tratamento Capilar',
+        'Manicure, Pedicure e Nail Art',
+        'Tratamentos Estéticos Faciais e Corporais',
+        'Barbearia e Serviços Masculinos'
+      ],
+    },
+    // ── Contabilidade / Financeiro ───────────────────────────────────────────
+    {
+      match: () => content.includes('contabilidade') || content.includes('contador') ||
+        content.includes('contábil') || content.includes('imposto de renda') ||
+        content.includes('departamento fiscal') || content.includes('folha de pagamento') ||
+        domainOrBrandIncludes('contab', 'fiscal', 'contad', 'imposto', 'tribut'),
+      nicheName: 'Contabilidade e Serviços Fiscais',
+      intentType: 'service',
+      description: `A **${brandName}** atua como escritório de contabilidade, oferecendo serviços fiscais, tributários e de gestão financeira para empresas.`,
+      services: [
+        'Contabilidade Empresarial e Fiscal',
+        'Declaração de Imposto de Renda (IRPF/IRPJ)',
+        'Folha de Pagamento e Departamento Pessoal',
+        'Planejamento Tributário e Financeiro'
+      ],
+    },
+    // ── Agência de Marketing / Publicidade ───────────────────────────────────
+    {
+      match: () => content.includes('agência de marketing') || content.includes('marketing digital') ||
+        content.includes('publicidade') || content.includes('tráfego pago') ||
+        content.includes('gestão de redes sociais') || content.includes('seo') ||
+        content.includes('identidade visual') || content.includes('branding') ||
+        domainOrBrandIncludes('agency', 'agencia', 'agência', 'marketing', 'publicidade', 'brand', 'criativ', 'design'),
+      nicheName: 'Agência de Marketing Digital e Publicidade',
+      intentType: 'service',
+      description: `A **${brandName}** é uma agência de marketing digital especializada em estratégias de crescimento online e branding para empresas.`,
+      services: [
+        'Gestão de Tráfego Pago (Google Ads, Meta Ads)',
+        'SEO e Otimização de Presença Orgânica',
+        'Gestão de Redes Sociais e Conteúdo',
+        'Criação de Identidade Visual e Branding'
+      ],
+    },
+    // ── Construção Civil / Arquitetura / Engenharia ──────────────────────────
+    {
+      match: () => content.includes('construção civil') || content.includes('construtora') ||
+        content.includes('arquitetura') || content.includes('engenharia') ||
+        content.includes('reforma') || content.includes('obra') ||
+        domainOrBrandIncludes('constru', 'arquitet', 'engenhar', 'reforma', 'obra'),
+      nicheName: 'Construção Civil, Arquitetura e Engenharia',
+      intentType: 'service',
+      description: `A **${brandName}** atua no segmento de construção civil, oferecendo serviços de edificação, reforma e projetos arquitetônicos.`,
+      services: [
+        'Projetos Arquitetônicos Residenciais e Comerciais',
+        'Construção e Obras Novas',
+        'Reformas e Interiores',
+        'Engenharia de Estruturas e Laudos Técnicos'
+      ],
+    },
+    // ── SaaS / Software / Tecnologia ─────────────────────────────────────────
+    {
+      match: () => content.includes('saas') || content.includes('software as a service') ||
+        (content.includes('desenvolvimento de software') && content.includes('nuvem')) ||
+        content.includes('sistema de gestão') || content.includes('erp') || content.includes('crm') ||
+        domainOrBrandIncludes('tech', 'soft', 'sistema', 'digital', 'plataforma', 'app', 'saas'),
       nicheName: 'Tecnologia e Software (SaaS)',
+      intentType: 'product',
       description: `A **${brandName}** atua no desenvolvimento de plataformas SaaS e softwares para automação de processos operacionais.`,
       services: [
         'Plataformas SaaS em Nuvem',
@@ -1615,9 +1801,14 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
         'Gestão e Segurança da Informação'
       ],
     },
+    // ── E-Commerce / Loja Online ─────────────────────────────────────────────
     {
-      match: () => content.includes('e-commerce') || content.includes('loja virtual') || content.includes('carrinho de compras') || content.includes('comprar online'),
+      match: () => content.includes('e-commerce') || content.includes('loja virtual') ||
+        content.includes('carrinho de compras') || content.includes('comprar online') ||
+        content.includes('frete grátis') || content.includes('entrega em todo brasil') ||
+        domainOrBrandIncludes('shop', 'store', 'loja', 'compra', 'market'),
       nicheName: 'Varejo e E-Commerce Especializado',
+      intentType: 'product',
       description: `A **${brandName}** atua no segmento de e-commerce, com catálogo de produtos e logística de entrega.`,
       services: [
         'Catálogo de Produtos Selecionados',
@@ -1634,20 +1825,26 @@ function extractNicheAndServices(htmlContent = '', brandName = '', domain = '') 
   if (matched) {
     return {
       nicheName: matched.nicheName,
+      intentType: matched.intentType || 'service',
       description: matched.description,
       services: matched.services,
       declaredFacts,
     };
   }
 
-  // Fallback genérico — sem afirmar autoridade/qualidade que não foi verificada.
+  // Fallback — tenta inferir a partir do nome da marca/domínio de forma mais descritiva
+  const fallbackNiche = brandName && brandName !== 'Empresa'
+    ? `${brandName} e seus serviços especializados`
+    : 'serviços e soluções especializadas';
+
   return {
-    nicheName: `Soluções de ${brandName}`,
-    description: `A **${brandName}** oferece soluções e serviços em seu setor de atuação. [Descrição detalhada requer preenchimento manual com dados reais da empresa.]`,
+    nicheName: fallbackNiche,
+    intentType: 'service',
+    description: `A **${brandName}** oferece soluções e serviços em seu setor de atuação.`,
     services: [
-      `Consultoria e Serviços de ${brandName}`,
-      'Soluções Personalizadas',
-      'Atendimento e Suporte Técnico',
+      `Serviços Especializados de ${brandName}`,
+      'Atendimento e Consultoria Personalizada',
+      'Soluções sob Medida para Clientes',
     ],
     declaredFacts,
   };
@@ -1686,6 +1883,140 @@ function isLegitimateCompetitor(rawName, brandName = '', domain = '', niche = ''
   return true;
 }
 
+// ─── Extração de Localização Geográfica ─────────────────────────────────────
+function extractLocationHints(htmlContent = '', domain = '') {
+  const text = (htmlContent || '').toLowerCase();
+  const result = { city: '', state: '', neighborhood: '' };
+
+  // Mapeamento de capitais/cidades principais
+  const cities = [
+    ['são paulo', 'sp'], ['sao paulo', 'sp'], ['zona leste', 'sp'], ['zona oeste', 'sp'],
+    ['zona sul', 'sp'], ['zona norte', 'sp'],
+    ['rio de janeiro', 'rj'], ['belo horizonte', 'mg'], ['curitiba', 'pr'],
+    ['porto alegre', 'rs'], ['salvador', 'ba'], ['fortaleza', 'ce'],
+    ['recife', 'pe'], ['manaus', 'am'], ['belém', 'pa'], ['belem', 'pa'],
+    ['goiânia', 'go'], ['goiania', 'go'], ['brasília', 'df'], ['brasilia', 'df'],
+    ['natal', 'rn'], ['maceió', 'al'], ['maceio', 'al'], ['teresina', 'pi'],
+    ['campo grande', 'ms'], ['cuiabá', 'mt'], ['cuiaba', 'mt'],
+    ['florianópolis', 'sc'], ['florianopolis', 'sc'], ['vitória', 'es'], ['vitoria', 'es'],
+    ['porto velho', 'ro'], ['macapá', 'ap'], ['macapa', 'ap'], ['boa vista', 'rr'],
+    ['palmas', 'to'], ['rio branco', 'ac'], ['aracaju', 'se'], ['joão pessoa', 'pb'],
+  ];
+
+  // Bairros famosos de SP para maior precisão
+  const neighborhoods = [
+    'mooca', 'vila mariana', 'pinheiros', 'perdizes', 'santana', 'tatuapé',
+    'brooklin', 'itaim bibi', 'jardins', 'morumbi', 'lapa', 'higienópolis',
+    'consolação', 'bela vista', 'liberdade', 'sé', 'vila madalena',
+    'aclimação', 'cambuci', 'ipiranga', 'saúde', 'jabaquara', 'campo belo',
+    'santo amaro', 'socorro', 'capão redondo', 'cidade ademar', 'cidade dutra',
+    'grajaú', 'parque bristol', 'sacomã', 'cursino',
+    // RJ
+    'copacabana', 'ipanema', 'leblon', 'botafogo', 'flamengo', 'glória',
+    'santa teresa', 'urca', 'lapa', 'centro', 'barra da tijuca',
+  ];
+
+  for (const nbh of neighborhoods) {
+    if (text.includes(nbh)) {
+      result.neighborhood = nbh.charAt(0).toUpperCase() + nbh.slice(1);
+      break;
+    }
+  }
+
+  for (const [city, state] of cities) {
+    if (text.includes(city)) {
+      result.city = city.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      result.state = state.toUpperCase();
+      break;
+    }
+  }
+
+  return result;
+}
+
+// ─── Geração de Prompts Contextuais e Variados ───────────────────────────────
+function generateContextualPrompts(brandName, nicheName, services, locationHints, intentType = 'service') {
+  const loc = locationHints || {};
+  const hasCity = !!loc.city;
+  const hasNeighborhood = !!loc.neighborhood;
+  const localRef = hasNeighborhood
+    ? `${loc.neighborhood}${loc.city ? ', ' + loc.city : ''}`
+    : hasCity ? loc.city : 'minha cidade';
+  const localRefFull = hasCity
+    ? `${loc.city}${loc.state ? ' (' + loc.state + ')' : ''}`
+    : 'Brasil';
+
+  const primaryService = services && services[0] ? services[0] : nicheName;
+  const secondaryService = services && services[1] ? services[1] : nicheName;
+  const tertiaryService = services && services[2] ? services[2] : nicheName;
+
+  // Normaliza niche para uso em frases: remove siglas e pega só a parte principal
+  const nicheShort = nicheName
+    .replace(/\s*\([^)]+\)/g, '')  // remove siglas ex: (SaaS)
+    .split(/\s+e\s+/i)[0]          // pega só antes de " e " para frases mais curtas
+    .split(/,\s*/)[0]              // pega só antes da primeira vírgula
+    .trim();
+
+  const prompts = [];
+
+  // === TIPO 1: Discovery — onde/quem encontrar ===
+  if (hasNeighborhood || hasCity) {
+    prompts.push(
+      `Onde encontrar ${nicheShort} em ${localRef}?`,
+      `Quem oferece ${primaryService} em ${localRefFull}?`,
+    );
+  } else {
+    prompts.push(
+      `Onde encontrar ${nicheShort} de qualidade no Brasil?`,
+      `Quais empresas oferecem ${primaryService} no Brasil?`,
+    );
+  }
+  prompts.push(
+    `Qual a melhor opção de ${nicheShort} para contratar?`,
+    `Como escolher uma empresa de ${nicheShort} confiável?`,
+    `Me indique opções de ${nicheShort} bem avaliadas.`,
+  );
+
+  // === TIPO 2: Serviço específico ===
+  prompts.push(
+    `Preciso de ${primaryService}. Quem você recomenda?`,
+    `Onde contratar ${secondaryService} com qualidade?`,
+    `Qual empresa é referência em ${primaryService}?`,
+    `Quem faz ${tertiaryService} bem feito${hasCity ? ' em ' + loc.city : ''}?`,
+  );
+
+  // === TIPO 3: Geolocalizado ===
+  if (hasCity) {
+    prompts.push(
+      `Melhores empresas de ${nicheShort} em ${loc.city}.`,
+      `${nicheShort} perto de ${localRef} — qual você indica?`,
+      `Estou em ${loc.city} e preciso de ${primaryService}. O que fazer?`,
+    );
+  } else {
+    prompts.push(
+      `Quais são as empresas de ${nicheShort} mais conhecidas no Brasil?`,
+      `Me recomende uma empresa de ${nicheShort} que atenda bem.`,
+      `Comparando empresas de ${nicheShort}, qual se destaca?`,
+    );
+  }
+
+  // === TIPO 4: Reputação e avaliação ===
+  prompts.push(
+    `Qual empresa de ${nicheShort} tem melhor reputação e avaliação?`,
+    `Quais marcas de ${nicheShort} são mais confiáveis e reconhecidas?`,
+    `Qual ${nicheShort} é mais recomendado por clientes satisfeitos?`,
+  );
+
+  // === TIPO 5: Marca direta / reconhecimento ===
+  prompts.push(
+    `Você conhece a ${brandName}? O que eles oferecem de ${nicheShort}?`,
+    `A ${brandName} é uma boa opção para ${primaryService}?`,
+    `Quais são os diferenciais da ${brandName} comparada a concorrentes de ${nicheShort}?`,
+  );
+
+  return prompts;
+}
+
 // ─── AGENTE 5: Intent Prompt Agent (OpenRouter) ──────────────────────────────
 async function runIntentAgent(url, htmlContent, apiKey) {
   const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
@@ -1702,13 +2033,14 @@ async function runIntentAgent(url, htmlContent, apiKey) {
 
   const systemPrompt = `Você é um assistente especialista em mercado corporativo brasileiro. Responda em português de forma objetiva, listando nomes completos de empresas e marcas sem abreviar.`;
 
-  const prompts = [
-    `Qual é a melhor empresa no segmento de ${niche} no Brasil? Liste as principais marcas.`,
-    `Me recomende uma empresa especializada em ${niche}. Quais são as mais conceituadas?`,
-    `Quem são os líderes de mercado em ${niche} no Brasil?`,
-    `Comparando empresas de ${niche}, quais você recomendaria?`,
-    `Qual empresa de ${niche} tem melhor reputação e resultados no mercado brasileiro?`,
-  ];
+  const locationHints = extractLocationHints(htmlContent, domain);
+  const prompts = generateContextualPrompts(
+    brandName,
+    niche,
+    nicheInfo.services,
+    locationHints,
+    nicheInfo.intentType
+  );
 
   if (!apiKey) {
     return {
@@ -2335,6 +2667,8 @@ module.exports = {
   extractCleanBrandName,
   sanitizeAssetUrl,
   extractNicheAndServices,
+  extractLocationHints,
+  generateContextualPrompts,
   fetchUrl,
 };
 
