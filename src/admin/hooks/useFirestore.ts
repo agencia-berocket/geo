@@ -68,7 +68,7 @@ export interface Lead {
   architecture?: string;
   scale?: string;
   createdAt: string;
-  status: 'new' | 'processing' | 'completed' | 'converted' | 'unscanned' | 'audited' | 'outreach_ready' | 'contacted';
+  status: 'new' | 'processing' | 'completed' | 'converted' | 'unscanned' | 'audited' | 'outreach_ready' | 'contacted' | 'failed';
   source?: LeadSource | string;
   sourceLabel?: string;
   contactName?: string;

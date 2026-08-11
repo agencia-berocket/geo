@@ -159,8 +159,9 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   }, [leadId]);
 
   useEffect(() => {
+    // A rota GET /api/admin/diagnostic/:leadId busca pelo leadId (não pelo id do documento de diagnóstico)
     if (lead?.diagnosticId) {
-      fetchDiagnosticReport(lead.diagnosticId);
+      fetchDiagnosticReport(lead.id);
     }
   }, [lead?.diagnosticId]);
 
@@ -274,9 +275,15 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
 
         if (updated?.status === 'completed' && updated?.diagnosticId) {
           setLead(updated);
-          await fetchDiagnostic();
+          await Promise.all([fetchDiagnostic(), fetchDiagnosticReport(updated.id)]);
           setRunningDiagnostic(false);
           showToast('✅ Diagnóstico GEO concluído com sucesso!');
+          return;
+        }
+
+        if (updated?.status === 'failed') {
+          setRunningDiagnostic(false);
+          setDiagnosticErrorMsg('O diagnóstico falhou no servidor. Tente executar novamente.');
           return;
         }
 
@@ -411,7 +418,8 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
     }
   };
 
-  // Marcação manual de envio (ex.: copy enviada por fora, como LinkedIn) — alimenta o Status do Pipeline
+  // Marcação manual de envio (ex.: copy enviada por fora, como LinkedIn) — alimenta o Status do Pipeline.
+  // A marcação é por framework (copyKey): enviar/desmarcar o PAS não afeta o histórico do BAB, PASTOR etc.
   const handleToggleSent = async (checked: boolean) => {
     if (!lead) return;
     setMarkingSent(true);
@@ -419,18 +427,30 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
       if (checked) {
         const sentAt = new Date().toISOString();
         const sentHistory: SentHistoryItem[] = [
-          ...(lead.sentHistory || []),
+          ...(lead.sentHistory || []).filter(h => h.copyKey !== copyTab),
           { copyKey: copyTab, sentAt, channel: 'linkedin' },
         ];
         await editLead(lead.id, { sentHistory, emailSentAt: sentAt, pipelineStage: 'email_sent', status: 'contacted' } as Partial<Lead>);
         setLead(prev => prev ? { ...prev, sentHistory, emailSentAt: sentAt, pipelineStage: 'email_sent', status: 'contacted' } : null);
-        showToast('✅ Marcado como enviado — cronômetro de follow-up zerado.');
+        showToast(`✅ Framework ${copyTab} marcado como enviado.`);
       } else {
-        // Remove a marcação: limpa o histórico de envio e volta o Pipeline ao estágio anterior (derivado dos demais dados)
-        const sentHistory: SentHistoryItem[] = [];
-        await editLead(lead.id, { sentHistory, emailSentAt: '', pipelineStage: '' } as unknown as Partial<Lead>);
-        setLead(prev => prev ? { ...prev, sentHistory, emailSentAt: '', pipelineStage: undefined } : null);
-        showToast('Marcação de envio removida.');
+        // Remove só a marcação deste framework, preservando o histórico dos demais
+        const sentHistory: SentHistoryItem[] = (lead.sentHistory || []).filter(h => h.copyKey !== copyTab);
+        const lastSent = sentHistory.length > 0
+          ? sentHistory.reduce((latest, item) => (item.sentAt > latest.sentAt ? item : latest))
+          : null;
+        await editLead(lead.id, {
+          sentHistory,
+          emailSentAt: lastSent?.sentAt || '',
+          pipelineStage: sentHistory.length > 0 ? 'email_sent' : '',
+        } as unknown as Partial<Lead>);
+        setLead(prev => prev ? {
+          ...prev,
+          sentHistory,
+          emailSentAt: lastSent?.sentAt || '',
+          pipelineStage: sentHistory.length > 0 ? 'email_sent' : undefined,
+        } : null);
+        showToast(`Marcação de envio do framework ${copyTab} removida.`);
       }
     } catch (err: any) {
       showToast(`Erro ao atualizar status de envio: ${err.message}`);
@@ -1098,26 +1118,36 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                 </button>
               </div>
 
-              {/* Manual "sent" checkbox — feeds the pipeline status independently of the send button (e.g. sent via LinkedIn copy/paste) */}
+              {/* Manual "sent" checkbox — marcação por framework, independente do botão de disparo (ex.: enviado via LinkedIn copy/paste) */}
               <div className="pt-4 border-t border-zinc-100 space-y-2">
-                <label className="flex items-center gap-2.5 text-xs text-zinc-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!lead.emailSentAt}
-                    disabled={markingSent}
-                    onChange={(e) => handleToggleSent(e.target.checked)}
-                    className="w-4 h-4 rounded text-zinc-950 focus:ring-zinc-950"
-                  />
-                  <span className="font-bold">Já enviei esta abordagem para o lead ({copyTab})</span>
-                </label>
-                <p className="text-[11px] text-zinc-400 pl-6">
-                  Marque manualmente se enviou por fora da plataforma (ex: copiou o texto e mandou pelo LinkedIn). Isso atualiza o Status do Pipeline e zera o cronômetro de follow-up.
-                </p>
-                {lead.emailSentAt && (
-                  <p className="text-[11px] text-zinc-500 pl-6 font-mono">
-                    Último envio: {new Date(lead.emailSentAt).toLocaleString('pt-BR')} ({formatFollowupLabel(lead)})
-                  </p>
-                )}
+                {(() => {
+                  const sentForThisFramework = (lead.sentHistory || []).filter(h => h.copyKey === copyTab);
+                  const lastSentForThisFramework = sentForThisFramework.length > 0
+                    ? sentForThisFramework.reduce((latest, item) => (item.sentAt > latest.sentAt ? item : latest))
+                    : null;
+                  return (
+                    <>
+                      <label className="flex items-center gap-2.5 text-xs text-zinc-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!!lastSentForThisFramework}
+                          disabled={markingSent}
+                          onChange={(e) => handleToggleSent(e.target.checked)}
+                          className="w-4 h-4 rounded text-zinc-950 focus:ring-zinc-950"
+                        />
+                        <span className="font-bold">Já enviei esta abordagem para o lead ({copyTab})</span>
+                      </label>
+                      <p className="text-[11px] text-zinc-400 pl-6">
+                        Marque manualmente se enviou por fora da plataforma (ex: copiou o texto e mandou pelo LinkedIn). Essa marcação vale apenas para o framework {copyTab} — os demais frameworks têm seu próprio status de envio.
+                      </p>
+                      {lastSentForThisFramework && (
+                        <p className="text-[11px] text-zinc-500 pl-6 font-mono">
+                          Enviado em: {new Date(lastSentForThisFramework.sentAt).toLocaleString('pt-BR')}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>

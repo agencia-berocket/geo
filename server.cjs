@@ -1271,6 +1271,16 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
       console.log(`✅ Diagnóstico concluído para ${lead.url} — GEO Score: ${overallGeoScore}%`);
     } catch (err) {
       console.error('Diagnostic pipeline error:', err);
+      // Marca o status como falho para que o front pare de aguardar em vez de travar em 'processing' para sempre
+      try {
+        await fetchFirestore(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=status`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: { status: { stringValue: 'failed' } } }),
+        });
+      } catch (patchErr) {
+        console.error('Failed to mark diagnostic as failed:', patchErr);
+      }
     }
   })();
 });
