@@ -414,43 +414,37 @@ function SearchTermsPanel({
   const isApproved = status === 'approved';
 
   return (
-    <div className={`p-6 rounded-2xl border transition-all ${
-      isApproved 
-        ? 'bg-emerald-950/10 border-emerald-500/40 shadow-sm text-zinc-900 dark:text-zinc-100' 
-        : status === 'generated'
-        ? 'bg-amber-950/10 border-amber-500/40 shadow-sm text-zinc-900 dark:text-zinc-100'
-        : 'bg-zinc-900 border-zinc-800 text-white shadow-md'
-    }`}>
+    <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs text-zinc-900 transition-all">
       {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-500/20">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-100">
         <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold tracking-wider px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+            <span className="text-[10px] font-bold text-zinc-400 font-mono tracking-wider uppercase">
               ETAPA PRÉ-REQUISITO (14 TERMOS)
             </span>
-            <h3 className="text-base font-display font-bold flex items-center gap-2">
-              <span>🎯 Analisar Termos de Pesquisa</span>
-            </h3>
           </div>
-          <p className="text-xs opacity-75 mt-1.5 leading-relaxed">
+          <h3 className="text-base font-display font-bold text-zinc-900 flex items-center gap-2 mt-0.5">
+            <span>🎯 Analisar Termos de Pesquisa</span>
+          </h3>
+          <p className="text-xs text-zinc-500 mt-1 leading-relaxed">
             O agente navega no site do lead, identifica a proposta de valor, produtos e serviços oferecidos e gera 14 termos reais para pesquisas nas LLMs.
           </p>
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
           {isApproved ? (
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               🟢 Aprovado para Diagnóstico
             </span>
           ) : status === 'generated' ? (
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
               🟡 Gerado (Pendente de Salvar)
             </span>
           ) : (
-            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-red-400" />
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-50 text-red-700 border border-red-200 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500" />
               🔴 Pendente (Diagnóstico Travado)
             </span>
           )}
@@ -458,7 +452,7 @@ function SearchTermsPanel({
           <button
             onClick={handleRunAnalysis}
             disabled={analyzing}
-            className="text-xs font-bold px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50 shrink-0"
+            className="text-xs font-bold px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-xs cursor-pointer flex items-center gap-2 disabled:opacity-50 shrink-0"
           >
             {analyzing ? (
               <><IconHourglass className="w-3.5 h-3.5 animate-spin" /> Analisando site...</>
@@ -471,20 +465,20 @@ function SearchTermsPanel({
 
       {/* AI Overview summary */}
       {lead.companyOverview && (
-        <div className="mt-4 p-4 rounded-xl bg-zinc-950/60 border border-zinc-700/60 text-xs space-y-1.5 shadow-inner">
-          <span className="font-mono text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">
+        <div className="mt-4 p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs space-y-1">
+          <span className="text-[10px] font-bold text-zinc-400 font-mono tracking-wider uppercase block">
             🤖 Visão Geral da Empresa (Extraída pelo Agente IA):
           </span>
-          <p className="opacity-90 leading-relaxed font-sans text-zinc-200">{lead.companyOverview}</p>
+          <p className="text-zinc-800 font-semibold leading-relaxed font-sans">{lead.companyOverview}</p>
         </div>
       )}
 
       {/* Notification Message */}
       {msg && (
-        <div className={`mt-4 p-3.5 rounded-xl text-xs font-medium border ${
-          msg.type === 'success' ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
-          : msg.type === 'error' ? 'bg-red-950/60 border-red-500/50 text-red-300'
-          : 'bg-indigo-950/60 border-indigo-500/50 text-indigo-300'
+        <div className={`mt-4 p-3.5 rounded-xl text-xs font-semibold border ${
+          msg.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+          : msg.type === 'error' ? 'bg-red-50 border-red-200 text-red-800'
+          : 'bg-indigo-50 border-indigo-200 text-indigo-800'
         }`}>
           {msg.text}
         </div>
@@ -493,19 +487,19 @@ function SearchTermsPanel({
       {/* 14 Search Terms Cards (2 Columns - 7 items per column) */}
       <div className="mt-5 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-          <label className="text-xs font-mono font-bold uppercase tracking-wider opacity-90">
-            Lista dos 14 Termos de Pesquisa para LLMs (ChatGPT, Gemini, Claude, Perplexity):
+          <label className="text-[10px] font-bold text-zinc-400 font-mono tracking-wider uppercase">
+            LISTA DOS 14 TERMOS DE PESQUISA PARA LLMS (CHATGPT, GEMINI, CLAUDE, PERPLEXITY)
           </label>
-          <span className="text-[11px] opacity-60">💡 Leitura completa sem cortes: edite ou ajuste qualquer texto</span>
+          <span className="text-[11px] text-zinc-400">Você pode editar manualmente qualquer termo abaixo</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {terms.map((term, index) => (
             <div
               key={index}
-              className="flex items-start gap-3 bg-zinc-950/80 p-3 rounded-xl border border-zinc-700/60 focus-within:border-indigo-500/80 focus-within:ring-1 focus-within:ring-indigo-500/40 transition-all shadow-xs"
+              className="flex items-center gap-3 bg-zinc-50/80 hover:bg-white p-3 px-4 rounded-xl border border-zinc-200/80 focus-within:border-zinc-400 focus-within:bg-white focus-within:ring-2 focus-within:ring-zinc-950/5 transition-all shadow-2xs"
             >
-              <span className="text-xs font-mono font-extrabold text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md border border-indigo-500/20 shrink-0 mt-0.5">
+              <span className="text-xs font-mono font-bold text-zinc-500 bg-zinc-200/60 px-2.5 py-1 rounded-md shrink-0">
                 #{String(index + 1).padStart(2, '0')}
               </span>
               <textarea
@@ -517,7 +511,7 @@ function SearchTermsPanel({
                   setTerms(newTerms);
                 }}
                 placeholder={`Digitar termo de pesquisa #${index + 1}...`}
-                className="w-full text-xs font-sans bg-transparent border-none outline-none focus:ring-0 text-zinc-100 placeholder-zinc-500 resize-none leading-relaxed"
+                className="w-full text-xs font-sans font-semibold bg-transparent border-none outline-none focus:ring-0 text-zinc-900 placeholder-zinc-400 resize-none leading-relaxed"
               />
             </div>
           ))}
@@ -525,8 +519,8 @@ function SearchTermsPanel({
       </div>
 
       {/* Action Footer */}
-      <div className="mt-6 pt-4 border-t border-zinc-500/20 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-xs opacity-75">
+      <div className="mt-6 pt-4 border-t border-zinc-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p className="text-xs text-zinc-500 font-medium">
           {!isApproved
             ? '⚠️ O diagnóstico completo continuará travado até você clicar em Salvar e Aprovar 14 Termos.'
             : '✅ Todos os 14 termos validados e salvos no Firestore. O diagnóstico GEO pode ser executado.'}
@@ -535,7 +529,7 @@ function SearchTermsPanel({
         <button
           onClick={handleSaveTerms}
           disabled={saving}
-          className="w-full sm:w-auto text-xs font-bold px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+          className="w-full sm:w-auto text-xs font-bold px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all shadow-xs cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
         >
           {saving ? (
             <><IconHourglass className="w-4 h-4" /> Salvando...</>
