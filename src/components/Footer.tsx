@@ -24,13 +24,13 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-[#f4f5f8] text-zinc-950 pt-24 border-t border-zinc-200 overflow-hidden relative grid-blueprint">
+    <footer className="bg-[#f4f5f8] text-zinc-950 pt-16 sm:pt-24 border-t border-zinc-200 overflow-hidden relative grid-blueprint">
       
       {/* Container wrapper */}
-      <div className="max-w-7xl mx-auto px-6 md:px-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-12">
         
         {/* Giant B.ROCKET text banner with real tactile 3D style */}
-        <div className="w-full text-center relative pointer-events-none select-none mb-12">
+        <div className="w-full text-center relative pointer-events-none select-none mb-8 sm:mb-12">
           <h1 className="font-display font-black text-[13vw] leading-none tracking-[0.05em] text-zinc-950 uppercase text-tactile-3d-dark">
             b.rocket
           </h1>
@@ -40,16 +40,16 @@ export default function Footer() {
         </div>
 
         {/* Divider line */}
-        <div className="h-[1px] bg-zinc-200 w-full mb-16" />
+        <div className="h-[1px] bg-zinc-200 w-full mb-10 sm:mb-16" />
 
         {/* Form and Navigation Links Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-12 mb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 mb-16 sm:mb-20">
           
           {/* Left Block (Col-6): Newsletter Form styled tactile-raised */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="tactile-raised p-8 rounded-3xl bg-white border border-zinc-200 space-y-6">
+            <div className="tactile-raised p-5 sm:p-8 rounded-2xl sm:rounded-3xl bg-white border border-zinc-200 space-y-5 sm:space-y-6">
               <div className="space-y-2">
-                <h3 className="font-display font-extrabold text-xl md:text-2xl text-zinc-950 tracking-tight uppercase">
+                <h3 className="font-display font-extrabold text-lg sm:text-xl md:text-2xl text-zinc-950 tracking-tight uppercase">
                   Assine a Newsletter de Inteligência Semântica
                 </h3>
                 <p className="text-xs text-zinc-500 font-light max-w-sm leading-relaxed">
@@ -66,7 +66,7 @@ export default function Footer() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onSubmit={handleSubscribe}
-                    className="space-y-4 pt-2"
+                    className="space-y-3.5 sm:space-y-4 pt-1"
                   >
                     <div className="relative">
                       <input
@@ -75,7 +75,7 @@ export default function Footer() {
                         placeholder="Seu Nome Completo"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-[#f1f2f5] shadow-[inset_3px_3px_6px_rgba(0,0,0,0.06),inset_-3px_-3px_6px_#fff] border border-zinc-200 rounded-xl px-4 py-3.5 text-zinc-950 font-mono text-xs placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors"
+                        className="w-full bg-[#f1f2f5] shadow-[inset_3px_3px_6px_rgba(0,0,0,0.06),inset_-3px_-3px_6px_#fff] border border-zinc-200 rounded-xl px-4 py-3.5 min-h-[44px] text-zinc-950 font-mono text-xs placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors"
                       />
                     </div>
                     <div className="relative">
@@ -85,20 +85,20 @@ export default function Footer() {
                         placeholder="Digite seu e-mail corporativo"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        className="w-full bg-[#f1f2f5] shadow-[inset_3px_3px_6px_rgba(0,0,0,0.06),inset_-3px_-3px_6px_#fff] border border-zinc-200 rounded-xl px-4 py-3.5 text-zinc-950 font-mono text-xs placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors"
+                        className="w-full bg-[#f1f2f5] shadow-[inset_3px_3px_6px_rgba(0,0,0,0.06),inset_-3px_-3px_6px_#fff] border border-zinc-200 rounded-xl px-4 py-3.5 min-h-[44px] text-zinc-950 font-mono text-xs placeholder-zinc-400 focus:outline-none focus:border-zinc-950 transition-colors"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="inline-flex items-center gap-3 text-zinc-950 hover:text-zinc-700 font-mono text-xs font-bold uppercase tracking-widest pt-4 transition-colors group cursor-pointer"
+                      className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white font-mono text-xs font-bold px-6 py-3.5 min-h-[48px] rounded-xl tracking-widest uppercase shadow-md active:scale-[0.99] transition-all cursor-pointer"
                     >
-                      Assinar ➔ 
+                      <span>Assinar Newsletter ➔</span>
                       <motion.span
                         animate={{ x: [0, 4, 0] }}
                         transition={{ repeat: Infinity, duration: 1.5 }}
                       >
-                        <ArrowRight className="w-4 h-4 text-zinc-950" />
+                        <ArrowRight className="w-4 h-4 text-white" />
                       </motion.span>
                     </button>
                     <span className="block font-mono text-[8px] text-zinc-450 uppercase tracking-wider font-semibold">

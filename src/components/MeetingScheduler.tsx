@@ -493,7 +493,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
       {isOpen && (
         <div 
           onClick={handleClose}
-          className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md z-[110] flex items-start justify-center p-4 pt-6 md:pt-16 pb-12 overflow-y-auto no-scrollbar"
+          className="fixed inset-0 bg-zinc-950/60 backdrop-blur-md z-[110] flex items-start justify-center p-3 sm:p-4 pt-4 sm:pt-6 md:pt-16 pb-8 sm:pb-12 overflow-y-auto no-scrollbar"
         >
           <motion.div
             onClick={(e) => e.stopPropagation()}
@@ -501,20 +501,20 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="bg-white border border-zinc-200 w-full max-w-xl rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 my-auto no-scrollbar"
+            className="bg-white border border-zinc-200 w-full max-w-xl rounded-2xl sm:rounded-[2.5rem] overflow-hidden shadow-2xl relative z-10 my-auto no-scrollbar"
           >
             {/* Modal Header */}
-            <div className="bg-zinc-50 border-b border-zinc-200 px-6 py-4 flex items-center justify-between relative">
+            <div className="bg-zinc-50 border-b border-zinc-200 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between relative">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse" />
-                <span className="font-mono text-[9px] md:text-[10px] text-zinc-500 font-extrabold uppercase tracking-widest">
+                <span className="font-mono text-[8.5px] sm:text-[10px] text-zinc-500 font-extrabold uppercase tracking-widest">
                   GOOGLE_CALENDAR_ENGINE // B.ROCKET_MEETING
                 </span>
               </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleClose}
-                  className="p-1.5 hover:bg-zinc-200/80 active:scale-95 transition-all text-zinc-500 hover:text-zinc-950 rounded-full cursor-pointer"
+                  className="p-2 hover:bg-zinc-200/80 active:scale-95 transition-all text-zinc-500 hover:text-zinc-950 rounded-full cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -522,14 +522,14 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 md:p-8">
+            <div className="p-4 sm:p-6 md:p-8">
               
               {/* STEP 1: SELECT DATE & TIME (Standard Entry) */}
               {step === 'date-time' && (
-                <div className="space-y-6">
+                <div className="space-y-5 sm:space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="font-display font-extrabold text-lg text-zinc-950 uppercase tracking-tight">Escolha o Dia e Horário</h4>
+                      <h4 className="font-display font-extrabold text-base sm:text-lg text-zinc-950 uppercase tracking-tight">Escolha o Dia e Horário</h4>
                       <p className="text-zinc-500 text-[11px] font-light mt-0.5">Sessão com o especialista Guilherme C. Rossi.</p>
                     </div>
                     {calendarLastUpdated && (
@@ -557,7 +557,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                           <button
                             key={index}
                             onClick={() => setSelectedDate(d)}
-                            className={`flex flex-col items-center justify-center shrink-0 w-14 py-3 rounded-xl border text-center transition-all duration-200 cursor-pointer ${
+                            className={`flex flex-col items-center justify-center shrink-0 w-14 py-3 rounded-xl border text-center transition-all duration-200 cursor-pointer min-h-[54px] ${
                               isSelected
                                 ? 'bg-zinc-950 border-zinc-950 text-white shadow-md scale-102'
                                 : 'bg-zinc-50 border-zinc-200 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950'
@@ -585,23 +585,23 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     </div>
 
                     {isLoadingBusy ? (
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {[...Array(8)].map((_, i) => (
                           <div
                             key={i}
-                            className="py-3.5 rounded-xl border border-zinc-100 bg-zinc-100 animate-pulse h-10"
+                            className="py-3.5 rounded-xl border border-zinc-100 bg-zinc-100 animate-pulse h-11"
                           />
                         ))}
                       </div>
                     ) : (
-                      <div className="grid grid-cols-4 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                         {TIME_SLOTS.filter((slot) => !isSlotBusy(slot)).map((slot) => {
                           const isSelected = selectedSlot === slot;
                           return (
                             <button
                               key={slot}
                               onClick={() => setSelectedSlot(slot)}
-                              className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 cursor-pointer ${
+                              className={`py-3.5 rounded-xl text-center border font-mono text-xs font-bold transition-all duration-200 cursor-pointer min-h-[46px] flex items-center justify-center ${
                                 isSelected
                                   ? 'bg-red-600 border-red-600 text-white shadow-md'
                                   : 'bg-white border-zinc-200 text-zinc-800 hover:bg-zinc-100 hover:border-zinc-300'
@@ -626,9 +626,9 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     <button
                       disabled={!selectedSlot}
                       onClick={() => setStep('details')}
-                      className={`font-mono text-xs font-bold px-6 py-3.5 tracking-widest uppercase transition-all duration-200 flex items-center gap-1.5 rounded-xl ${
+                      className={`w-full sm:w-auto font-mono text-xs font-bold px-6 py-3.5 min-h-[48px] tracking-widest uppercase transition-all duration-200 flex items-center justify-center gap-1.5 rounded-xl ${
                         selectedSlot
-                          ? 'bg-zinc-950 text-white hover:bg-zinc-900 cursor-pointer'
+                          ? 'bg-zinc-950 text-white hover:bg-zinc-900 cursor-pointer shadow-md'
                           : 'bg-zinc-150 text-zinc-400 cursor-not-allowed'
                       }`}
                     >
@@ -641,13 +641,13 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
 
               {/* STEP 2: USER DETAILS FORM */}
               {step === 'details' && (
-                <div className="space-y-5">
+                <div className="space-y-4 sm:space-y-5">
                   <div>
-                    <h4 className="font-display font-extrabold text-lg text-zinc-950 uppercase tracking-tight">Detalhes do Agendamento</h4>
+                    <h4 className="font-display font-extrabold text-base sm:text-lg text-zinc-950 uppercase tracking-tight">Detalhes do Agendamento</h4>
                     <p className="text-zinc-500 text-[11px] font-light mt-0.5">Preencha os dados da sua empresa para podermos gerar o briefing da reunião.</p>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3.5">
                     {/* Name */}
                     <div className="space-y-1">
                       <label className="font-mono text-[9px] text-zinc-400 uppercase font-bold block">Seu Nome Completo *</label>
@@ -656,7 +656,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                         required
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
+                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 min-h-[44px] text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
                         placeholder="Ex: João Silva"
                       />
                     </div>
@@ -669,7 +669,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                         required
                         value={visitorEmail}
                         onChange={(e) => setVisitorEmail(e.target.value)}
-                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
+                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 min-h-[44px] text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
                         placeholder="joao@empresa.com.br"
                       />
                     </div>
@@ -682,12 +682,12 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                         required
                         value={whatsapp}
                         onChange={(e) => setWhatsapp(e.target.value)}
-                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
+                        className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 min-h-[44px] text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
                         placeholder="(11) 99999-9999"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                       {/* Company */}
                       <div className="space-y-1">
                         <label className="font-mono text-[9px] text-zinc-400 uppercase font-bold block">Sua Empresa *</label>
@@ -696,7 +696,7 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                           required
                           value={company}
                           onChange={(e) => setCompany(e.target.value)}
-                          className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
+                          className="w-full bg-zinc-50 border border-zinc-200 focus:bg-white focus:border-zinc-950 px-4 py-3 min-h-[44px] text-xs md:text-sm font-sans rounded-xl focus:outline-none transition-colors"
                           placeholder="Nome da empresa"
                         />
                       </div>
@@ -729,10 +729,10 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                   </div>
 
                   {/* Navigation Actions */}
-                  <div className="pt-4 border-t border-zinc-100 flex justify-between items-center">
+                  <div className="pt-4 border-t border-zinc-100 flex flex-col-reverse sm:flex-row justify-between items-center gap-2.5">
                     <button
                       onClick={() => setStep('date-time')}
-                      className="font-mono text-xs font-bold px-4 py-3 text-zinc-400 hover:text-zinc-950 transition-colors uppercase tracking-wider"
+                      className="w-full sm:w-auto font-mono text-xs font-bold px-4 py-3 min-h-[44px] text-zinc-500 hover:text-zinc-950 transition-colors uppercase tracking-wider text-center"
                     >
                       Voltar
                     </button>
@@ -740,9 +740,9 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     <button
                       disabled={!name || !visitorEmail || !whatsapp || !company || !url || !visitorEmail.includes('@')}
                       onClick={() => setStep('confirm')}
-                      className={`font-mono text-xs font-bold px-6 py-3.5 tracking-widest uppercase transition-all duration-200 flex items-center gap-1.5 rounded-xl ${
+                      className={`w-full sm:w-auto font-mono text-xs font-bold px-6 py-3.5 min-h-[48px] tracking-widest uppercase transition-all duration-200 flex items-center justify-center gap-1.5 rounded-xl ${
                         name && visitorEmail && whatsapp && company && url && visitorEmail.includes('@')
-                          ? 'bg-zinc-950 text-white hover:bg-zinc-900 cursor-pointer'
+                          ? 'bg-zinc-950 text-white hover:bg-zinc-900 cursor-pointer shadow-md'
                           : 'bg-zinc-150 text-zinc-400 cursor-not-allowed'
                       }`}
                     >
@@ -772,31 +772,31 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                   <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-5 space-y-3">
                     <span className="font-mono text-[9px] text-zinc-400 uppercase font-black tracking-widest">RESUMO DO COMPROMISSO</span>
                     <div className="space-y-2 text-xs">
-                      <div className="flex justify-between py-1 border-b border-zinc-200/60">
-                        <span className="text-zinc-500 font-light">Especialista:</span>
-                        <span className="font-bold text-zinc-950">Guilherme Rossi (b.rocket)</span>
+                      <div className="flex justify-between py-1 border-b border-zinc-200/60 gap-2">
+                        <span className="text-zinc-500 font-light shrink-0">Especialista:</span>
+                        <span className="font-bold text-zinc-950 text-right">Guilherme Rossi (b.rocket)</span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-zinc-200/60">
-                        <span className="text-zinc-500 font-light">Dia Escolhido:</span>
-                        <span className="font-bold text-zinc-950">
+                      <div className="flex justify-between py-1 border-b border-zinc-200/60 gap-2">
+                        <span className="text-zinc-500 font-light shrink-0">Dia Escolhido:</span>
+                        <span className="font-bold text-zinc-950 text-right">
                           {selectedDate ? selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
                         </span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-zinc-200/60">
-                        <span className="text-zinc-500 font-light">Horário:</span>
-                        <span className="font-mono font-bold text-zinc-950 flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                      <div className="flex justify-between py-1 border-b border-zinc-200/60 gap-2">
+                        <span className="text-zinc-500 font-light shrink-0">Horário:</span>
+                        <span className="font-mono font-bold text-zinc-950 flex items-center gap-1 text-right">
+                          <Clock className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                           {selectedSlot} (Duração: 40m)
                         </span>
                       </div>
-                      <div className="flex justify-between py-1 border-b border-zinc-200/60">
-                        <span className="text-zinc-500 font-light">Seu E-mail:</span>
-                        <span className="font-mono font-bold text-zinc-950">{visitorEmail}</span>
+                      <div className="flex justify-between py-1 border-b border-zinc-200/60 gap-2">
+                        <span className="text-zinc-500 font-light shrink-0">Seu E-mail:</span>
+                        <span className="font-mono font-bold text-zinc-950 truncate text-right">{visitorEmail}</span>
                       </div>
-                      <div className="flex justify-between py-1">
-                        <span className="text-zinc-500 font-light">Formato:</span>
-                        <span className="font-mono font-bold text-zinc-950 text-red-600 flex items-center gap-1">
-                          <Video className="w-3.5 h-3.5 text-red-500 animate-pulse" />
+                      <div className="flex justify-between py-1 gap-2">
+                        <span className="text-zinc-500 font-light shrink-0">Formato:</span>
+                        <span className="font-mono font-bold text-zinc-950 text-red-600 flex items-center gap-1 text-right">
+                          <Video className="w-3.5 h-3.5 text-red-500 animate-pulse shrink-0" />
                           Google Meet Video Call
                         </span>
                       </div>
@@ -810,11 +810,11 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                   )}
 
                   {/* Actions */}
-                  <div className="pt-4 border-t border-zinc-100 flex justify-between items-center gap-4">
+                  <div className="pt-4 border-t border-zinc-100 flex flex-col-reverse sm:flex-row justify-between items-center gap-3">
                     <button
                       onClick={() => setStep('details')}
                       disabled={isBooking}
-                      className="font-mono text-xs font-bold px-4 py-3 text-zinc-400 hover:text-zinc-950 transition-colors uppercase tracking-wider"
+                      className="w-full sm:w-auto font-mono text-xs font-bold px-4 py-3 min-h-[44px] text-zinc-500 hover:text-zinc-950 transition-colors uppercase tracking-wider text-center"
                     >
                       Voltar
                     </button>
@@ -822,14 +822,18 @@ export default function MeetingScheduler({ onClose }: MeetingSchedulerProps) {
                     <button
                       disabled={isBooking}
                       onClick={handleConfirmBooking}
-                      className="flex-grow inline-flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-zinc-150 disabled:text-zinc-400 text-white font-mono text-xs font-bold px-6 py-4 uppercase tracking-widest transition-all rounded-xl cursor-pointer shadow-md"
+                      className="w-full sm:w-auto font-mono text-xs font-bold px-6 py-4 min-h-[48px] tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-2 rounded-xl bg-red-600 hover:bg-red-500 text-white cursor-pointer shadow-md border-t border-red-400 active:scale-[0.99]"
                     >
                       {isBooking ? (
-                        <RefreshCw className="w-4 h-4 animate-spin animate-infinite" />
+                        <>
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Confirmando...</span>
+                        </>
                       ) : (
-                        <UserCheck className="w-4 h-4" />
+                        <>
+                          <span>Confirmar Reunião Imparável ➔</span>
+                        </>
                       )}
-                      <span>{isBooking ? 'Agendando...' : 'Confirmar e Agendar'}</span>
                     </button>
                   </div>
                 </div>

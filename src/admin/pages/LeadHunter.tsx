@@ -14,6 +14,7 @@ import {
   IconTrash,
   IconMail,
   IconClipboard,
+  IconEdit,
   IconX 
 } from '../components/icons';
 import { getAuth } from 'firebase/auth';
@@ -47,7 +48,7 @@ export interface HunterLead {
   source?: 'linkedin' | 'google' | 'auto';
   status: 'unscanned' | 'audited' | 'outreach_ready' | 'contacted' | 'converted';
   temperature?: LeadTemperature;
-  sequenceStage?: number; // 1: Abordagem Inicial, 2: Follow-up Impacto, 3: Urgência, 4: Fechamento
+  sequenceStage?: number; // 0: Não iniciado, 1: Abordagem Inicial, 2: Follow-up Impacto, 3: Urgência, 4: Fechamento
   responded?: boolean;
   sentHistory?: SentHistoryItem[];
   aiCrawlersBlocked?: boolean;
@@ -85,8 +86,11 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [companySize, setCompanySize] = useState('20-200 funcionários');
   const [limit, setLimit] = useState(5);
 
-  // Copy View & Pipeline Modal
-  const [selectedLeadForCopy, setSelectedLeadForCopy] = useState<HunterLead | null>(null);
+  // Detailed Lead View Drawer / Modal
+  const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<HunterLead | null>(null);
+  const [activeDetailTab, setActiveDetailTab] = useState<'overview' | 'copies'>('overview');
+
+  // Copy View & Framework State
   const [copyTab, setCopyTab] = useState<CopyFramework>('PAS');
   const [editedLinkedinText, setEditedLinkedinText] = useState('');
   const [editedEmailText, setEditedEmailText] = useState('');
@@ -155,11 +159,11 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Mineração concluída! ${data.count || 0} novos leads reais capturados via ${miningSource.toUpperCase()}.`);
+        showToastMsg(`Mineração concluída! ${data.count || 0} novos leads capturados.`);
         fetchLeads();
       } else {
         const errData = await res.json().catch(() => ({}));
-        showToastMsg(`⚠️ erro na mineração: ${errData.error || 'Falha ao conectar na Apify API'}`);
+        showToastMsg(`⚠️ Erro na mineração: ${errData.error || 'Falha na conexão'}`);
       }
     } catch (err: any) {
       showToastMsg(`Erro ao disparar mineração: ${err.message}`);
@@ -171,7 +175,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   // Run Full 8-Agent Diagnostic
   const handleRunQuickAudit = async (lead: HunterLead) => {
     setAuditingId(lead.id);
-    showToastMsg(`Iniciando Diagnóstico Completo de 8 Agentes para ${lead.domain}...`);
+    showToastMsg(`Iniciando Diagnóstico GEO de 8 Agentes para ${lead.domain}...`);
     try {
       const token = await getAdminToken();
       const res = await fetch('/api/admin/lead-hunter/audit', {
@@ -189,13 +193,17 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Diagnóstico GEO concluído! Score real: ${data.updatedLead.geoScoreEstimado}%`);
-        setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, ...data.updatedLead } : l));
+        showToastMsg(`Diagnóstico GEO concluído! Score: ${data.updatedLead.geoScoreEstimado}%`);
+        const updatedLead = { ...lead, ...data.updatedLead };
+        setLeads(prev => prev.map(l => l.id === lead.id ? updatedLead : l));
+        if (selectedLeadForDetail?.id === lead.id) {
+          setSelectedLeadForDetail(updatedLead);
+        }
       } else {
-        showToastMsg(`Falha na auditoria de ${lead.domain}`);
+        showToastMsg(`Falha no diagnóstico de ${lead.domain}`);
       }
     } catch (err: any) {
-      showToastMsg(`Erro na auditoria: ${err.message}`);
+      showToastMsg(`Erro no diagnóstico: ${err.message}`);
     } finally {
       setAuditingId(null);
     }
@@ -219,16 +227,18 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`9 Copys de alto impacto geradas com sucesso para ${lead.company}!`);
+        showToastMsg(`9 Copys geradas com sucesso para ${lead.company}!`);
         const updated = { 
           ...lead, 
           outreachCopies: data.outreachCopies, 
           status: 'outreach_ready' as const,
           temperature: (lead.temperature || 'cold') as LeadTemperature,
-          sequenceStage: lead.sequenceStage || 1
+          sequenceStage: lead.sequenceStage || 0
         };
         setLeads(prev => prev.map(l => l.id === lead.id ? updated : l));
-        setSelectedLeadForCopy(updated);
+        if (selectedLeadForDetail?.id === lead.id) {
+          setSelectedLeadForDetail(updated);
+        }
       } else {
         showToastMsg(`Erro ao gerar copys para ${lead.company}`);
       }
@@ -254,13 +264,16 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         const data = await res.json();
-        showToastMsg(`Lead ${lead.company} promovido e transferido para a aba Leads!`);
+        showToastMsg(`Lead ${lead.company} promovido e transferido para a esteira principal!`);
         setLeads(prev => prev.filter(l => l.id !== lead.id));
+        if (selectedLeadForDetail?.id === lead.id) {
+          setSelectedLeadForDetail(null);
+        }
         if (onNavigate && data.mainLeadId) {
           onNavigate('leads', data.mainLeadId);
         }
       } else {
-        showToastMsg('Erro ao promover lead para a esteira principal');
+        showToastMsg('Erro ao promover lead');
       }
     } catch (err: any) {
       showToastMsg(`Erro ao promover lead: ${err.message}`);
@@ -281,6 +294,9 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
       if (res.ok) {
         showToastMsg(`Lead "${companyName}" removido da lista.`);
         setLeads(prev => prev.filter(l => l.id !== leadId));
+        if (selectedLeadForDetail?.id === leadId) {
+          setSelectedLeadForDetail(null);
+        }
       } else {
         showToastMsg('Erro ao excluir lead');
       }
@@ -291,7 +307,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     }
   };
 
-  // Update Lead Temperature / Responded / Sequence
+  // Update Lead Temperature / Responded / Sequence / Pipeline
   const handleUpdateLeadState = async (leadId: string, updates: Partial<HunterLead>) => {
     try {
       const token = await getAdminToken();
@@ -305,8 +321,8 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
       });
       if (res.ok) {
         setLeads(prev => prev.map(l => l.id === leadId ? { ...l, ...updates } : l));
-        if (selectedLeadForCopy && selectedLeadForCopy.id === leadId) {
-          setSelectedLeadForCopy(prev => prev ? { ...prev, ...updates } : null);
+        if (selectedLeadForDetail && selectedLeadForDetail.id === leadId) {
+          setSelectedLeadForDetail(prev => prev ? { ...prev, ...updates } : null);
         }
         showToastMsg('Status do lead atualizado!');
       }
@@ -328,7 +344,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         const blobUrl = URL.createObjectURL(blob);
         setHtmlPreviewModal({ url: blobUrl, title: `Relatório GEO Didático — ${lead.company}` });
       } else {
-        showToastMsg('Relatório HTML não encontrado. Clique em Audit para gerar primeiro.');
+        showToastMsg('Relatório HTML não encontrado. Execute o Diagnóstico primeiro.');
       }
     } catch (err: any) {
       showToastMsg(`Erro ao carregar relatório: ${err.message}`);
@@ -356,14 +372,14 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         window.URL.revokeObjectURL(url);
         showToastMsg('Download do Relatório HTML concluído!');
       } else {
-        showToastMsg('Erro ao gerar relatório HTML. Execute o Audit primeiro.');
+        showToastMsg('Erro ao gerar relatório HTML. Execute o Diagnóstico primeiro.');
       }
     } catch (err: any) {
-      showToastMsg(`Erro no download do relatório: ${err.message}`);
+      showToastMsg(`Erro no download: ${err.message}`);
     }
   };
 
-  // Helper functions to retrieve copy text for current tab
+  // Helper functions for Copy Framework keys
   const getLinkedinCopyKey = (tab: CopyFramework) => {
     switch (tab) {
       case 'PAS': return 'pasLinkedin';
@@ -402,31 +418,82 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     return lead.outreachCopies?.[key] || 'Gerando e-mail de abordagem...';
   };
 
+  // Get framework stage number (1, 2, or 3)
+  const getFrameworkStageNumber = (tab: CopyFramework): number => {
+    if (['PAS', 'BAB', 'PASTOR'].includes(tab)) return 1;
+    if (['4Ps', 'FAB', 'ACCA'].includes(tab)) return 2;
+    if (['4Us', 'QUEST', 'Falsa Lógica'].includes(tab)) return 3;
+    return 1;
+  };
+
   // Sync active copy tab into local editable text state
   useEffect(() => {
-    if (selectedLeadForCopy) {
-      setEditedLinkedinText(getLinkedinCopyText(selectedLeadForCopy, copyTab));
-      setEditedEmailText(getEmailCopyText(selectedLeadForCopy, copyTab));
+    if (selectedLeadForDetail) {
+      setEditedLinkedinText(getLinkedinCopyText(selectedLeadForDetail, copyTab));
+      setEditedEmailText(getEmailCopyText(selectedLeadForDetail, copyTab));
     }
-  }, [selectedLeadForCopy, copyTab]);
+  }, [selectedLeadForDetail, copyTab]);
+
+  // Check if a specific copy has been dispatched/sent
+  const checkIsCopySent = (lead: HunterLead, tab: CopyFramework) => {
+    const emailKey = getEmailCopyKey(tab);
+    return lead.sentHistory?.find(item => item.copyKey === emailKey);
+  };
+
+  // Toggle Sent Checkbox for Copy (Anti-Duplicidade System)
+  const handleToggleCopySent = (lead: HunterLead, tab: CopyFramework) => {
+    const emailKey = getEmailCopyKey(tab);
+    const existing = checkIsCopySent(lead, tab);
+
+    let updatedHistory: SentHistoryItem[];
+    let nextStage = lead.sequenceStage || 0;
+
+    if (existing) {
+      // Uncheck / Remove from history
+      updatedHistory = (lead.sentHistory || []).filter(item => item.copyKey !== emailKey);
+      showToastMsg(`Status da copy ${tab} alterado para NÃO ENVIADO.`);
+    } else {
+      // Check / Add to history
+      const newItem: SentHistoryItem = {
+        copyKey: emailKey,
+        sentAt: new Date().toISOString(),
+        channel: 'email',
+        subject: `Ponto cego na visibilidade IA da ${lead.company}`
+      };
+      updatedHistory = [...(lead.sentHistory || []), newItem];
+
+      const stageNum = getFrameworkStageNumber(tab);
+      nextStage = Math.max(lead.sequenceStage || 0, stageNum);
+      showToastMsg(`✓ Copy ${tab} marcada como enviada! Pipeline atualizado para Etapa ${nextStage}.`);
+    }
+
+    const updates: Partial<HunterLead> = {
+      sentHistory: updatedHistory,
+      sequenceStage: nextStage,
+      status: nextStage > 0 ? 'contacted' : lead.status,
+      temperature: lead.temperature === 'cold' && nextStage > 0 ? 'warm' : lead.temperature
+    };
+
+    handleUpdateLeadState(lead.id, updates);
+  };
 
   // Save edited copy back to Firestore
   const handleSaveEditedCopy = async () => {
-    if (!selectedLeadForCopy) return;
+    if (!selectedLeadForDetail) return;
     setSavingCopy(true);
 
     const lKey = getLinkedinCopyKey(copyTab);
     const eKey = getEmailCopyKey(copyTab);
 
     const updatedCopies = {
-      ...(selectedLeadForCopy.outreachCopies || {}),
+      ...(selectedLeadForDetail.outreachCopies || {}),
       [lKey]: editedLinkedinText,
       [eKey]: editedEmailText
     };
 
     try {
       const token = await getAdminToken();
-      const res = await fetch(`/api/admin/lead-hunter/leads/${selectedLeadForCopy.id}`, {
+      const res = await fetch(`/api/admin/lead-hunter/leads/${selectedLeadForDetail.id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -437,9 +504,9 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
       if (res.ok) {
         showToastMsg(`💾 Copy (${copyTab}) salva com sucesso!`);
-        const updatedLead = { ...selectedLeadForCopy, outreachCopies: updatedCopies };
-        setSelectedLeadForCopy(updatedLead);
-        setLeads(prev => prev.map(l => l.id === selectedLeadForCopy.id ? updatedLead : l));
+        const updatedLead = { ...selectedLeadForDetail, outreachCopies: updatedCopies };
+        setSelectedLeadForDetail(updatedLead);
+        setLeads(prev => prev.map(l => l.id === selectedLeadForDetail.id ? updatedLead : l));
       } else {
         showToastMsg('Erro ao salvar copy editada.');
       }
@@ -451,8 +518,8 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   };
 
   const handleSendDirectEmail = async () => {
-    if (!selectedLeadForCopy) return;
-    const recipientEmail = selectedLeadForCopy.email;
+    if (!selectedLeadForDetail) return;
+    const recipientEmail = selectedLeadForDetail.email;
     let currentEmailBody = editedEmailText;
 
     if (!currentEmailBody) {
@@ -464,9 +531,8 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
       currentEmailBody += `\n\n📌 Acesse a auditoria completa de visibilidade do seu domínio: https://geo.berocket.com.br`;
     }
 
-    // Extract subject line from copy text if present
     const lines = currentEmailBody.split('\n');
-    let subject = `Ponto cego na visibilidade IA da ${selectedLeadForCopy.company}`;
+    let subject = `Ponto cego na visibilidade IA da ${selectedLeadForDetail.company}`;
     let body = currentEmailBody;
 
     if (lines[0].toLowerCase().startsWith('assunto:')) {
@@ -484,7 +550,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          leadId: selectedLeadForCopy.id,
+          leadId: selectedLeadForDetail.id,
           recipientEmail,
           subject,
           emailBody: body,
@@ -496,20 +562,22 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
         showToastMsg(`🚀 E-mail enviado com sucesso para ${recipientEmail}!`);
         setCopiedField('sent');
 
+        const emailKey = getEmailCopyKey(copyTab);
         const newHistoryItem: SentHistoryItem = {
-          copyKey: getEmailCopyKey(copyTab),
+          copyKey: emailKey,
           sentAt: new Date().toISOString(),
           channel: 'email',
           subject,
           attachPdf: attachHtmlReport
         };
 
-        const updatedHistory = [...(selectedLeadForCopy.sentHistory || []), newHistoryItem];
-        const nextStage = Math.min((selectedLeadForCopy.sequenceStage || 1) + 1, 4);
+        const updatedHistory = [...(selectedLeadForDetail.sentHistory || []).filter(h => h.copyKey !== emailKey), newHistoryItem];
+        const stageNum = getFrameworkStageNumber(copyTab);
+        const nextStage = Math.max(selectedLeadForDetail.sequenceStage || 0, stageNum);
 
-        handleUpdateLeadState(selectedLeadForCopy.id, {
+        handleUpdateLeadState(selectedLeadForDetail.id, {
           status: 'contacted',
-          temperature: 'warm',
+          temperature: selectedLeadForDetail.temperature === 'cold' ? 'warm' : selectedLeadForDetail.temperature,
           sequenceStage: nextStage,
           sentHistory: updatedHistory
         });
@@ -530,7 +598,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  // Format WhatsApp Link
   const formatWhatsappLink = (phoneStr?: string) => {
     if (!phoneStr) return null;
     const cleanDigits = phoneStr.replace(/\D/g, '');
@@ -539,9 +606,20 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     return `https://wa.me/${fullNumber}`;
   };
 
+  // Get sequence stage label for table/pipeline
+  const getPipelineLabel = (stage?: number) => {
+    switch (stage) {
+      case 1: return 'Iniciado - Etapa 1 (Abordagem)';
+      case 2: return 'Iniciado - Etapa 2 (Follow-up)';
+      case 3: return 'Iniciado - Etapa 3 (Urgência)';
+      case 4: return 'Iniciado - Etapa 4 (Fechamento)';
+      default: return 'Não iniciado';
+    }
+  };
+
   // Metrics summary
   const totalLeads = leads.length;
-  const auditedLeads = leads.filter(l => l.status !== 'unscanned').length;
+  const auditedLeads = leads.filter(l => l.status !== 'unscanned' || l.geoScoreEstimado !== undefined).length;
   const readyLeads = leads.filter(l => l.status === 'outreach_ready' || l.outreachCopies).length;
   const hotLeadsCount = leads.filter(l => l.temperature === 'hot' || l.responded).length;
 
@@ -554,22 +632,22 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
     { key: 'ACCA', label: 'ACCA (Follow-up 3)', desc: 'Alerta-Compreensão-Convicção', stage: 'Etapa 2: Follow-up de Prova' },
     { key: '4Us', label: '4Us (Urgência 1)', desc: 'Útil-Urgente-Único-Ultraespecífico', stage: 'Etapa 3: Urgência & Fechamento' },
     { key: 'QUEST', label: 'QUEST (Urgência 2)', desc: 'Qualificar-Educar-Transição', stage: 'Etapa 3: Urgência & Fechamento' },
-    { key: 'Falsa Lógica', label: 'Falsa Lógica (Incontestável)', desc: 'Persuasão por Lógica Incontestável', stage: 'Etapa 3: Urgência & Fechamento' },
+    { key: 'Falsa Lógica', label: 'Falsa Lógica', desc: 'Persuasão por Lógica Incontestável', stage: 'Etapa 3: Urgência & Fechamento' },
   ];
 
   const getTemperatureBadge = (lead: HunterLead) => {
     const temp = lead.temperature || (lead.responded ? 'hot' : lead.status === 'contacted' ? 'warm' : 'cold');
     switch (temp) {
       case 'hot':
-        return <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold bg-red-100 text-red-700 border border-red-300 flex items-center gap-1">🚀 QUENTE (Respondeu)</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-red-100 text-red-700 border border-red-200">🚀 Quente</span>;
       case 'warm':
-        return <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">🔥 MORNO (Em Cadência)</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">🔥 Morno</span>;
       case 'converted':
-        return <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">✅ CONVERTIDO</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">✅ Convertido</span>;
       case 'lost':
-        return <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold bg-zinc-200 text-zinc-600 border border-zinc-300 flex items-center gap-1">❌ INATIVO</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-zinc-200 text-zinc-600 border border-zinc-300">❌ Inativo</span>;
       default:
-        return <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-extrabold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">❄️ FRIO (Minerado)</span>;
+        return <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-blue-50 text-blue-700 border border-blue-200">❄️ Frio</span>;
     }
   };
 
@@ -591,16 +669,16 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold tracking-wider">
-                ESTEIRA DE OUTBOUND // LINKEDIN VS GOOGLE MEU NEGÓCIO
+                ESTEIRA PIPELINE DE OUTBOUND // GOOGLE & LINKEDIN
               </span>
-              <span className="text-[10px] font-mono text-zinc-400">lead_hunter_v10</span>
+              <span className="text-[10px] font-mono text-zinc-400">v11_pipeline</span>
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight font-display text-white flex items-center gap-3">
               <IconTarget className="w-7 h-7 text-emerald-400" />
               Lead Hunter — Inteligência Comercial Outbound
             </h1>
             <p className="text-zinc-400 text-xs mt-1 max-w-2xl leading-relaxed">
-              Mineração autônoma por fonte (LinkedIn Decisores B2B ou Google Meu Negócio / Maps), captação de Telefone/WhatsApp, E-mail e Endereço, com esteira de 9 copys e controle de temperatura.
+              Tabela pipeline limpa para qualificação visual de empresas, com diagnóstico GEO instantâneo e gestão de copys anti-duplicidade.
             </p>
           </div>
         </div>
@@ -620,7 +698,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
         <div className="tactile-raised p-4 bg-white rounded-2xl border border-zinc-200/60 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Micro-Auditados (8 Agentes)</p>
+            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Diagnóstico GEO (8 Agentes)</p>
             <p className="text-2xl font-extrabold text-emerald-600 font-display mt-0.5">{auditedLeads}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
@@ -630,7 +708,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
         <div className="tactile-raised p-4 bg-white rounded-2xl border border-zinc-200/60 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Copys & Sequência Pronta</p>
+            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Copys Prontas</p>
             <p className="text-2xl font-extrabold text-blue-600 font-display mt-0.5">{readyLeads}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
@@ -640,7 +718,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
 
         <div className="tactile-raised p-4 bg-white rounded-2xl border border-zinc-200/60 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Leads Quentes (Responderam)</p>
+            <p className="text-[11px] font-mono text-zinc-400 uppercase font-semibold">Leads Quentes</p>
             <p className="text-2xl font-extrabold text-red-600 font-display mt-0.5">{hotLeadsCount}</p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
@@ -650,34 +728,32 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
       </div>
 
       {/* Main Mining Control Panel */}
-      <div className="tactile-card p-6 bg-white rounded-2xl border border-zinc-200/60 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+      <div className="tactile-card p-5 bg-white rounded-2xl border border-zinc-200/60 shadow-xs space-y-3">
+        <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
           <div className="flex items-center gap-2">
-            <IconBot className="w-5 h-5 text-zinc-800" />
-            <h2 className="font-bold text-sm font-display text-zinc-900">Parâmetros de Mineração Autônoma</h2>
+            <IconBot className="w-4 h-4 text-zinc-800" />
+            <h2 className="font-bold text-xs font-display text-zinc-900 uppercase tracking-wider">Parâmetros de Mineração Autônoma</h2>
           </div>
-          <span className="text-xs font-mono text-zinc-400">Fase 1: Captação de Decisores por Fonte</span>
+          <span className="text-[11px] font-mono text-zinc-400">Apify / Google Maps & LinkedIn</span>
         </div>
 
-        <form onSubmit={handleStartMining} className="space-y-4">
-          
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
-            {/* Mining Data Source Selector */}
+        <form onSubmit={handleStartMining} className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3 items-end">
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-zinc-700 mb-1">Fonte de Mineração / Dados</label>
+              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Fonte de Mineração</label>
               <select
                 value={miningSource}
                 onChange={e => setMiningSource(e.target.value as any)}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-300 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-semibold"
               >
-                <option value="google">📍 Google (Business / Maps + Orgânico)</option>
-                <option value="linkedin">💼 LinkedIn (Decisores B2B via Apify)</option>
-                <option value="auto">⚡ Automático (Inteligência Combinada)</option>
+                <option value="google">📍 Google (Business / Maps)</option>
+                <option value="linkedin">💼 LinkedIn (Decisores B2B)</option>
+                <option value="auto">⚡ Automático (Combinado)</option>
               </select>
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
+              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Nicho / Segmento</label>
               <input
                 type="text"
                 value={niche}
@@ -689,19 +765,19 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 mb-1">Localização</label>
+              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Localização</label>
               <input
                 type="text"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
-                placeholder="Ex: São Paulo SP, Brasil"
+                placeholder="Ex: Brasil"
                 className="w-full px-3 py-2 text-xs rounded-xl border border-zinc-200 bg-zinc-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 font-medium"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 mb-1">Qtd. Leads</label>
+              <label className="block text-[11px] font-semibold text-zinc-700 mb-1">Qtd. Leads</label>
               <select
                 value={limit}
                 onChange={e => setLimit(Number(e.target.value))}
@@ -712,7 +788,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 <option value={15}>15 leads</option>
                 <option value={20}>20 leads</option>
                 <option value={30}>30 leads</option>
-                <option value={50}>50 leads</option>
               </select>
             </div>
 
@@ -720,7 +795,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               <button
                 type="submit"
                 disabled={mining}
-                className="w-full py-2.5 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-2 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 h-9"
               >
                 {mining ? (
                   <>
@@ -736,459 +811,586 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
               </button>
             </div>
           </div>
-
         </form>
       </div>
 
-      {/* Redesigned Harmonious Card-Based Leads List */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between px-1">
-          <h2 className="font-bold text-base font-display text-zinc-900 flex items-center gap-2">
-            <span>Esteira Comercial — Leads Capturados</span>
-            <span className="text-xs font-mono font-normal text-zinc-400">({leads.length})</span>
-          </h2>
-          <span className="text-xs font-mono text-zinc-400">Ordenado por recente</span>
+      {/* Clean Pipeline Table View */}
+      <div className="bg-white rounded-2xl border border-zinc-200/90 shadow-xs overflow-hidden">
+        
+        {/* Table Toolbar / Header */}
+        <div className="p-4 border-b border-zinc-100 flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h2 className="font-bold text-base font-display text-zinc-950 flex items-center gap-2">
+              <span>Pipeline de Leads</span>
+              <span className="text-xs font-mono font-normal text-zinc-400">({leads.length} capturados)</span>
+            </h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Clique em uma linha para abrir a página completa do lead com copys e entregáveis.</p>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-mono">
+            <button
+              onClick={fetchLeads}
+              className="p-2 hover:bg-zinc-100 text-zinc-600 rounded-lg transition-all cursor-pointer border border-zinc-200"
+              title="Atualizar lista"
+            >
+              <IconRefresh className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {loading ? (
-          <div className="p-12 bg-white rounded-2xl border border-zinc-200 text-center text-zinc-500 text-xs font-mono flex flex-col items-center gap-3">
+          <div className="p-12 text-center text-zinc-500 text-xs font-mono flex flex-col items-center gap-3">
             <div className="w-6 h-6 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin" />
-            <span>Carregando esteira de prospecção do Firestore...</span>
+            <span>Carregando pipeline de leads do Firestore...</span>
           </div>
         ) : leads.length === 0 ? (
-          <div className="p-12 bg-white rounded-2xl border border-zinc-200 text-center text-zinc-400 text-xs space-y-2">
+          <div className="p-12 text-center text-zinc-400 text-xs space-y-2">
             <IconTarget className="w-10 h-10 mx-auto text-zinc-300" />
-            <p className="font-semibold text-zinc-700">Nenhum lead nesta lista</p>
-            <p>Preencha os parâmetros acima e clique em Minerar para trazer novas empresas qualificadas.</p>
+            <p className="font-semibold text-zinc-700">Nenhum lead minerado ainda</p>
+            <p>Preencha os parâmetros de mineração acima e clique em Minerar.</p>
           </div>
         ) : (
-          <div className="space-y-3.5">
-            {leads.map(lead => {
-              const waLink = formatWhatsappLink(lead.phone);
-              return (
-                <div 
-                  key={lead.id}
-                  className="bg-white rounded-2xl border border-zinc-200/90 p-5 shadow-xs hover:shadow-md transition-all space-y-4"
-                >
-                  {/* Top Header Bar: Company, Decisor & Temperature Controls */}
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-zinc-100 pb-3.5">
-                    
-                    {/* Left Info: Company & Source Badge */}
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-mono font-extrabold uppercase tracking-wide ${
-                          lead.source === 'google' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'
-                        }`}>
-                          {lead.source === 'google' ? '📍 Google Business' : '💼 LinkedIn'}
-                        </span>
-                        <h3 className="font-bold text-base text-zinc-950 font-display">{lead.company}</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-zinc-50/80 border-b border-zinc-200 text-zinc-500 font-mono uppercase text-[10px]">
+                  <th className="py-3 px-4 font-bold">Empresa / Contato</th>
+                  <th className="py-3 px-3 font-bold">URL</th>
+                  <th className="py-3 px-3 font-bold">Temperatura</th>
+                  <th className="py-3 px-3 font-bold">Score</th>
+                  <th className="py-3 px-3 font-bold text-center">Diagnóstico</th>
+                  <th className="py-3 px-3 font-bold">Pipeline (Follow-up)</th>
+                  <th className="py-3 px-3 font-bold text-center">Promover</th>
+                  <th className="py-3 px-4 font-bold text-right">Excluir</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {leads.map(lead => {
+                  const isAudited = lead.status !== 'unscanned' || lead.geoScoreEstimado !== undefined;
+                  const scoreVal = lead.geoScoreEstimado !== undefined ? lead.geoScoreEstimado : 0;
+                  const targetUrl = lead.website || `https://${lead.domain}`;
+
+                  return (
+                    <tr 
+                      key={lead.id}
+                      onClick={() => {
+                        setSelectedLeadForDetail(lead);
+                        setActiveDetailTab('overview');
+                      }}
+                      className="hover:bg-zinc-50/80 transition-colors cursor-pointer group"
+                    >
+                      {/* Empresa & Contato */}
+                      <td className="py-3.5 px-4 font-medium text-zinc-950">
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-zinc-950 font-display text-sm group-hover:text-blue-600 transition-colors">
+                              {lead.company}
+                            </span>
+                            <span className={`px-1.5 py-0.2 text-[9px] font-mono rounded font-extrabold uppercase ${
+                              lead.source === 'google' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-purple-50 text-purple-700 border border-purple-200'
+                            }`}>
+                              {lead.source === 'google' ? 'Google' : 'LinkedIn'}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-zinc-500 font-sans mt-0.5">
+                            👤 {lead.contactName || 'Contato a confirmar'} {lead.contactRole ? `(${lead.contactRole})` : ''}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* URL (Clicável) */}
+                      <td className="py-3.5 px-3" onClick={e => e.stopPropagation()}>
                         <a
-                          href={lead.website || `https://${lead.domain}`}
+                          href={targetUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-xs text-blue-600 hover:underline font-mono"
+                          className="text-blue-600 hover:underline font-mono text-xs flex items-center gap-1 inline-flex"
+                          title={`Visitar ${targetUrl}`}
                         >
-                          {lead.isSocialOnly ? (lead.website || lead.domain) : lead.domain} ↗
+                          <span className="truncate max-w-[140px]">{lead.domain}</span>
+                          <span>↗</span>
                         </a>
-                        {lead.niche && (
-                          <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 rounded text-[10px] font-mono">
-                            {lead.niche}
-                          </span>
-                        )}
-                      </div>
+                      </td>
 
-                      {/* Decisor & Contacts */}
-                      <div className="flex items-center gap-3 text-xs text-zinc-600 flex-wrap pt-0.5">
-                        <span className="inline-flex items-center gap-1.5">
-                          {lead.photoUrl ? (
-                            <img src={lead.photoUrl} alt={lead.contactName} className="w-5 h-5 rounded-full object-cover border border-zinc-200" />
-                          ) : (
-                            <span>👤</span>
-                          )}
-                          <strong>{lead.contactName || 'Contato a confirmar'}</strong> ({lead.contactRole || 'CEO'})
-                        </span>
-                        <span className="text-zinc-300">•</span>
-                        <span>✉️ <span className="font-mono text-zinc-800">{lead.email || <em className="text-zinc-400 font-sans">E-mail a confirmar</em>}</span></span>
-                        
-                        {/* Phone & WhatsApp 1-Click Link */}
-                        {lead.phone && (
-                          <>
-                            <span className="text-zinc-300">•</span>
-                            <span className="font-mono text-zinc-800">📞 {lead.phone}</span>
-                            {waLink && (
-                              <a 
-                                href={waLink} 
-                                target="_blank" 
-                                rel="noreferrer" 
-                                className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-mono text-[10px] font-bold hover:bg-emerald-200 transition-all inline-flex items-center gap-1"
-                              >
-                                💬 WhatsApp ↗
-                              </a>
-                            )}
-                          </>
-                        )}
-
-                        {lead.address && (
-                          <>
-                            <span className="text-zinc-300">•</span>
-                            <span className="text-zinc-500 font-mono text-[11px]">📍 {lead.address}</span>
-                          </>
-                        )}
-
-                        {lead.linkedinUrl && (
-                          <>
-                            <span className="text-zinc-300">•</span>
-                            <a 
-                              href={lead.linkedinUrl} 
-                              target="_blank" 
-                              rel="noreferrer" 
-                              className="text-blue-600 hover:underline font-mono text-[11px] font-bold"
-                            >
-                              LinkedIn Profile →
-                            </a>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Right Info: Temperature Dropdown & Responded Status */}
-                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                      {/* Temperature Dropdown */}
-                      <div className="flex items-center gap-1.5 bg-zinc-50 border border-zinc-200 rounded-xl px-2.5 py-1">
-                        <span className="text-[10px] font-mono text-zinc-400 font-bold uppercase">TEMP:</span>
+                      {/* Temperatura do Lead (Dropdown) */}
+                      <td className="py-3.5 px-3" onClick={e => e.stopPropagation()}>
                         <select
                           value={lead.temperature || (lead.responded ? 'hot' : lead.status === 'contacted' ? 'warm' : 'cold')}
                           onChange={e => handleUpdateLeadState(lead.id, { temperature: e.target.value as LeadTemperature })}
-                          className="bg-transparent text-xs font-mono font-bold text-zinc-900 focus:outline-none cursor-pointer"
+                          className="bg-zinc-50 border border-zinc-200 hover:border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono font-bold text-zinc-900 focus:outline-none cursor-pointer"
                         >
-                          <option value="cold">❄️ Frio (Não Abordado)</option>
-                          <option value="warm">🔥 Morno (Em Cadência)</option>
-                          <option value="hot">🚀 Quente (Respondeu!)</option>
-                          <option value="converted">✅ Convertido (Cliente)</option>
-                          <option value="lost">❌ Inativo / Perdido</option>
+                          <option value="cold">❄️ Frio</option>
+                          <option value="warm">🔥 Morno</option>
+                          <option value="hot">🚀 Quente</option>
+                          <option value="converted">✅ Convertido</option>
+                          <option value="lost">❌ Inativo</option>
                         </select>
-                      </div>
+                      </td>
 
-                      {/* Responded Toggle */}
-                      <button
-                        onClick={() => {
-                          const newResponded = !lead.responded;
-                          handleUpdateLeadState(lead.id, { 
-                            responded: newResponded,
-                            temperature: newResponded ? 'hot' : (lead.temperature || 'warm')
-                          });
-                        }}
-                        title="Marcar se o lead respondeu à abordagem"
-                        className={`px-3 py-1 rounded-xl text-xs font-mono font-bold border transition-all cursor-pointer flex items-center gap-1 ${
-                          lead.responded 
-                            ? 'bg-red-500 text-white border-red-600 shadow-xs' 
-                            : 'bg-zinc-100 text-zinc-600 border-zinc-200 hover:bg-zinc-200'
-                        }`}
-                      >
-                        <span>💬 {lead.responded ? 'Respondeu ✓' : 'Aguardando Resposta'}</span>
-                      </button>
-                    </div>
+                      {/* Score GEO */}
+                      <td className="py-3.5 px-3 font-mono font-bold">
+                        {isAudited ? (
+                          <span className={`px-2 py-0.5 rounded text-xs inline-block ${
+                            scoreVal >= 50 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {scoreVal}%
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 font-normal text-[11px]">Pendente</span>
+                        )}
+                      </td>
 
-                  </div>
+                      {/* Botão Diagnóstico (Mudar para Diagnostico) */}
+                      <td className="py-3.5 px-3 text-center" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleRunQuickAudit(lead)}
+                          disabled={auditingId === lead.id}
+                          className="px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-300/80 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto"
+                          title="Rodar Diagnóstico de 8 Agentes Especialistas"
+                        >
+                          <IconActivity className={`w-3.5 h-3.5 ${auditingId === lead.id ? 'animate-spin text-emerald-600' : ''}`} />
+                          <span>Diagnóstico</span>
+                        </button>
+                      </td>
 
-                  {/* Middle Section: GEO Score & IA Diagnostic Bar (Exibido apenas se auditado) */}
-                  {lead.status !== 'unscanned' || lead.diagnosticId || lead.geoScoreEstimado !== undefined ? (
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-zinc-50/70 p-3 rounded-xl border border-zinc-150 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="font-semibold text-zinc-700">Score GEO Real:</span>
-                        <span className={`font-bold font-mono px-2.5 py-1 rounded-lg text-xs ${
-                          (lead.geoScoreEstimado || 0) < 40 ? 'bg-red-100 text-red-700 border border-red-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
-                        }`}>
-                          {lead.geoScoreEstimado || 0}%
-                        </span>
-                        <span className={`text-[11px] font-semibold ${lead.aiCrawlersBlocked ? 'text-red-600' : 'text-emerald-600'}`}>
-                          {lead.aiCrawlersBlocked ? '⚠️ Bloqueia Robôs no robots.txt' : '✓ Robôs IA permitidos'}
-                        </span>
-                      </div>
+                      {/* Pipeline (Follow up: Não iniciado, Iniciado 1, 2, 3, 4...) */}
+                      <td className="py-3.5 px-3" onClick={e => e.stopPropagation()}>
+                        <select
+                          value={lead.sequenceStage || 0}
+                          onChange={e => {
+                            const newStage = Number(e.target.value);
+                            handleUpdateLeadState(lead.id, { 
+                              sequenceStage: newStage,
+                              status: newStage > 0 ? 'contacted' : lead.status,
+                              temperature: newStage > 0 && lead.temperature === 'cold' ? 'warm' : lead.temperature
+                            });
+                          }}
+                          className="bg-zinc-50 border border-zinc-200 hover:border-zinc-300 rounded-lg px-2 py-1 text-xs font-mono font-medium text-zinc-900 focus:outline-none cursor-pointer max-w-[180px]"
+                        >
+                          <option value={0}>⚪ Não iniciado</option>
+                          <option value={1}>🟡 Iniciado (Etapa 1 - Abordagem)</option>
+                          <option value={2}>🟠 Iniciado (Etapa 2 - Follow-up)</option>
+                          <option value={3}>🔴 Iniciado (Etapa 3 - Urgência)</option>
+                          <option value={4}>🟢 Iniciado (Etapa 4 - Fechamento)</option>
+                        </select>
+                      </td>
 
-                      {lead.citedCompetitor && (
-                        <div className="text-[11px] text-zinc-500 font-mono">
-                          Concorrente Citado nas IAs: <strong className="text-zinc-800">{lead.citedCompetitor}</strong>
+                      {/* Promover GEO */}
+                      <td className="py-3.5 px-3 text-center" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => handlePromoteToMainPipeline(lead)}
+                          disabled={promotingId === lead.id}
+                          className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center gap-1 mx-auto"
+                          title="Promover para esteira principal de leads"
+                        >
+                          <IconRocket className={`w-3.5 h-3.5 ${promotingId === lead.id ? 'animate-spin' : ''}`} />
+                          <span>Promover</span>
+                        </button>
+                      </td>
+
+                      {/* Excluir */}
+                      <td className="py-3.5 px-4 text-right" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleDeleteLead(lead.id, lead.company)}
+                          disabled={deletingId === lead.id}
+                          className="p-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg border border-red-200 transition-all cursor-pointer inline-flex items-center justify-center"
+                          title="Excluir Lead"
+                        >
+                          <IconTrash className={`w-3.5 h-3.5 ${deletingId === lead.id ? 'animate-spin' : ''}`} />
+                        </button>
+                      </td>
+
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+      </div>
+
+      {/* FULL LEAD DETAIL DRAWER / PAGE MODAL (Ao Clicar no Lead) */}
+      {selectedLeadForDetail && (
+        <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-2xl border border-zinc-200 space-y-5 max-h-[92vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-100 pb-4 gap-3">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-[10px] font-mono uppercase bg-zinc-900 text-white font-bold px-2 py-0.5 rounded">
+                    GERENCIAMENTO COMPLETO DO LEAD
+                  </span>
+                  {getTemperatureBadge(selectedLeadForDetail)}
+                  <span className="px-2 py-0.5 bg-zinc-100 text-zinc-700 font-mono text-[10px] rounded font-bold">
+                    Pipeline: {getPipelineLabel(selectedLeadForDetail.sequenceStage)}
+                  </span>
+                </div>
+                <h2 className="text-xl font-extrabold text-zinc-950 font-display flex items-center gap-2">
+                  <span>{selectedLeadForDetail.company}</span>
+                  <a
+                    href={selectedLeadForDetail.website || `https://${selectedLeadForDetail.domain}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-blue-600 hover:underline font-mono font-normal"
+                  >
+                    {selectedLeadForDetail.domain} ↗
+                  </a>
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditingLead(selectedLeadForDetail)}
+                  className="px-3 py-1.5 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-xl text-xs font-bold font-mono flex items-center gap-1 cursor-pointer shadow-xs"
+                >
+                  <IconEdit className="w-3.5 h-3.5" />
+                  <span>Editar Dados</span>
+                </button>
+                <button 
+                  onClick={() => setSelectedLeadForDetail(null)}
+                  className="text-zinc-400 hover:text-zinc-800 p-1.5 rounded-lg cursor-pointer"
+                >
+                  <IconX className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Navigation Tabs inside Lead Page */}
+            <div className="flex items-center gap-2 border-b border-zinc-100 pb-2 font-mono text-xs">
+              <button
+                onClick={() => setActiveDetailTab('overview')}
+                className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer ${
+                  activeDetailTab === 'overview'
+                    ? 'bg-zinc-950 text-white shadow-xs'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                }`}
+              >
+                📋 Visão Geral & Entregáveis
+              </button>
+              <button
+                onClick={() => {
+                  setActiveDetailTab('copies');
+                  if (!selectedLeadForDetail.outreachCopies) {
+                    handleGenerateOutreach(selectedLeadForDetail);
+                  }
+                }}
+                className={`px-4 py-2 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeDetailTab === 'copies'
+                    ? 'bg-zinc-950 text-white shadow-xs'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                }`}
+              >
+                <IconSend className="w-3.5 h-3.5 text-emerald-400" />
+                <span>✍️ Gerenciador de Copys & Disparos</span>
+              </button>
+            </div>
+
+            {/* TAB 1: OVERVIEW & DELIVERABLES */}
+            {activeDetailTab === 'overview' && (
+              <div className="space-y-5">
+                
+                {/* Collected Info Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  {/* Contact Info Card */}
+                  <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
+                    <h3 className="font-bold text-xs font-mono uppercase text-zinc-400">Decisor & Contato</h3>
+                    <div className="text-xs space-y-1.5">
+                      <p><strong>Nome:</strong> {selectedLeadForDetail.contactName || 'Contato a confirmar'}</p>
+                      <p><strong>Cargo:</strong> {selectedLeadForDetail.contactRole || 'CEO'}</p>
+                      <p><strong>E-mail:</strong> <span className="font-mono text-zinc-800">{selectedLeadForDetail.email || 'N/A'}</span></p>
+                      {selectedLeadForDetail.phone && (
+                        <div className="flex items-center gap-2 pt-1">
+                          <span className="font-mono font-bold text-zinc-800">📞 {selectedLeadForDetail.phone}</span>
+                          {formatWhatsappLink(selectedLeadForDetail.phone) && (
+                            <a
+                              href={formatWhatsappLink(selectedLeadForDetail.phone)!}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-mono text-[10px] font-bold hover:bg-emerald-200"
+                            >
+                              💬 WhatsApp ↗
+                            </a>
+                          )}
                         </div>
                       )}
                     </div>
-                  ) : (
-                    <div className="flex items-center justify-between bg-zinc-50/50 p-2.5 rounded-xl border border-dashed border-zinc-200 text-xs text-zinc-400 font-mono">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-                        <span>Pendente de Diagnóstico GEO — Clique em <strong>"Audit 8 Agentes"</strong> para calcular o score real.</span>
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Bottom Action Bar: Unified Height (h-9), Clean Alignment & Cohesive Styling */}
-                  <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                    
-                    {/* Left Subgroup: Client Deliverables */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase mr-1 hidden sm:inline">Entregáveis:</span>
-                      <button
-                        onClick={() => handleViewHtmlReport(lead)}
-                        className="h-9 px-3.5 bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-300 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                      >
-                        <span>👁️ Ver HTML</span>
-                      </button>
-                      <button
-                        onClick={() => handleDownloadHtmlReport(lead)}
-                        className="h-9 px-3.5 bg-white hover:bg-emerald-50 text-emerald-800 border border-zinc-300 hover:border-emerald-300 rounded-xl text-xs font-mono font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                      >
-                        <span>🌐 Baixar HTML</span>
-                      </button>
-                    </div>
-
-                    {/* Right Subgroup: Agent Pipeline Actions */}
-                    <div className="flex items-center gap-2">
-                      
-                      {/* Audit 8 Agents */}
-                      <button
-                        onClick={() => handleRunQuickAudit(lead)}
-                        disabled={auditingId === lead.id}
-                        title="Rodar diagnóstico completo com os 8 Agentes Especialistas"
-                        className="h-9 px-3.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 border border-zinc-200/90 rounded-xl text-xs font-mono font-semibold transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <IconActivity className={`w-3.5 h-3.5 ${auditingId === lead.id ? 'animate-spin' : ''}`} />
-                        <span>Audit 8 Agentes</span>
-                      </button>
-
-                      {/* Copy Pipeline */}
-                      <button
-                        onClick={() => {
-                          if (lead.outreachCopies) {
-                            setSelectedLeadForCopy(lead);
-                          } else {
-                            handleGenerateOutreach(lead);
-                          }
-                        }}
-                        disabled={generatingCopyId === lead.id}
-                        className="h-9 px-4 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-mono font-extrabold transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
-                      >
-                        <IconSend className={`w-3.5 h-3.5 text-emerald-400 ${generatingCopyId === lead.id ? 'animate-bounce' : ''}`} />
-                        <span>{lead.outreachCopies ? 'Ver Copys (Pipeline)' : 'Gerar 9 Copys'}</span>
-                      </button>
-
-                      {/* Edit Lead */}
-                      <button
-                        onClick={() => setEditingLead(lead)}
-                        title="Editar dados deste lead (Empresa, Nome, E-mail, Telefone, etc)"
-                        className="h-9 px-3 bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-300 rounded-xl text-xs font-mono font-semibold transition-all cursor-pointer flex items-center justify-center gap-1 shadow-xs"
-                      >
-                        <span>✏️ Editar</span>
-                      </button>
-
-                      {/* Promote to Main Lead Workspace */}
-                      <button
-                        onClick={() => handlePromoteToMainPipeline(lead)}
-                        disabled={promotingId === lead.id}
-                        title="Promover lead e transferir para a aba Leads principal"
-                        className="h-9 px-3.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/90 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
-                      >
-                        <IconRocket className={`w-3.5 h-3.5 ${promotingId === lead.id ? 'animate-spin' : ''}`} />
-                        <span>Promover GEO</span>
-                      </button>
-
-                      {/* Delete Lead */}
-                      <button
-                        onClick={() => handleDeleteLead(lead.id, lead.company)}
-                        disabled={deletingId === lead.id}
-                        title="Excluir este lead da lista"
-                        className="h-9 w-9 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/90 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs"
-                      >
-                        <IconTrash className={`w-3.5 h-3.5 ${deletingId === lead.id ? 'animate-spin' : ''}`} />
-                      </button>
-
-                    </div>
-
                   </div>
 
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Copy Pipeline & Email Dispatcher Modal (With Edit & Save Support) */}
-      {selectedLeadForCopy && (
-        <div className="fixed inset-0 z-50 bg-zinc-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-2xl border border-zinc-200 space-y-4 max-h-[92vh] overflow-y-auto">
-            
-            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono uppercase bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                    ESTEIRA DE COPYS & FOLLOW-UP (9 FRAMEWORKS)
-                  </span>
-                  {getTemperatureBadge(selectedLeadForCopy)}
-                </div>
-                <h3 className="text-lg font-bold text-zinc-900 font-display mt-1">
-                  Cadência para {selectedLeadForCopy.contactName || selectedLeadForCopy.company} ({selectedLeadForCopy.company})
-                </h3>
-              </div>
-              <button 
-                onClick={() => setSelectedLeadForCopy(null)}
-                className="text-zinc-400 hover:text-zinc-800 p-1.5 rounded-lg cursor-pointer"
-              >
-                <IconX className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Framework Switcher Tabs Grouped by Sequence Stage */}
-            <div className="space-y-2">
-              <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase block">Selecione o Framework / Estágio da Cadência:</span>
-              <div className="flex flex-wrap gap-1.5 border-b border-zinc-100 pb-3">
-                {frameworksList.map(fw => (
-                  <button
-                    key={fw.key}
-                    onClick={() => setCopyTab(fw.key)}
-                    title={`${fw.desc} (${fw.stage})`}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer font-mono ${
-                      copyTab === fw.key 
-                        ? 'bg-zinc-950 text-white shadow-sm' 
-                        : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-                    }`}
-                  >
-                    {fw.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Selected Framework Banner */}
-            <div className="px-3 py-2 bg-zinc-100 rounded-xl text-xs font-mono text-zinc-700 border border-zinc-200/80 flex items-center justify-between">
-              <span><strong>Fase:</strong> {frameworksList.find(f => f.key === copyTab)?.stage} — <strong>Estrutura:</strong> {frameworksList.find(f => f.key === copyTab)?.desc}</span>
-            </div>
-
-            {/* Copy Content Editors */}
-            <div className="space-y-4">
-              
-              {/* LinkedIn Direct Message Editor */}
-              <div className="tactile-raised p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-zinc-800 font-display flex items-center gap-1.5">
-                    <span>💬 Message Direct LinkedIn ({copyTab}) — Editable</span>
-                  </span>
-                  <button
-                    onClick={() => copyToClipboard(editedLinkedinText, 'linkedin')}
-                    className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                  >
-                    {copiedField === 'linkedin' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
-                    <span>{copiedField === 'linkedin' ? 'Copiado!' : 'Copiar para LinkedIn'}</span>
-                  </button>
-                </div>
-                <textarea
-                  rows={5}
-                  value={editedLinkedinText}
-                  onChange={e => setEditedLinkedinText(e.target.value)}
-                  className="w-full p-3 bg-white rounded-lg border border-zinc-300 text-xs text-zinc-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                  placeholder="Edite a copy do LinkedIn aqui..."
-                />
-              </div>
-
-              {/* Email Cold Outreach Editor + Send Controls */}
-              <div className="tactile-raised p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-zinc-800 font-display flex items-center gap-1.5">
-                    <span>✉️ Cold E-mail Corporativo ({copyTab}) — Editable</span>
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => copyToClipboard(editedEmailText, 'email')}
-                      className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-                    >
-                      {copiedField === 'email' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
-                      <span>{copiedField === 'email' ? 'Copiado!' : 'Copiar Texto'}</span>
-                    </button>
-
-                    {/* Direct Email Dispatch Button */}
-                    <button
-                      onClick={handleSendDirectEmail}
-                      disabled={sendingEmail}
-                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md disabled:opacity-50"
-                    >
-                      {sendingEmail ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>Enviando...</span>
-                        </>
-                      ) : copiedField === 'sent' ? (
-                        <>
-                          <IconCheck className="w-3.5 h-3.5" />
-                          <span>✓ Enviado!</span>
-                        </>
-                      ) : (
-                        <>
-                          <IconMail className="w-3.5 h-3.5" />
-                          <span>🚀 Enviar E-mail pela Plataforma</span>
-                        </>
+                  {/* Company Details Card */}
+                  <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
+                    <h3 className="font-bold text-xs font-mono uppercase text-zinc-400">Dados da Empresa</h3>
+                    <div className="text-xs space-y-1.5">
+                      <p><strong>Nicho:</strong> {selectedLeadForDetail.niche || 'N/A'}</p>
+                      <p><strong>Localização:</strong> {selectedLeadForDetail.location || 'N/A'}</p>
+                      <p><strong>Endereço:</strong> <span className="text-zinc-600">{selectedLeadForDetail.address || 'N/A'}</span></p>
+                      {selectedLeadForDetail.linkedinUrl && (
+                        <p className="pt-1">
+                          <a href={selectedLeadForDetail.linkedinUrl} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-mono font-bold">
+                            LinkedIn Profile ↗
+                          </a>
+                        </p>
                       )}
-                    </button>
+                    </div>
+                  </div>
+
+                  {/* Diagnostic & GEO Deliverables Card */}
+                  <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-3">
+                    <h3 className="font-bold text-xs font-mono uppercase text-zinc-400">Diagnóstico & Entregáveis GEO</h3>
+                    <div className="text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span>Score GEO Real:</span>
+                        <span className="font-bold font-mono px-2 py-0.5 bg-zinc-900 text-white rounded">
+                          {selectedLeadForDetail.geoScoreEstimado !== undefined ? `${selectedLeadForDetail.geoScoreEstimado}%` : 'Pendente'}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col gap-2 pt-2 border-t border-zinc-200">
+                        <button
+                          onClick={() => handleRunQuickAudit(selectedLeadForDetail)}
+                          disabled={auditingId === selectedLeadForDetail.id}
+                          className="w-full py-1.5 px-3 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        >
+                          <IconActivity className={`w-3.5 h-3.5 ${auditingId === selectedLeadForDetail.id ? 'animate-spin' : ''}`} />
+                          <span>Rodar Diagnóstico completo (8 Agentes)</span>
+                        </button>
+                        
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => handleViewHtmlReport(selectedLeadForDetail)}
+                            className="py-1.5 px-3 bg-white hover:bg-zinc-100 text-zinc-900 border border-zinc-300 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <span>👁️ Ver HTML</span>
+                          </button>
+                          <button
+                            onClick={() => handleDownloadHtmlReport(selectedLeadForDetail)}
+                            className="py-1.5 px-3 bg-white hover:bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-mono font-bold flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <span>🌐 Baixar HTML</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Sent History Log */}
+                {selectedLeadForDetail.sentHistory && selectedLeadForDetail.sentHistory.length > 0 && (
+                  <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-2">
+                    <h3 className="font-bold text-xs font-mono uppercase text-emerald-900 flex items-center gap-1.5">
+                      <IconCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Histórico de E-mails Disparados ({selectedLeadForDetail.sentHistory.length})</span>
+                    </h3>
+                    <div className="space-y-1 text-xs font-mono">
+                      {selectedLeadForDetail.sentHistory.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white p-2 rounded border border-emerald-200/80">
+                          <span className="font-bold text-emerald-800">
+                            ✓ {item.copyKey} — {item.subject || 'Cold Email'}
+                          </span>
+                          <span className="text-[11px] text-zinc-500">
+                            {new Date(item.sentAt).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* TAB 2: COPY MANAGEMENT & DISPATCH (ANTI-DUPLICIDADE) */}
+            {activeDetailTab === 'copies' && (
+              <div className="space-y-4">
+                
+                {/* Framework Switcher Tabs */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase block">Selecione o Framework / Estágio:</span>
+                  <div className="flex flex-wrap gap-1.5 border-b border-zinc-100 pb-3">
+                    {frameworksList.map(fw => {
+                      const isSent = !!checkIsCopySent(selectedLeadForDetail, fw.key);
+                      return (
+                        <button
+                          key={fw.key}
+                          onClick={() => setCopyTab(fw.key)}
+                          title={`${fw.desc} (${fw.stage})`}
+                          className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer font-mono flex items-center gap-1.5 ${
+                            copyTab === fw.key 
+                              ? 'bg-zinc-950 text-white shadow-sm' 
+                              : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                          }`}
+                        >
+                          <span>{fw.label}</span>
+                          {isSent && <span className="text-emerald-400 font-bold">✓</span>}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Attachment options */}
-                <div className="flex flex-wrap items-center gap-4 px-1 text-xs">
-                  <label className="font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={attachHtmlReport} 
-                      onChange={e => setAttachHtmlReport(e.target.checked)} 
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span>Anexar Relatório HTML no E-mail</span>
-                  </label>
-                  <label className="font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={attachReportLink} 
-                      onChange={e => setAttachReportLink(e.target.checked)} 
-                      className="rounded text-emerald-600 focus:ring-emerald-500"
-                    />
-                    <span>Anexar link do Relatório GEO ao final</span>
-                  </label>
+                {/* Anti-Duplicidade Checkbox Banner */}
+                {(() => {
+                  const sentItem = checkIsCopySent(selectedLeadForDetail, copyTab);
+                  return (
+                    <div className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                      sentItem ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-amber-50 border-amber-200 text-amber-900'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="copySentCheck"
+                          checked={!!sentItem}
+                          onChange={() => handleToggleCopySent(selectedLeadForDetail, copyTab)}
+                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                        <label htmlFor="copySentCheck" className="font-bold cursor-pointer font-mono">
+                          {sentItem ? (
+                            <span>✓ E-mail do Framework {copyTab} já foi disparado!</span>
+                          ) : (
+                            <span>Marcar este e-mail ({copyTab}) como DISPARADO para atualizar o Pipeline</span>
+                          )}
+                        </label>
+                      </div>
+
+                      {sentItem && (
+                        <div className="text-[11px] font-mono text-emerald-700 bg-white px-2.5 py-1 rounded border border-emerald-200 shrink-0">
+                          Disparado em: {new Date(sentItem.sentAt).toLocaleString('pt-BR')}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Selected Framework Banner */}
+                <div className="px-3 py-2 bg-zinc-100 rounded-xl text-xs font-mono text-zinc-700 border border-zinc-200 flex items-center justify-between">
+                  <span><strong>Fase:</strong> {frameworksList.find(f => f.key === copyTab)?.stage} — <strong>Estrutura:</strong> {frameworksList.find(f => f.key === copyTab)?.desc}</span>
                 </div>
 
-                <textarea
-                  rows={8}
-                  value={editedEmailText}
-                  onChange={e => setEditedEmailText(e.target.value)}
-                  className="w-full p-3 bg-white rounded-lg border border-zinc-300 text-xs text-zinc-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                  placeholder="Edite a copy do e-mail aqui..."
-                />
+                {/* Copy Content Editors */}
+                <div className="space-y-4">
+                  
+                  {/* LinkedIn Direct Message Editor */}
+                  <div className="tactile-raised p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-800 font-display flex items-center gap-1.5">
+                        <span>💬 Message Direct LinkedIn ({copyTab})</span>
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(editedLinkedinText, 'linkedin')}
+                        className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                      >
+                        {copiedField === 'linkedin' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
+                        <span>{copiedField === 'linkedin' ? 'Copiado!' : 'Copiar para LinkedIn'}</span>
+                      </button>
+                    </div>
+                    <textarea
+                      rows={5}
+                      value={editedLinkedinText}
+                      onChange={e => setEditedLinkedinText(e.target.value)}
+                      className="w-full p-3 bg-white rounded-lg border border-zinc-300 text-xs text-zinc-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                      placeholder="Edite a copy do LinkedIn aqui..."
+                    />
+                  </div>
+
+                  {/* Email Cold Outreach Editor + Direct Send */}
+                  <div className="tactile-raised p-4 bg-zinc-50 rounded-xl border border-zinc-200 space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-bold text-zinc-800 font-display flex items-center gap-1.5">
+                        <span>✉️ Cold E-mail Corporativo ({copyTab})</span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => copyToClipboard(editedEmailText, 'email')}
+                          className="px-3 py-1 bg-white hover:bg-zinc-100 text-zinc-800 border border-zinc-300 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                        >
+                          {copiedField === 'email' ? <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> : <IconCopy className="w-3.5 h-3.5" />}
+                          <span>{copiedField === 'email' ? 'Copiado!' : 'Copiar Texto'}</span>
+                        </button>
+
+                        <button
+                          onClick={handleSendDirectEmail}
+                          disabled={sendingEmail}
+                          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-md disabled:opacity-50"
+                        >
+                          {sendingEmail ? (
+                            <>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Enviando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <IconMail className="w-3.5 h-3.5" />
+                              <span>🚀 Enviar E-mail pela Plataforma</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-4 px-1 text-xs">
+                      <label className="font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={attachHtmlReport} 
+                          onChange={e => setAttachHtmlReport(e.target.checked)} 
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Anexar Relatório HTML no E-mail</span>
+                      </label>
+                      <label className="font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={attachReportLink} 
+                          onChange={e => setAttachReportLink(e.target.checked)} 
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>Anexar link do Relatório GEO</span>
+                      </label>
+                    </div>
+
+                    <textarea
+                      rows={7}
+                      value={editedEmailText}
+                      onChange={e => setEditedEmailText(e.target.value)}
+                      className="w-full p-3 bg-white rounded-lg border border-zinc-300 text-xs text-zinc-800 font-sans leading-relaxed focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                      placeholder="Edite a copy do e-mail aqui..."
+                    />
+                  </div>
+
+                </div>
+
+                {/* Bottom Save Action */}
+                <div className="pt-2 border-t border-zinc-100 flex items-center justify-between gap-2">
+                  <button
+                    onClick={handleSaveEditedCopy}
+                    disabled={savingCopy}
+                    className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50 font-mono"
+                  >
+                    {savingCopy ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>💾 Salvar Alterações na Copy</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedLeadForDetail(null)}
+                    className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl text-xs font-bold cursor-pointer font-mono"
+                  >
+                    Fechar
+                  </button>
+                </div>
+
               </div>
-
-            </div>
-
-            {/* Bottom Actions: Save Edited Copy & Close */}
-            <div className="pt-2 border-t border-zinc-100 flex items-center justify-between gap-2">
-              <button
-                onClick={handleSaveEditedCopy}
-                disabled={savingCopy}
-                className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-md disabled:opacity-50"
-              >
-                {savingCopy ? (
-                  <>
-                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Salvando...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>💾 Salvar Alterações na Copy</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={() => setSelectedLeadForCopy(null)}
-                className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl text-xs font-bold cursor-pointer"
-              >
-                Fechar
-              </button>
-            </div>
+            )}
 
           </div>
         </div>

@@ -213,7 +213,7 @@ orchestrator → checklist_architect:{ gatekeeper, metadata, content, seo, seman
 | Modelo OpenRouter | ID |
 |---|---|
 | ChatGPT | `openai/gpt-4o-mini` |
-| Claude | `anthropic/claude-3.5-haiku` |
+| Claude | `anthropic/claude-haiku-4.5` |
 | Gemini | `google/gemini-2.5-flash` |
 | Perplexity | `perplexity/sonar` |
 

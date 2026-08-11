@@ -187,33 +187,33 @@ export default function CTA() {
   };
 
   return (
-    <section id="diagnostic-cta" className="bg-[#f4f5f8] grid-blueprint py-16 md:py-24 px-6 md:px-12 border-b border-zinc-200 relative overflow-hidden">
+    <section id="diagnostic-cta" className="bg-[#f4f5f8] grid-blueprint py-12 sm:py-16 md:py-24 px-4 sm:px-6 md:px-12 border-b border-zinc-200 relative overflow-hidden">
       {/* Visual background crosshair */}
       <div className="absolute top-8 left-8 font-display text-zinc-350 text-xl font-light select-none pointer-events-none">+</div>
       <div className="absolute bottom-8 right-8 font-display text-zinc-350 text-xl font-light select-none pointer-events-none">+</div>
 
       <div className="max-w-7xl mx-auto">
         {/* Large container replicating the user's mockup layout */}
-        <div className="bg-white border border-zinc-200/80 rounded-[2rem] md:rounded-[2.5rem] p-8 md:p-14 lg:p-16 relative overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.02)]">
+        <div className="bg-white border border-zinc-200/80 rounded-2xl sm:rounded-[2rem] md:rounded-[2.5rem] p-5 sm:p-8 md:p-14 lg:p-16 relative overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.02)]">
           {/* Faint subtle grid-blueprint background inside the container */}
-          <div className="absolute inset-0 grid-blueprint opacity-10 pointer-events-none rounded-[2rem] md:rounded-[2.5rem]" />
+          <div className="absolute inset-0 grid-blueprint opacity-10 pointer-events-none rounded-2xl sm:rounded-[2rem] md:rounded-[2.5rem]" />
           
-          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center">
             {/* Left Column: CTA Texts */}
-            <div className="lg:col-span-7 flex flex-col items-start space-y-5 max-w-2xl">
+            <div className="lg:col-span-7 flex flex-col items-start space-y-4 sm:space-y-5 max-w-2xl">
               <span className="font-mono text-[9px] md:text-[10px] text-zinc-400 uppercase tracking-[0.25em] font-bold block">
                 CHAMADA DE AÇÃO PRINCIPAL
               </span>
               
-              <h2 className="font-display font-extrabold text-2xl md:text-3xl lg:text-[2.35rem] text-zinc-950 tracking-tight leading-[1.08] uppercase">
+              <h2 className="font-display font-extrabold text-xl sm:text-2xl md:text-3xl lg:text-[2.35rem] text-zinc-950 tracking-tight leading-[1.1] uppercase">
                 Garanta que o seu site seja a escolha da inteligência artificial
               </h2>
               
-              <div className="flex flex-wrap gap-4 mt-4">
+              <div className="flex flex-col sm:flex-row gap-3 mt-3 sm:mt-4 w-full sm:w-auto">
                 <button
                   id="btn-trigger-diagnostic"
                   onClick={handleOpenModal}
-                  className="inline-flex items-center gap-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white font-mono text-[10px] md:text-[11px] font-bold px-7 py-4.5 tracking-widest uppercase transition-all duration-300 rounded-xl cursor-pointer shadow-md border-t border-zinc-750 group"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-zinc-950 hover:bg-zinc-900 active:scale-95 text-white font-mono text-xs font-bold px-6 py-4 min-h-[48px] tracking-widest uppercase transition-all duration-300 rounded-xl cursor-pointer shadow-md border-t border-zinc-750 group"
                 >
                   REALIZAR DIAGNÓSTICO COMPLETO
                   <motion.span
@@ -229,9 +229,9 @@ export default function CTA() {
                     const text = encodeURIComponent('Olá Guilherme! Gostaria de entender mais sobre como posicionar meu site nas respostas de IA com a b.rocket.');
                     window.open(`https://wa.me/5511940595792?text=${text}`, '_blank');
                   }}
-                  className="inline-flex items-center gap-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-mono text-[10px] md:text-[11px] font-bold px-7 py-4.5 tracking-widest uppercase transition-all duration-300 rounded-xl cursor-pointer shadow-md border-t border-emerald-400"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-mono text-xs font-bold px-6 py-4 min-h-[48px] tracking-widest uppercase transition-all duration-300 rounded-xl cursor-pointer shadow-md border-t border-emerald-400"
                 >
-                  Falar com Guilherme Rossi no WhatsApp ➔
+                  Falar com Guilherme no WhatsApp ➔
                 </button>
               </div>
             </div>

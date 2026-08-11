@@ -43,19 +43,19 @@ export default function Modal({
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   return (
-    <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 md:p-8 overflow-y-auto">
+    <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 md:p-8 overflow-y-auto">
       <div
-        className={`tactile-raised bg-[#f4f5f8] w-full shadow-2xl flex flex-col p-6 gap-4 transition-all ${
-          isFullscreen ? 'max-w-full min-h-[calc(100vh-4rem)]' : maxWidth
+        className={`tactile-raised bg-[#f4f5f8] w-full shadow-2xl flex flex-col p-4 sm:p-6 gap-4 transition-all rounded-2xl sm:rounded-3xl ${
+          isFullscreen ? 'max-w-full min-h-[calc(100vh-2rem)]' : maxWidth
         }`}
       >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-200 gap-4">
-          <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-zinc-200 gap-3">
+          <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
             <TrafficLights onClose={onClose} onToggleSize={() => setIsFullscreen(f => !f)} />
             {(title || subtitle) && (
               <div className="min-w-0 flex-1">
-                {title && <h2 className="text-zinc-900 font-display font-bold truncate text-base">{title}</h2>}
-                {subtitle && <p className="text-zinc-500 text-xs font-mono truncate">{subtitle}</p>}
+                {title && <h2 className="text-zinc-900 font-display font-bold truncate text-sm sm:text-base">{title}</h2>}
+                {subtitle && <p className="text-zinc-500 text-[11px] sm:text-xs font-mono truncate">{subtitle}</p>}
               </div>
             )}
           </div>

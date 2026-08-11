@@ -91,6 +91,36 @@ test('testHtmlReportRendersUnavailableBadge', () => {
   );
 });
 
+// ─── TESTE DE SEPARAÇÃO CLIENTE VS AUDITORIA INTERNA ───────────────────────
+test('testHtmlReportClientVsInternal', () => {
+  const lead = { url: 'https://exemplo.com.br', company: 'Exemplo Corp' };
+  const diagnostic = {
+    overallGeoScore: 65,
+    gatekeeperStatus: { robotsTxtAllowAiBots: true, ssrActive: true, hasPriceGatekeeperIssue: false, serverLatencyMs: 120, blockedCrawlers: [], dataSource: 'deterministic' },
+    metadataAnalysis: { organizationSchemaPresent: true, personSchemaPresent: false, llmsTxtPublished: true, organizationSameAsCount: 3, missingSchemas: [], dataSource: 'deterministic' },
+    contentReview: { factorsDetected: { hasTldrAnswerFirstParagraph: true, hasStatisticsPer150Words: true, hasExpertQuotes: false, hasHtmlComparisonTables: true }, meanChunkSizeTokens: 140, priceNotMentioned: false },
+    visibilityBenchmarking: { dataSource: 'heuristic', citationSharePercentage: 0.45, brandSentimentScore: 'Positivo', totalPromptsTest: 10, citationsByModel: { ChatGPT: 4, Gemini: 3 } },
+    checklist: {
+      quickWinsCount: 2,
+      interactiveChecklist: [{ title: 'Adicionar Schema Person', category: 'SEO', impactLevel: 'Alto', effortLevel: 'Baixo', description: 'Teste de checklist', cmsInstruction: 'Cole no head' }],
+      postImplementationQaChecklist: ['Validar com Google Rich Results']
+    },
+    actionItemsPriorityList: [{ impact: 'Crítico', task: 'Atualizar robots.txt para liberação de AI bots' }]
+  };
+
+  // Versão Comercial do Cliente (isInternal: false)
+  const clientHtml = engine.generateHtmlReport(lead, diagnostic, { isInternal: false });
+  assert.ok(!clientHtml.includes('Checklist Interativo b.rocket'), 'Relatório do Cliente NÃO deve conter Checklist Interativo');
+  assert.ok(!clientHtml.includes('Plano de Ação Priorizado'), 'Relatório do Cliente NÃO deve conter Plano de Ação Priorizado');
+  assert.ok(clientHtml.includes('Por que Fechar Contrato de Implantação com a b.rocket?'), 'Relatório do Cliente DEVE conter a nova Copy de Fechamento');
+
+  // Versão de Auditoria Interna (isInternal: true)
+  const internalHtml = engine.generateHtmlReport(lead, diagnostic, { isInternal: true });
+  assert.ok(internalHtml.includes('Checklist Interativo b.rocket'), 'Relatório de Auditoria DEVE conter Checklist Interativo');
+  assert.ok(internalHtml.includes('Plano de Ação Priorizado'), 'Relatório de Auditoria DEVE conter Plano de Ação Priorizado');
+  assert.ok(internalHtml.includes('Por que Fechar Contrato de Implantação com a b.rocket?'), 'Relatório de Auditoria DEVE conter a Copy de Fechamento');
+});
+
 // ─── FASE 6: template AEO não deve ter citação fabricada ────────────────────
 test('testAeoTemplateHasNoFabricatedQuoteSource', () => {
   const html = '<html><head><title>Empresa Teste</title></head><body></body></html>';

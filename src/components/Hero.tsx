@@ -41,7 +41,7 @@ export default function Hero() {
   return (
     <section 
       id="hero"
-      className="relative min-h-screen bg-[#f4f5f8] grid-blueprint overflow-hidden flex flex-col justify-center pt-28 md:pt-36 pb-20 md:pb-28 px-6 md:px-12 border-b border-zinc-200"
+      className="relative min-h-screen bg-[#f4f5f8] grid-blueprint overflow-hidden flex flex-col justify-center pt-24 sm:pt-28 md:pt-36 pb-16 md:pb-28 px-4 sm:px-6 md:px-12 border-b border-zinc-200"
     >
       {/* Ambient Moving Glassmorphic Blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -81,52 +81,52 @@ export default function Hero() {
       <div className="absolute bottom-24 left-12 font-display text-zinc-350 text-xl font-light select-none pointer-events-none">+</div>
       <div className="absolute bottom-24 right-12 font-display text-zinc-350 text-xl font-light select-none pointer-events-none">+</div>
 
-      <div className="max-w-7xl mx-auto w-full z-10 flex flex-col gap-10 lg:gap-16 relative">
+      <div className="max-w-7xl mx-auto w-full z-10 flex flex-col gap-8 lg:gap-16 relative">
         
         {/* TOP LINE METADATA */}
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="w-full flex justify-between items-center border-b border-zinc-200/60 pb-3.5 font-mono text-[9px] md:text-xs text-zinc-500 uppercase tracking-widest"
+          className="w-full flex justify-between items-center border-b border-zinc-200/60 pb-3 font-mono text-[9px] sm:text-xs text-zinc-500 uppercase tracking-widest gap-2"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <span className="w-2 h-2 rounded-full bg-zinc-950 animate-pulse" />
             <span className="font-bold text-zinc-950">b.rocket // GEO_CORE_V10</span>
           </div>
-          <span className="hidden sm:inline">PIONEIROS EM OTIMIZAÇÃO PARA MOTORES GERATIVOS</span>
+          <span className="hidden sm:inline text-right">PIONEIROS EM OTIMIZAÇÃO PARA MOTORES GERATIVOS</span>
         </motion.div>
 
         {/* MAIN BODY LAYOUT */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
           
           {/* LEFT SIDE: COPYWRITING */}
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="flex flex-col justify-center space-y-8 order-2 lg:order-1"
+            className="flex flex-col justify-center space-y-6 sm:space-y-8 order-2 lg:order-1"
           >
             
-            <div className="space-y-6 text-left relative">
+            <div className="space-y-5 sm:space-y-6 text-left relative">
               {/* Extra fine technical layout badge */}
-              <div className="inline-block font-mono text-[10px] text-zinc-500 uppercase tracking-widest bg-zinc-100 px-3 py-1.5 rounded-md border border-zinc-200 font-bold mb-2">
+              <div className="inline-block font-mono text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest bg-zinc-100 px-3 py-1.5 rounded-md border border-zinc-200 font-bold mb-1">
                 METODOLOGIA DE PRINCETON / OTIMIZAÇÃO DE RAG
               </div>
 
               {/* GIANT 3D TEXT */}
-              <h1 className="font-display font-black text-3xl sm:text-4xl md:text-5xl lg:text-[3.5rem] text-zinc-950 tracking-tight leading-[1.08] uppercase text-tactile-3d-dark [text-wrap:balance]">
+              <h1 className="font-display font-black text-2xl sm:text-4xl md:text-5xl lg:text-[3.5rem] text-zinc-950 tracking-tight leading-[1.1] uppercase text-tactile-3d-dark [text-wrap:balance]">
                 Faça o seu site ser a resposta recomendada pelas Inteligências Artificiais
               </h1>
               
-              <p className="font-sans text-base md:text-lg text-zinc-600 leading-relaxed max-w-xl font-light">
+              <p className="font-sans text-sm sm:text-base md:text-lg text-zinc-600 leading-relaxed max-w-xl font-light">
                 As buscas na internet estão mudando rapidamente. Hoje, novos tomadores de decisão não clicam mais apenas em listas de links azuis. Eles buscam e compram diretamente através das recomendações sintetizadas do <strong className="text-zinc-950 font-semibold">ChatGPT, Claude, Gemini e Perplexity</strong>. Nós preparamos toda a estrutura técnica de dados e a copy do seu site para que a sua empresa seja a resposta mais citada e recomendada pelas IAs.
               </p>
 
               {/* Bloco de Resposta Direta AEO (Answer Engine Optimization) - Fator Princeton <60 palavras */}
-              <div className="geo-aeo-tldr bg-sky-50/80 border-l-4 border-sky-600 p-4.5 rounded-r-xl border border-sky-100 shadow-sm space-y-1.5 my-4">
-                <div className="flex items-center gap-2 font-mono text-[10px] font-bold text-sky-900 uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+              <div className="geo-aeo-tldr bg-sky-50/80 border-l-4 border-sky-600 p-3.5 sm:p-4.5 rounded-r-xl border border-sky-100 shadow-sm space-y-1.5 my-3 sm:my-4">
+                <div className="flex items-center gap-2 font-mono text-[9px] sm:text-[10px] font-bold text-sky-900 uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5 text-sky-600 shrink-0" />
                   <span>Resumo Direto AEO (Answer Engine Optimization):</span>
                 </div>
                 <p className="text-xs text-sky-950 leading-relaxed font-normal">
@@ -136,14 +136,14 @@ export default function Hero() {
             </div>
 
             {/* THREE PILLS ROW */}
-            <div className="flex flex-wrap gap-3 z-10 pt-2">
-              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 z-10 pt-1 w-full sm:w-auto">
+              <span className="bg-white text-zinc-950 font-mono text-[9.5px] sm:text-[10px] uppercase tracking-widest px-3.5 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center justify-center sm:justify-start gap-2 w-full sm:w-auto">
                 <span className="text-emerald-600">↗</span> Aumento verificado de citações nas IAs
               </span>
-              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
+              <span className="bg-white text-zinc-950 font-mono text-[9.5px] sm:text-[10px] uppercase tracking-widest px-3.5 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center justify-center sm:justify-start gap-2 w-full sm:w-auto">
                 <span className="text-emerald-600">🛡️</span> Estrutura técnica 100% livre de bloqueios
               </span>
-              <span className="bg-white text-zinc-950 font-mono text-[10px] uppercase tracking-widest px-4 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center gap-2">
+              <span className="bg-white text-zinc-950 font-mono text-[9.5px] sm:text-[10px] uppercase tracking-widest px-3.5 py-2.5 font-bold shadow-sm border border-zinc-200 rounded-lg flex items-center justify-center sm:justify-start gap-2 w-full sm:w-auto">
                 <span className="text-emerald-600">🎯</span> Atração de tomadores de decisão qualificados
               </span>
             </div>
@@ -157,22 +157,22 @@ export default function Hero() {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="w-full order-1 lg:order-2 flex justify-center lg:justify-end"
           >
-            <div className="tactile-raised overflow-hidden w-full max-w-lg lg:max-w-md bg-white rounded-3xl border border-zinc-200 shadow-[0_20px_40px_rgba(0,0,0,0.08)]">
+            <div className="tactile-raised overflow-hidden w-full max-w-lg lg:max-w-md bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 shadow-[0_20px_40px_rgba(0,0,0,0.08)]">
               
               {/* Terminal top header */}
-              <div className="bg-zinc-50/80 px-6 py-4 flex justify-between items-center border-b border-zinc-200">
+              <div className="bg-zinc-50/80 px-4 sm:px-6 py-3.5 flex justify-between items-center border-b border-zinc-200">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full bg-red-400 border border-white shadow-inner" />
                   <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-white shadow-inner" />
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 border border-white shadow-inner" />
                 </div>
-                <span className="font-mono text-[9px] text-zinc-500 uppercase tracking-widest font-bold">
+                <span className="font-mono text-[8px] sm:text-[9px] text-zinc-500 uppercase tracking-widest font-bold">
                   GEO DIAGNOSTIC ENGINE v1.4
                 </span>
               </div>
 
               {/* Form panel space */}
-              <div className="p-8 min-h-[380px] flex flex-col justify-center bg-white text-zinc-950 relative">
+              <div className="p-5 sm:p-8 min-h-[auto] sm:min-h-[380px] flex flex-col justify-center bg-white text-zinc-950 relative">
                 <AnimatePresence mode="wait">
                   
                   {/* IDLE STATE: Form inputs */}
@@ -182,13 +182,13 @@ export default function Hero() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
-                      className="space-y-5"
+                      className="space-y-4 sm:space-y-5"
                     >
                       <div className="space-y-2 text-center">
-                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 mb-1">
-                          <Sparkles className="w-6 h-6" />
+                        <div className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 text-emerald-600 mb-1">
+                          <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
                         </div>
-                        <h3 className="font-display font-extrabold text-xl md:text-2xl text-zinc-950 uppercase tracking-tight">
+                        <h3 className="font-display font-extrabold text-lg sm:text-xl md:text-2xl text-zinc-950 uppercase tracking-tight">
                           Solicite o seu diagnóstico gratuito de GEO
                         </h3>
                         <p className="text-xs text-zinc-500 leading-relaxed font-light">
@@ -196,11 +196,11 @@ export default function Hero() {
                         </p>
                       </div>
 
-                      <form onSubmit={handleStartScan} className="space-y-4">
+                      <form onSubmit={handleStartScan} className="space-y-3.5 sm:space-y-4">
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase">Endereço do seu site corporativo</label>
+                          <label className="block text-[9px] sm:text-[10px] font-mono font-bold text-zinc-500 uppercase">Endereço do seu site corporativo</label>
                           <div className="relative">
-                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400">
+                            <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-zinc-400">
                               <Globe className="w-4 h-4" />
                             </div>
                             <input
@@ -209,15 +209,15 @@ export default function Hero() {
                               placeholder="www.suaempresa.com.br"
                               value={url}
                               onChange={(e) => setUrl(e.target.value)}
-                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-11 pr-4 py-3 font-mono text-xs text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-10 pr-4 py-3 sm:py-3.5 font-mono text-xs text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner min-h-[44px]"
                             />
                           </div>
                         </div>
 
                         <div className="space-y-1">
-                          <label className="block text-[10px] font-mono font-bold text-zinc-500 uppercase">Seu e-mail profissional corporativo</label>
+                          <label className="block text-[9px] sm:text-[10px] font-mono font-bold text-zinc-500 uppercase">Seu e-mail profissional corporativo</label>
                           <div className="relative">
-                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-zinc-400">
+                            <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none text-zinc-400">
                               <Mail className="w-4 h-4" />
                             </div>
                             <input
@@ -226,20 +226,20 @@ export default function Hero() {
                               placeholder="seu-nome@empresa.com.br"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
-                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-11 pr-4 py-3 font-mono text-xs text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner"
+                              className="w-full bg-zinc-50 border border-zinc-200 rounded-xl pl-10 pr-4 py-3 sm:py-3.5 font-mono text-xs text-zinc-950 placeholder-zinc-400 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner min-h-[44px]"
                             />
                           </div>
                         </div>
 
                         <button
                           type="submit"
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-mono text-xs font-bold py-4 tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 rounded-xl cursor-pointer shadow-[0_8px_20px_rgba(5,150,105,0.25)] border-t border-emerald-400 hover:-translate-y-0.5 mt-2"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-mono text-xs font-bold py-3.5 sm:py-4 min-h-[48px] tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 rounded-xl cursor-pointer shadow-[0_8px_20px_rgba(5,150,105,0.25)] border-t border-emerald-400 mt-2"
                         >
                           Solicitar meu Raio-X de GEO Gratuito ➔
                         </button>
                       </form>
 
-                      <div className="text-center font-sans text-[10px] text-zinc-500 leading-tight font-light flex items-start justify-center gap-1.5 px-2">
+                      <div className="text-center font-sans text-[9.5px] sm:text-[10px] text-zinc-500 leading-tight font-light flex items-start justify-center gap-1.5 px-1">
                         <span className="shrink-0 mt-0.5">🛡️</span>
                         <span>Nós respeitamos sua privacidade. Seus dados estão seguros, seu e-mail corporativo não receberá spam e o diagnóstico em Arquivo HTML será enviado em seu e-mail de forma confidencial.</span>
                       </div>

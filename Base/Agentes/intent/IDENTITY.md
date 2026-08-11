@@ -16,7 +16,7 @@ O Intent Prompt Agent realiza testes empíricos de visibilidade da marca nas pri
 | Modelo | ID OpenRouter | IA do Usuário Final |
 |---|---|---|
 | GPT-4o Mini | `openai/gpt-4o-mini` | ChatGPT |
-| Claude 3.5 Haiku | `anthropic/claude-3.5-haiku` | Claude |
+| Claude Haiku 4.5 | `anthropic/claude-haiku-4.5` | Claude |
 | Gemini 2.5 Flash | `google/gemini-2.5-flash` | Gemini |
 | Perplexity Sonar | `perplexity/sonar` | Perplexity |
 

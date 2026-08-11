@@ -81,19 +81,21 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               recentLeads.map(lead => (
                 <div
                   key={lead.id}
-                  className="py-4 flex items-center gap-4 hover:bg-zinc-100/40 rounded-xl px-2 -mx-2 cursor-pointer transition-colors"
+                  className="py-3 px-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 hover:bg-zinc-100/40 rounded-xl cursor-pointer transition-colors border sm:border-0 border-zinc-200/50 my-1 bg-white/40 sm:bg-transparent"
                   onClick={() => onNavigate('leads', lead.id)}
                 >
-                  <div className="w-10 h-10 bg-zinc-100 border border-zinc-200/80 rounded-xl flex items-center justify-center text-xs font-mono text-zinc-600 font-bold flex-shrink-0">
-                    {lead.url.replace('https://', '').replace('http://', '').slice(0, 2).toUpperCase()}
+                  <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                    <div className="w-9 h-9 bg-zinc-100 border border-zinc-200/80 rounded-xl flex items-center justify-center text-xs font-mono text-zinc-600 font-bold flex-shrink-0">
+                      {lead.url.replace('https://', '').replace('http://', '').slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-semibold text-zinc-900 truncate">{lead.url}</p>
+                      <p className="text-[11px] sm:text-xs text-zinc-500 font-mono mt-0.5 truncate">{lead.email}</p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-zinc-900 truncate">{lead.url}</p>
-                    <p className="text-xs text-zinc-500 font-mono mt-0.5 truncate">{lead.email}</p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-2.5 flex-shrink-0 self-end sm:self-auto pt-1 sm:pt-0">
                     {lead.geoScore !== undefined && (
-                      <span className={`text-sm font-mono font-bold ${lead.geoScore >= 70 ? 'text-emerald-600' : lead.geoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                      <span className={`text-xs sm:text-sm font-mono font-bold ${lead.geoScore >= 70 ? 'text-emerald-600' : lead.geoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                         {lead.geoScore}%
                       </span>
                     )}

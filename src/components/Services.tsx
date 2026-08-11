@@ -787,7 +787,7 @@ export default function Services() {
   };
 
   return (
-    <section id="services" className="bg-[#f4f5f8] grid-blueprint py-24 md:py-32 px-6 md:px-12 border-b border-zinc-200 relative">
+    <section id="services" className="bg-[#f4f5f8] grid-blueprint py-16 sm:py-24 md:py-32 px-4 sm:px-6 md:px-12 border-b border-zinc-200 relative">
       {/* Reference crosshair */}
       <div className="absolute top-12 right-12 font-display text-zinc-350 text-xl font-light select-none pointer-events-none">+</div>
       <div className="absolute bottom-12 left-12 font-display text-zinc-350 text-xl font-light select-none pointer-events-none">+</div>
@@ -795,12 +795,12 @@ export default function Services() {
       <div className="max-w-7xl mx-auto">
         
         {/* Section Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-zinc-200/60 pb-8 mb-16 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-zinc-200/60 pb-6 mb-12 sm:mb-16 gap-3">
           <div className="flex items-center gap-3">
             <span className="w-1.5 h-1.5 bg-zinc-950 rounded-full" />
-            <span className="font-mono text-xs uppercase tracking-widest text-zinc-500">METODOLOGIA DE GEO</span>
+            <span className="font-mono text-[10px] sm:text-xs uppercase tracking-widest text-zinc-500">METODOLOGIA DE GEO</span>
           </div>
-          <div className="flex items-center gap-3 font-mono text-xs text-zinc-500">
+          <div className="flex items-center gap-2 sm:gap-3 font-mono text-[10px] sm:text-xs text-zinc-500">
             <span>O SEO tradicional está mudando</span>
             <span className="text-zinc-400">//</span>
             <span className="text-zinc-950">Traditional SEO is dying.</span>
@@ -808,18 +808,18 @@ export default function Services() {
         </div>
 
         {/* COMPARISON CARDS */}
-        <div className="mb-24">
-          <div className="max-w-5xl mb-12">
-            <h2 className="font-display font-black text-4xl sm:text-5xl md:text-6xl text-zinc-950 leading-[1.05] tracking-tight uppercase text-tactile-3d-dark">
+        <div className="mb-16 sm:mb-24">
+          <div className="max-w-5xl mb-10 sm:mb-12">
+            <h2 className="font-display font-black text-3xl sm:text-5xl md:text-6xl text-zinc-950 leading-[1.08] tracking-tight uppercase text-tactile-3d-dark">
               O SEO TRADICIONAL JÁ ERA.<br />
               <span className="text-zinc-500/80">SEJA BEM-VINDO AO GEO.</span>
             </h2>
-            <p className="text-zinc-500 font-light mt-4 text-sm md:text-base leading-relaxed max-w-4xl">
+            <p className="text-zinc-500 font-light mt-4 text-xs sm:text-sm md:text-base leading-relaxed max-w-4xl">
               No SEO antigo, a grande pergunta era: <strong className="text-zinc-950 font-semibold">"Em que posição o meu site aparece na lista estática de links?"</strong>. Na era dos assistentes de IA, a dinâmica mudou drasticamente para a geração de respostas diretas.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
             
             {/* OLD ERA (SEO) CARD - Raised Light Clay Panel */}
             <motion.div 
@@ -829,15 +829,15 @@ export default function Services() {
               transition={{ duration: 0.5, ease: "easeOut" }}
               whileHover={{ y: -4, scale: 1.005, transition: { duration: 0.2 } }}
               style={{ willChange: "transform, opacity" }}
-              className="tactile-raised p-8 space-y-4 relative overflow-hidden group cursor-default transition-all duration-300"
+              className="tactile-raised p-6 sm:p-8 space-y-4 relative overflow-hidden group cursor-default transition-all duration-300 rounded-2xl sm:rounded-3xl"
             >
-              <div className="absolute top-4 right-4 text-zinc-300/40 font-display font-black text-6xl pointer-events-none select-none tracking-tighter">
+              <div className="absolute top-4 right-4 text-zinc-300/40 font-display font-black text-5xl sm:text-6xl pointer-events-none select-none tracking-tighter">
                 SEO
               </div>
-              <span className="font-mono text-[10px] text-zinc-400 uppercase tracking-widest font-bold block">
+              <span className="font-mono text-[9.5px] sm:text-[10px] text-zinc-400 uppercase tracking-widest font-bold block">
                 COMPORTAMENTO ANTIGO
               </span>
-              <h3 className="font-display font-extrabold text-xl text-zinc-800 uppercase tracking-tight">
+              <h3 className="font-display font-extrabold text-lg sm:text-xl text-zinc-800 uppercase tracking-tight">
                 A Busca Baseada em Links
               </h3>
               <p className="text-xs text-zinc-500 leading-relaxed font-light">
@@ -845,8 +845,8 @@ export default function Services() {
               </p>
               <div className="h-[1px] bg-zinc-200/80 w-full my-4" />
               <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono">
-                <Search className="w-4 h-4 text-zinc-400" />
-                <span>"Melhores softwares de CRM B2B no Brasil"</span>
+                <Search className="w-4 h-4 text-zinc-400 shrink-0" />
+                <span className="truncate">"Melhores softwares de CRM B2B no Brasil"</span>
               </div>
             </motion.div>
 
@@ -858,15 +858,15 @@ export default function Services() {
               transition={{ duration: 0.5, ease: "easeOut" }}
               whileHover={{ y: -4, scale: 1.005, transition: { duration: 0.2 } }}
               style={{ willChange: "transform, opacity" }}
-              className="bg-zinc-950 border border-zinc-800 rounded-3xl p-8 space-y-4 relative overflow-hidden shadow-2xl border-t-zinc-700 cursor-default transition-all duration-300"
+              className="bg-zinc-950 border border-zinc-800 rounded-2xl sm:rounded-3xl p-6 sm:p-8 space-y-4 relative overflow-hidden shadow-2xl border-t-zinc-700 cursor-default transition-all duration-300"
             >
-              <div className="absolute top-4 right-4 text-zinc-700/60 font-display font-black text-6xl pointer-events-none select-none tracking-tighter">
+              <div className="absolute top-4 right-4 text-zinc-700/60 font-display font-black text-5xl sm:text-6xl pointer-events-none select-none tracking-tighter">
                 GEO
               </div>
-              <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-widest font-bold block">
+              <span className="font-mono text-[9.5px] sm:text-[10px] text-zinc-500 uppercase tracking-widest font-bold block">
                 COMPORTAMENTO NOVO (RAG)
               </span>
-              <h3 className="font-display font-extrabold text-xl text-white uppercase tracking-tight">
+              <h3 className="font-display font-extrabold text-lg sm:text-xl text-white uppercase tracking-tight">
                 A Resposta Sintetizada pela IA
               </h3>
               <p className="text-xs text-zinc-400 leading-relaxed font-light">
@@ -874,8 +874,8 @@ export default function Services() {
               </p>
               <div className="h-[1px] bg-zinc-800/80 w-full my-4" />
               <div className="flex items-center gap-2 text-zinc-200 text-xs font-mono">
-                <Sparkles className="w-4 h-4 animate-pulse text-white" />
-                <span className="text-zinc-300">"Qual o CRM ideal para startups B2B integrável com Slack?"</span>
+                <Sparkles className="w-4 h-4 animate-pulse text-white shrink-0" />
+                <span className="text-zinc-300 truncate">"Qual o CRM ideal para startups B2B integrável com Slack?"</span>
               </div>
             </motion.div>
 
@@ -883,14 +883,14 @@ export default function Services() {
         </div>
 
         {/* EMBASAMENTO CIENTÍFICO (ESTUDO DE PRINCETON) */}
-        <div className="mb-24 tactile-raised p-8 md:p-12 relative overflow-hidden">
+        <div className="mb-16 sm:mb-24 tactile-raised p-6 sm:p-8 md:p-12 relative overflow-hidden rounded-2xl sm:rounded-3xl">
           <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-zinc-300/10 rounded-full blur-[80px]" />
           
-          <div className="max-w-4xl space-y-4">
+          <div className="max-w-4xl space-y-3.5 sm:space-y-4">
             <span className="font-mono text-[9px] text-zinc-400 uppercase tracking-widest font-bold block">
               CIÊNCIA & PESQUISA // PRINCETON UNIVERSITY
             </span>
-            <h3 className="font-display font-extrabold text-2xl md:text-3xl text-zinc-950 tracking-tight uppercase leading-tight">
+            <h3 className="font-display font-extrabold text-xl sm:text-2xl md:text-3xl text-zinc-950 tracking-tight uppercase leading-tight">
               A Ciência por trás do Rank de IA: O Estudo de Princeton
             </h3>
             <p className="text-xs md:text-sm text-zinc-500 leading-relaxed font-light">
@@ -900,11 +900,11 @@ export default function Services() {
         </div>
 
         {/* THE 4 PILLARS (TAB INTERACTIVITY) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
           
           {/* Left Navigation Services List (Col-5) */}
-          <div className="lg:col-span-5 flex flex-col gap-3">
-            <span className="font-mono text-[9px] text-zinc-400 uppercase tracking-widest font-bold block pl-6 mb-1">
+          <div className="lg:col-span-5 flex flex-col gap-2.5 sm:gap-3">
+            <span className="font-mono text-[9px] text-zinc-400 uppercase tracking-widest font-bold block pl-2 sm:pl-6 mb-1">
               DIRETRIZES DE OTIMIZAÇÃO (ESTUDO CIENTÍFICO)
             </span>
             {services.map((item) => {
@@ -913,13 +913,13 @@ export default function Services() {
                 <button
                   key={item.id}
                   onClick={() => setActiveId(item.id)}
-                  className={`w-full text-left py-4.5 px-6 border transition-all duration-300 focus:outline-none flex justify-between items-center rounded-2xl cursor-pointer ${
+                  className={`w-full text-left py-3.5 sm:py-4.5 px-4 sm:px-6 min-h-[48px] border transition-all duration-300 focus:outline-none flex justify-between items-center rounded-xl sm:rounded-2xl cursor-pointer ${
                     isActive
-                      ? 'tactile-pressed border-zinc-300 bg-zinc-50 text-zinc-950 pl-8 shadow-inner'
-                      : 'bg-white border-transparent text-zinc-500 hover:text-zinc-950 hover:bg-zinc-50 shadow-sm pl-6'
+                      ? 'tactile-pressed border-zinc-300 bg-zinc-50 text-zinc-950 pl-5 sm:pl-8 shadow-inner font-bold'
+                      : 'bg-white border-transparent text-zinc-500 hover:text-zinc-950 hover:bg-zinc-50 shadow-sm pl-4 sm:pl-6'
                   }`}
                 >
-                  <span className="font-display font-extrabold text-base md:text-lg uppercase tracking-tight">{item.title}</span>
+                  <span className="font-display font-extrabold text-sm sm:text-base md:text-lg uppercase tracking-tight">{item.title}</span>
                   <motion.span 
                     animate={isActive ? { x: 4, opacity: 1 } : { x: 0, opacity: 0.3 }}
                     className="font-mono text-xs font-bold text-zinc-400"
@@ -940,7 +940,7 @@ export default function Services() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -15 }}
                 transition={{ duration: 0.35, ease: "easeOut" }}
-                className="tactile-raised p-8 md:p-12 relative flex flex-col justify-between min-h-[460px] bg-white border border-zinc-200"
+                className="tactile-raised p-5 sm:p-8 md:p-12 relative flex flex-col justify-between min-h-[auto] sm:min-h-[460px] bg-white border border-zinc-200 rounded-2xl sm:rounded-3xl"
               >
                 {/* Accent top tag */}
                 <div className="absolute top-4 right-6 font-mono text-[8px] text-zinc-400 uppercase tracking-widest">

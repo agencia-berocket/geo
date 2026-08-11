@@ -7,7 +7,7 @@ import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel
 import {
   IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
   IconShield, IconFolder, IconClipboard, IconChat, IconBot, IconHourglass,
-  IconSend, IconChevron, IconNote, IconRefresh,
+  IconSend, IconChevron, IconNote, IconRefresh, IconPlus, IconSparkles, IconLock,
 } from '../components/icons';
 
 // ─── Download icon ──────────────────────────────────────────────────────
@@ -149,34 +149,34 @@ function LeadEditPanel({ lead, onSave, onCancel }: { lead: Lead, onSave: (update
     <div className="space-y-4 bg-white border border-zinc-200 p-5 rounded-2xl shadow-sm text-xs">
       <h3 className="font-display font-bold text-zinc-900 text-sm border-b border-zinc-100 pb-2">Editar Lead</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">Nome</label>
-            <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            <input value={name} onChange={e => setName(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]" />
           </div>
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">E-mail</label>
-            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]" />
           </div>
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">Website URL</label>
-            <input required value={url} onChange={e => setUrl(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            <input required value={url} onChange={e => setUrl(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]" />
           </div>
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">Empresa / Rótulo</label>
-            <input value={company} onChange={e => setCompany(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            <input value={company} onChange={e => setCompany(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]" />
           </div>
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">WhatsApp</label>
-            <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" placeholder="Ex: (11) 99999-9999" />
+            <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]" placeholder="Ex: (11) 99999-9999" />
           </div>
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">GEO Score</label>
-            <input type="number" min="0" max="100" value={geoScore} onChange={e => setGeoScore(parseInt(e.target.value) || 0)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+            <input type="number" min="0" max="100" value={geoScore} onChange={e => setGeoScore(parseInt(e.target.value) || 0)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]" />
           </div>
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">Desafio RAG</label>
-            <select value={architecture} onChange={e => setArchitecture(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+            <select value={architecture} onChange={e => setArchitecture(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]">
               <option value="no_rag">Sem RAG</option>
               <option value="keyword">Busca por palavra-chave</option>
               <option value="hybrid_hallucination">Busca Híbrida / Alucinações</option>
@@ -185,16 +185,16 @@ function LeadEditPanel({ lead, onSave, onCancel }: { lead: Lead, onSave: (update
           </div>
           <div className="space-y-1">
             <label className="text-zinc-400 font-bold block">Escala da Base</label>
-            <select value={scale} onChange={e => setScale(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+            <select value={scale} onChange={e => setScale(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]">
               <option value="small">Pequena (até 100 docs)</option>
               <option value="medium">Média (100 a 1.000 docs)</option>
               <option value="large">Grande (+1.000 docs)</option>
               <option value="unmeasured">Não mensurado</option>
             </select>
           </div>
-          <div className="space-y-1 col-span-2">
+          <div className="space-y-1 col-span-1 sm:col-span-2">
             <label className="text-zinc-400 font-bold block">Status</label>
-            <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+            <select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2 min-h-[40px]">
               <option value="new">Novo</option>
               <option value="processing">Processando</option>
               <option value="completed">Concluído</option>
@@ -347,12 +347,203 @@ function DiagnosticEditor({ diagnostic, leadId, onSaved }: {
   );
 }
 
+// ─── SEARCH TERMS PANEL COMPONENT ──────────────────────────────────────────
+function SearchTermsPanel({
+  lead,
+  onAnalyze,
+  onSave,
+}: {
+  lead: Lead;
+  onAnalyze: () => Promise<void>;
+  onSave: (terms: string[]) => Promise<void>;
+}) {
+  const [analyzing, setAnalyzing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  const [terms, setTerms] = useState<string[]>(() => {
+    const existing = lead.searchTerms || [];
+    const t = [...existing];
+    while (t.length < 10) t.push('');
+    return t.slice(0, 10);
+  });
+
+  useEffect(() => {
+    if (lead.searchTerms && lead.searchTerms.length > 0) {
+      const t = [...lead.searchTerms];
+      while (t.length < 10) t.push('');
+      setTerms(t.slice(0, 10));
+    }
+  }, [lead.searchTerms]);
+
+  const handleRunAnalysis = async () => {
+    setAnalyzing(true);
+    setMsg({ type: 'info', text: '🤖 Agente acessando o site do lead, extraindo produtos/serviços e gerando os 10 termos de pesquisa...' });
+    try {
+      await onAnalyze();
+      setMsg({ type: 'success', text: '✨ 10 termos de pesquisa gerados com sucesso pela IA! Revise e edite abaixo se desejar antes de aprovar.' });
+    } catch (e: any) {
+      setMsg({ type: 'error', text: `Falha na análise de termos: ${e.message}` });
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleSaveTerms = async () => {
+    const clean = terms.map(t => t.trim());
+    const emptyIndexes = clean.map((t, idx) => (!t ? idx + 1 : null)).filter(Boolean);
+    
+    if (emptyIndexes.length > 0) {
+      setMsg({ type: 'error', text: `Preencha todos os 10 termos antes de aprovar. Termo(s) vazio(s): #${emptyIndexes.join(', #')}` });
+      return;
+    }
+
+    setSaving(true);
+    setMsg(null);
+    try {
+      await onSave(clean);
+      setMsg({ type: 'success', text: '🔒 Termos de pesquisa salvos e aprovados com sucesso! O Diagnóstico GEO está liberado para execução.' });
+    } catch (e: any) {
+      setMsg({ type: 'error', text: `Erro ao salvar termos: ${e.message}` });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const status = lead.searchTermsStatus || (lead.searchTerms && lead.searchTerms.length >= 10 ? 'approved' : 'pending');
+  const isApproved = status === 'approved';
+
+  return (
+    <div className={`p-6 rounded-2xl border transition-all ${
+      isApproved 
+        ? 'bg-emerald-950/5 border-emerald-500/30 shadow-xs text-zinc-900' 
+        : status === 'generated'
+        ? 'bg-amber-950/5 border-amber-500/30 shadow-xs text-zinc-900'
+        : 'bg-zinc-900 border-zinc-800 text-white shadow-md'
+    }`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-200/20">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold tracking-wider px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              ETAPA PRÉ-REQUISITO
+            </span>
+            <h3 className="text-base font-display font-bold flex items-center gap-2">
+              <span>🎯 Analisar Termos de Pesquisa</span>
+            </h3>
+          </div>
+          <p className="text-xs opacity-75 mt-1">
+            O agente entra no site do lead, entende os serviços/produtos oferecidos e gera 10 termos reais para os testes nas LLMs.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          {isApproved ? (
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              🟢 Aprovado para Diagnóstico
+            </span>
+          ) : status === 'generated' ? (
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+              🟡 Gerado (Pendente de Salvar)
+            </span>
+          ) : (
+            <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-red-500/20 text-red-500 dark:text-red-400 border border-red-500/40 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-500" />
+              🔴 Pendente (Diagnóstico Travado)
+            </span>
+          )}
+
+          <button
+            onClick={handleRunAnalysis}
+            disabled={analyzing}
+            className="text-xs font-bold px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition-all shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50 shrink-0"
+          >
+            {analyzing ? (
+              <><IconHourglass className="w-3.5 h-3.5 animate-spin" /> Analisando site...</>
+            ) : (
+              <><IconSparkles className="w-3.5 h-3.5 text-amber-300" /> Analisar Termos de Pesquisa</>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {lead.companyOverview && (
+        <div className="mt-4 p-3.5 rounded-xl bg-zinc-950/40 border border-zinc-700/50 text-xs space-y-1">
+          <span className="font-mono text-[10px] font-bold text-indigo-400 uppercase tracking-wider block">
+            🤖 Visão Geral da Empresa (Extraída pelo Agente IA):
+          </span>
+          <p className="opacity-90 leading-relaxed font-sans">{lead.companyOverview}</p>
+        </div>
+      )}
+
+      {msg && (
+        <div className={`mt-4 p-3 rounded-xl text-xs font-medium border ${
+          msg.type === 'success' ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+          : msg.type === 'error' ? 'bg-red-950/40 border-red-500/50 text-red-300'
+          : 'bg-indigo-950/40 border-indigo-500/50 text-indigo-300'
+        }`}>
+          {msg.text}
+        </div>
+      )}
+
+      <div className="mt-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-mono font-bold uppercase tracking-wider opacity-80">
+            Lista dos 10 Termos de Pesquisa para LLMs (ChatGPT, Gemini, Claude, Perplexity):
+          </label>
+          <span className="text-[11px] opacity-60">Você pode editar manualmente qualquer termo abaixo</span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+          {terms.map((term, index) => (
+            <div key={index} className="flex items-center gap-2 bg-zinc-950/40 p-2 px-3 rounded-xl border border-zinc-700/40">
+              <span className="text-xs font-mono font-bold text-indigo-400 w-6 shrink-0">
+                #{index + 1}
+              </span>
+              <input
+                type="text"
+                value={term}
+                onChange={e => {
+                  const newTerms = [...terms];
+                  newTerms[index] = e.target.value;
+                  setTerms(newTerms);
+                }}
+                placeholder={`Termo de pesquisa #${index + 1}...`}
+                className="w-full text-xs bg-transparent border-none outline-none focus:ring-0 text-current placeholder-zinc-500"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 pt-4 border-t border-zinc-200/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p className="text-xs opacity-75">
+          {!isApproved ? '⚠️ O diagnóstico completo ficará travado até você clicar em Salvar e Aprovar.' : '✅ Termos validados e salvos. O diagnóstico GEO pode ser executado.'}
+        </p>
+
+        <button
+          onClick={handleSaveTerms}
+          disabled={saving}
+          className="w-full sm:w-auto text-xs font-bold px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all shadow-md cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 shrink-0"
+        >
+          {saving ? (
+            <><IconHourglass className="w-3.5 h-3.5" /> Salvando...</>
+          ) : (
+            <><IconCheck className="w-3.5 h-3.5" /> Salvar e Aprovar 10 Termos</>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── FULL PAGE: LEAD WORKSPACE VIEW ──────────────────────────────────────────
 function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   lead: Lead; onBack: () => void; onNavigate: (page: string, id?: string) => void; onLeadUpdated: () => void;
 }) {
   const { diagnostic, loading: diagLoading, fetchDiagnostic } = useDiagnostic(lead.id);
-  const { runDiagnostic, sendReport, sendFollowup, convertToClient, editLead, deleteLead, downloadHtmlReport } = useLeads();
+  const { runDiagnostic, sendReport, sendFollowup, convertToClient, editLead, deleteLead, downloadHtmlReport, analyzeSearchTerms, saveSearchTerms } = useLeads();
   const [running, setRunning] = useState(false);
   const [sending, setSending] = useState(false);
   const [sendingFollowup, setSendingFollowup] = useState(false);
@@ -378,7 +569,13 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
     }
   }, [lead.id, lead.status, running, fetchDiagnostic, onLeadUpdated]);
 
+  const isTermsApproved = lead.searchTermsStatus === 'approved' && Array.isArray(lead.searchTerms) && lead.searchTerms.length >= 10 && lead.searchTerms.every(t => t && t.trim());
+
   const handleRunDiagnostic = async () => {
+    if (!isTermsApproved) {
+      setMessage('🔒 O diagnóstico está travado! Clique em "Analisar Termos de Pesquisa" e salve a aprovação dos 10 termos acima primeiro.');
+      return;
+    }
     setRunning(true);
     setMessage('Iniciando diagnóstico...');
     try {
@@ -406,6 +603,10 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   };
 
   const handleRerunDiagnostic = async () => {
+    if (!isTermsApproved) {
+      setMessage('🔒 O diagnóstico está travado! Clique em "Analisar Termos de Pesquisa" e salve a aprovação dos 10 termos acima primeiro.');
+      return;
+    }
     if (!window.confirm('Refazer o diagnóstico irá substituir os dados atuais. Continuar?')) return;
     setRunning(true);
     setMessage('Reiniciando diagnóstico...');
@@ -434,12 +635,12 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
     }
   };
 
-  const handleDownloadHtml = async () => {
+  const handleDownloadHtml = async (mode: 'client' | 'audit' = 'client') => {
     setDownloading(true);
     setMessage(null);
     try {
-      await downloadHtmlReport(lead.id, lead.company || lead.url);
-      setMessage('Relatório HTML baixado com sucesso!');
+      await downloadHtmlReport(lead.id, lead.company || lead.url, mode);
+      setMessage(mode === 'audit' ? 'Relatório de Auditoria HTML baixado com sucesso!' : 'Relatório HTML do Cliente baixado com sucesso!');
     } catch (e: any) {
       setMessage(`Erro ao baixar: ${e.message}`);
     } finally {
@@ -534,6 +735,19 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
         <LeadEditPanel lead={lead} onSave={handleSaveEdit} onCancel={() => setIsEditing(false)} />
       ) : (
         <>
+          {/* Search Terms Panel (Prerequisite) */}
+          <SearchTermsPanel
+            lead={lead}
+            onAnalyze={async () => {
+              await analyzeSearchTerms(lead.id);
+              onLeadUpdated();
+            }}
+            onSave={async (terms) => {
+              await saveSearchTerms(lead.id, terms);
+              onLeadUpdated();
+            }}
+          />
+
           {/* GEO Score & Quick Actions Banner */}
           <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 bg-white p-6 rounded-2xl border border-zinc-200 shadow-xs">
             <GeoScoreGauge score={lead.geoScore ?? 0} size="lg" />
@@ -543,17 +757,24 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
                   id={`run-diag-${lead.id}`}
                   onClick={handleRunDiagnostic}
                   disabled={running}
-                  className="w-full flex items-center justify-center gap-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer"
+                  className={`w-full flex items-center justify-center gap-2 font-semibold py-3 px-4 rounded-xl transition-all text-sm shadow-md cursor-pointer ${
+                    !isTermsApproved
+                      ? 'bg-zinc-800 text-zinc-400 border border-zinc-700 opacity-90'
+                      : 'bg-zinc-950 hover:bg-zinc-800 text-white'
+                  }`}
+                  title={!isTermsApproved ? "Diagnóstico travado: Analise e salve os 10 termos de pesquisa acima primeiro" : "Iniciar diagnóstico com os 10 termos aprovados"}
                 >
                   {running ? (
                     <span className="flex items-center gap-2"><IconHourglass className="w-4 h-4" /> Executando...</span>
+                  ) : !isTermsApproved ? (
+                    <span className="flex items-center gap-2 text-amber-400"><IconLock className="w-4 h-4" /> 🔒 Diagnóstico Travado (Pendente de Termos)</span>
                   ) : (
                     <span className="flex items-center gap-2"><IconPlay className="w-4 h-4" /> Iniciar Diagnóstico</span>
                   )}
                 </button>
               )}
               {lead.status !== 'new' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
                   <button
                     id={`send-report-${lead.id}`}
                     onClick={handleSendReport}
@@ -568,25 +789,45 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
                   </button>
                   <button
                     id={`download-html-${lead.id}`}
-                    onClick={handleDownloadHtml}
+                    onClick={() => handleDownloadHtml('client')}
                     disabled={downloading}
                     className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
-                    title="Baixar relatório HTML completo com trilha de auditoria dos agentes"
+                    title="Baixar relatório HTML comercial para envio ao cliente (limpo sem checklist/plano interno)"
                   >
                     {downloading ? (
                       <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Baixando...</span>
                     ) : (
-                      <span className="flex items-center gap-1.5"><IconDownload className="w-3.5 h-3.5" /> Baixar HTML</span>
+                      <span className="flex items-center gap-1.5"><IconDownload className="w-3.5 h-3.5" /> HTML Cliente</span>
+                    )}
+                  </button>
+                  <button
+                    id={`download-audit-${lead.id}`}
+                    onClick={() => handleDownloadHtml('audit')}
+                    disabled={downloading}
+                    className="flex items-center justify-center gap-2 bg-indigo-700 hover:bg-indigo-800 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                    title="Baixar relatório completo de auditoria interna (com checklist, plano de ação e logs)"
+                  >
+                    {downloading ? (
+                      <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Baixando...</span>
+                    ) : (
+                      <span className="flex items-center gap-1.5"><IconDownload className="w-3.5 h-3.5" /> HTML Auditoria</span>
                     )}
                   </button>
                   <button
                     id={`rerun-diag-${lead.id}`}
                     onClick={handleRerunDiagnostic}
                     disabled={running}
-                    className="flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 disabled:opacity-60 text-white font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer"
+                    className={`flex items-center justify-center gap-2 font-semibold py-2.5 px-3 rounded-xl transition-all text-xs shadow-sm cursor-pointer ${
+                      !isTermsApproved
+                        ? 'bg-zinc-800 text-amber-400 border border-zinc-700 opacity-90'
+                        : 'bg-zinc-700 hover:bg-zinc-600 text-white'
+                    }`}
+                    title={!isTermsApproved ? "Diagnóstico travado: Analise e salve os 10 termos acima primeiro" : "Refazer diagnóstico completo"}
                   >
                     {running ? (
                       <span className="flex items-center gap-1.5"><IconHourglass className="w-3.5 h-3.5" /> Executando...</span>
+                    ) : !isTermsApproved ? (
+                      <span className="flex items-center gap-1.5"><IconLock className="w-3.5 h-3.5 text-amber-400" /> 🔒 Refazer Travado</span>
                     ) : (
                       <span className="flex items-center gap-1.5"><IconRefresh className="w-3.5 h-3.5" /> Refazer Diagnóstico</span>
                     )}
@@ -879,12 +1120,190 @@ function LeadWorkspacePage({ lead, onBack, onNavigate, onLeadUpdated }: {
   );
 }
 
+// ─── Add Lead Modal ────────────────────────────────────────────────────────
+function AddLeadModal({ onClose, onAdd }: { onClose: () => void; onAdd: (data: any) => Promise<any> }) {
+  const [url, setUrl] = useState('');
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [company, setCompany] = useState('');
+  const [phone, setPhone] = useState('');
+  const [architecture, setArchitecture] = useState('no_rag');
+  const [scale, setScale] = useState('small');
+  const [status, setStatus] = useState('new');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url || !email) {
+      setError('URL e E-mail são obrigatórios.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onAdd({ url, email, name, company, phone, architecture, scale, status });
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Erro ao criar lead.');
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      onClose={onClose}
+      title="Adicionar Novo Lead Manualmente"
+      subtitle="Cadastre um lead diretamente no sistema para iniciar a auditoria de GEO"
+      maxWidth="max-w-xl"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-medium">
+            {error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="space-y-1 col-span-1 sm:col-span-2">
+            <label className="text-zinc-700 font-bold block">Website URL <span className="text-red-500">*</span></label>
+            <input
+              required
+              type="text"
+              placeholder="ex: https://empresa.com.br"
+              value={url}
+              onChange={e => setUrl(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] text-sm focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-zinc-700 font-bold block">E-mail do Contato <span className="text-red-500">*</span></label>
+            <input
+              required
+              type="email"
+              placeholder="contato@empresa.com.br"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-zinc-700 font-bold block">Nome do Contato</label>
+            <input
+              type="text"
+              placeholder="João Silva"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-zinc-700 font-bold block">Empresa / Rótulo</label>
+            <input
+              type="text"
+              placeholder="Empresa Exemplo LTDA"
+              value={company}
+              onChange={e => setCompany(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-zinc-700 font-bold block">WhatsApp / Telefone</label>
+            <input
+              type="text"
+              placeholder="(11) 99999-9999"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-zinc-700 font-bold block">Desafio RAG / Arquitetura</label>
+            <select
+              value={architecture}
+              onChange={e => setArchitecture(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all cursor-pointer"
+            >
+              <option value="no_rag">Sem RAG</option>
+              <option value="keyword">Busca por palavra-chave</option>
+              <option value="hybrid_hallucination">Busca Híbrida / Alucinações</option>
+              <option value="llm_indexing">Indexação de Marca em LLMs</option>
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-zinc-700 font-bold block">Escala da Base</label>
+            <select
+              value={scale}
+              onChange={e => setScale(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all cursor-pointer"
+            >
+              <option value="small">Pequena (até 100 docs)</option>
+              <option value="medium">Média (100 a 1.000 docs)</option>
+              <option value="large">Grande (+1.000 docs)</option>
+              <option value="unmeasured">Não mensurado</option>
+            </select>
+          </div>
+
+          <div className="space-y-1 col-span-1 sm:col-span-2">
+            <label className="text-zinc-700 font-bold block">Status Inicial</label>
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              className="w-full bg-white border border-zinc-200 rounded-xl px-3 py-2.5 min-h-[42px] focus:outline-none focus:ring-2 focus:ring-zinc-950 transition-all cursor-pointer"
+            >
+              <option value="new">Novo (Aguardando Diagnóstico)</option>
+              <option value="processing">Processando</option>
+              <option value="completed">Concluído</option>
+              <option value="converted">Convertido (Cliente)</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-2 justify-end pt-3 border-t border-zinc-200">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={submitting}
+            className="px-4 py-2.5 border border-zinc-200 rounded-xl font-bold hover:bg-zinc-100 transition-all cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-5 py-2.5 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white rounded-xl font-bold transition-all shadow-md cursor-pointer flex items-center gap-2"
+          >
+            {submitting ? (
+              <>
+                <IconHourglass className="w-4 h-4" />
+                Adicionando...
+              </>
+            ) : (
+              <>
+                <IconPlus className="w-4 h-4" />
+                Adicionar Lead
+              </>
+            )}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 // ─── Leads List Page ──────────────────────────────────────────────────────────
 export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps) {
-  const { leads, loading, error, fetchLeads, runDiagnostic, deleteLead } = useLeads();
+  const { leads, loading, error, fetchLeads, addLead, runDiagnostic, deleteLead } = useLeads();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [runningId, setRunningId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -910,11 +1329,20 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
 
   const handleQuickRun = async (e: React.MouseEvent, lead: Lead) => {
     e.stopPropagation();
+    const isApproved = lead.searchTermsStatus === 'approved' && Array.isArray(lead.searchTerms) && lead.searchTerms.length >= 10;
+    if (!isApproved) {
+      alert('🔒 Diagnóstico Travado! Por favor, analise e aprove os 10 termos de pesquisa antes de rodar o diagnóstico completo.');
+      setSelectedLead(lead);
+      return;
+    }
     setRunningId(lead.id);
     try {
       await runDiagnostic(lead.id);
       await fetchLeads();
-    } catch {}
+    } catch (err: any) {
+      alert(`Aviso: ${err.message}`);
+      setSelectedLead(lead);
+    }
     setRunningId(null);
   };
 
@@ -942,21 +1370,40 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {showAddModal && (
+        <AddLeadModal
+          onClose={() => setShowAddModal(false)}
+          onAdd={addLead}
+        />
+      )}
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-display font-bold text-zinc-900">Leads</h1>
           <p className="text-zinc-500 text-sm mt-1 font-medium">Diagnóstico gratuito Raio-X de GEO</p>
         </div>
-        <span className="text-xs text-zinc-400 font-mono font-bold bg-white border border-zinc-200/60 px-3 py-1 rounded-full shadow-xs">{leads.length} leads totais</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-zinc-400 font-mono font-bold bg-white border border-zinc-200/60 px-3.5 py-2.5 rounded-xl shadow-xs shrink-0">
+            {leads.length} leads totais
+          </span>
+          <button
+            id="btn-add-lead-manual"
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 bg-zinc-950 hover:bg-zinc-800 text-white px-4 py-2.5 rounded-xl font-bold text-xs shadow-md hover:shadow-lg transition-all cursor-pointer shrink-0 min-h-[40px]"
+          >
+            <IconPlus className="w-4 h-4 text-white" />
+            Adicionar Lead
+          </button>
+        </div>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 overflow-x-auto pb-1.5 no-scrollbar -mx-1 px-1">
         {['all', 'new', 'processing', 'completed', 'converted'].map(s => (
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            className={`px-3.5 py-2.5 min-h-[40px] shrink-0 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               filter === s ? 'bg-zinc-950 text-white shadow-md' : 'bg-white text-zinc-500 hover:text-zinc-900 border border-zinc-200/60 hover:bg-zinc-50'
             }`}
           >
@@ -966,7 +1413,7 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
         ))}
       </div>
 
-      {/* Table with Neumorphic Container */}
+      {/* Table & Mobile Cards with Neumorphic Container */}
       <div className="tactile-raised overflow-hidden bg-white/70 backdrop-blur-md">
         {loading ? (
           <div className="p-12 text-center text-zinc-400 text-sm font-mono">Carregando leads...</div>
@@ -978,77 +1425,143 @@ export default function LeadsList({ onNavigate, selectedLeadId }: LeadsListProps
             <p className="text-zinc-400 text-xs">Os leads são capturados automaticamente pelo widget do site</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[800px]">
-              <thead className="bg-zinc-50/70 border-b border-zinc-200/50">
-                <tr>
-                  {['Contato / Empresa', 'E-mail / Fone', 'Captado em', 'GEO Score', 'Status', 'Ações'].map(col => (
-                    <th key={col} className="text-left px-5 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">{col}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200/40">
-                {filtered.map(lead => (
-                  <tr
-                    key={lead.id}
-                    className="hover:bg-zinc-100/40 cursor-pointer transition-colors"
-                    onClick={() => setSelectedLead(lead)}
-                  >
-                    <td className="px-5 py-4">
-                      <p className="text-zinc-900 font-semibold truncate max-w-[200px]">{lead.name || lead.url}</p>
-                      <p className="text-zinc-450 text-xs mt-0.5 truncate">{lead.company || lead.url}</p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="text-zinc-700 font-mono truncate max-w-[160px]">{lead.email}</p>
-                      {(lead as any).phone && <p className="text-zinc-400 text-xs font-mono mt-0.5">{(lead as any).phone}</p>}
-                    </td>
-                    <td className="px-5 py-4 text-zinc-550 text-xs font-mono">
+          <div>
+            {/* Mobile Card List View (< md) */}
+            <div className="block md:hidden divide-y divide-zinc-200/40">
+              {filtered.map(lead => (
+                <div
+                  key={lead.id}
+                  className="p-4 space-y-3 hover:bg-zinc-100/40 cursor-pointer transition-colors"
+                  onClick={() => setSelectedLead(lead)}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-zinc-900 font-bold text-sm truncate">{lead.name || lead.url}</p>
+                      <p className="text-zinc-500 text-xs font-mono truncate mt-0.5">{lead.company || lead.url}</p>
+                      <p className="text-zinc-400 text-[11px] font-mono truncate mt-0.5">{lead.email}</p>
+                    </div>
+                    <StatusBadge status={lead.status} />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-xs">
+                    <span className="text-zinc-400 font-mono text-[10px]">
                       {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="px-5 py-4">
-                      {lead.geoScore !== undefined && lead.status !== 'new' && lead.status !== 'processing' ? (
-                        <span className={`font-mono font-bold ${lead.geoScore >= 70 ? 'text-emerald-600' : lead.geoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
-                          {lead.geoScore}%
-                        </span>
-                      ) : (
-                        <span className="text-zinc-400 font-medium">—</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-4"><StatusBadge status={lead.status} /></td>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                        {lead.status === 'new' && (
-                          <button
-                            id={`quick-run-${lead.id}`}
-                            onClick={e => handleQuickRun(e, lead)}
-                            disabled={runningId === lead.id}
-                            className="text-xs bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
-                          >
-                            {runningId === lead.id ? <IconHourglass className="w-3.5 h-3.5" /> : <><IconPlay className="w-3 h-3" /> Diagnóstico</>}
-                          </button>
-                        )}
-                        {lead.status !== 'new' && (
-                          <button
-                            id={`view-diag-${lead.id}`}
-                            onClick={e => { e.stopPropagation(); setSelectedLead(lead); }}
-                            className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-                          >
-                            <IconClipboard className="w-3.5 h-3.5" /> Dashboard
-                          </button>
-                        )}
-                        <button
-                          onClick={e => handleDeleteLead(e, lead.id)}
-                          className="text-xs bg-red-50 hover:bg-red-100 text-red-650 p-1.5 rounded-lg transition-all cursor-pointer"
-                          title="Excluir Lead"
-                        >
-                          <IconTrash className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
+                    </span>
+
+                    {lead.geoScore !== undefined && lead.status !== 'new' && lead.status !== 'processing' ? (
+                      <span className={`font-mono font-bold text-sm ${lead.geoScore >= 70 ? 'text-emerald-600' : lead.geoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                        GEO: {lead.geoScore}%
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400 font-mono text-[11px]">GEO: N/A</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1 border-t border-zinc-100" onClick={e => e.stopPropagation()}>
+                    {lead.status === 'new' && (
+                      <button
+                        id={`quick-run-mob-${lead.id}`}
+                        onClick={e => handleQuickRun(e, lead)}
+                        disabled={runningId === lead.id}
+                        className="flex-1 text-xs bg-zinc-950 hover:bg-zinc-800 text-white py-2.5 min-h-[40px] rounded-xl font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        {runningId === lead.id ? <IconHourglass className="w-3.5 h-3.5" /> : <><IconPlay className="w-3.5 h-3.5" /> Diagnóstico</>}
+                      </button>
+                    )}
+                    {lead.status !== 'new' && (
+                      <button
+                        id={`view-diag-mob-${lead.id}`}
+                        onClick={e => { e.stopPropagation(); setSelectedLead(lead); }}
+                        className="flex-1 text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-800 py-2.5 min-h-[40px] rounded-xl font-bold shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <IconClipboard className="w-3.5 h-3.5" /> Workspace
+                      </button>
+                    )}
+                    <button
+                      onClick={e => handleDeleteLead(e, lead.id)}
+                      className="text-xs bg-red-50 hover:bg-red-100 text-red-650 px-3 py-2.5 min-h-[40px] rounded-xl transition-all cursor-pointer flex items-center justify-center shrink-0"
+                      title="Excluir Lead"
+                    >
+                      <IconTrash className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-sm min-w-[800px]">
+                <thead className="bg-zinc-50/70 border-b border-zinc-200/50">
+                  <tr>
+                    {['Contato / Empresa', 'E-mail / Fone', 'Captado em', 'GEO Score', 'Status', 'Ações'].map(col => (
+                      <th key={col} className="text-left px-5 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-wider font-mono">{col}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-zinc-200/40">
+                  {filtered.map(lead => (
+                    <tr
+                      key={lead.id}
+                      className="hover:bg-zinc-100/40 cursor-pointer transition-colors"
+                      onClick={() => setSelectedLead(lead)}
+                    >
+                      <td className="px-5 py-4">
+                        <p className="text-zinc-900 font-semibold truncate max-w-[200px]">{lead.name || lead.url}</p>
+                        <p className="text-zinc-450 text-xs mt-0.5 truncate">{lead.company || lead.url}</p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="text-zinc-700 font-mono truncate max-w-[160px]">{lead.email}</p>
+                        {(lead as any).phone && <p className="text-zinc-400 text-xs font-mono mt-0.5">{(lead as any).phone}</p>}
+                      </td>
+                      <td className="px-5 py-4 text-zinc-550 text-xs font-mono">
+                        {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td className="px-5 py-4">
+                        {lead.geoScore !== undefined && lead.status !== 'new' && lead.status !== 'processing' ? (
+                          <span className={`font-mono font-bold ${lead.geoScore >= 70 ? 'text-emerald-600' : lead.geoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                            {lead.geoScore}%
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 font-medium">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4"><StatusBadge status={lead.status} /></td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                          {lead.status === 'new' && (
+                            <button
+                              id={`quick-run-${lead.id}`}
+                              onClick={e => handleQuickRun(e, lead)}
+                              disabled={runningId === lead.id}
+                              className="text-xs bg-zinc-950 hover:bg-zinc-800 text-white px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                            >
+                              {runningId === lead.id ? <IconHourglass className="w-3.5 h-3.5" /> : <><IconPlay className="w-3 h-3" /> Diagnóstico</>}
+                            </button>
+                          )}
+                          {lead.status !== 'new' && (
+                            <button
+                              id={`view-diag-${lead.id}`}
+                              onClick={e => { e.stopPropagation(); setSelectedLead(lead); }}
+                              className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 px-3 py-1.5 rounded-lg font-semibold shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                            >
+                              <IconClipboard className="w-3.5 h-3.5" /> Dashboard
+                            </button>
+                          )}
+                          <button
+                            onClick={e => handleDeleteLead(e, lead.id)}
+                            className="text-xs bg-red-50 hover:bg-red-100 text-red-650 p-1.5 rounded-lg transition-all cursor-pointer"
+                            title="Excluir Lead"
+                          >
+                            <IconTrash className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

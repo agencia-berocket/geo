@@ -9,6 +9,7 @@ const {
   runMetadataAgent,
   runContentAgent,
   runIntentAgent,
+  runSearchTermsAnalyzerAgent,
   runSemanticExplorerAgent,
   runOffPageEntityAgent,
   runSeoOptimizerAgent,
@@ -795,6 +796,50 @@ app.post('/api/leads/capture', async (req, res) => {
   }
 });
 
+// ─── CREATE LEAD MANUALLY (ADMIN) ─────────────────────────────────────────
+app.post('/api/admin/leads', verifyAdminToken, async (req, res) => {
+  const { url, email, name, company, phone, architecture, scale, status } = req.body;
+  if (!url || !email) {
+    return res.status(400).json({ error: 'URL e e-mail são obrigatórios' });
+  }
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const leadId = `lead_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    const cleanUrl = url.startsWith('http') ? url : `https://${url}`;
+    const domain = cleanUrl.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+
+    const firestoreUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads`;
+    const leadDoc = {
+      fields: {
+        id: { stringValue: leadId },
+        url: { stringValue: cleanUrl },
+        email: { stringValue: email },
+        name: { stringValue: name || '' },
+        company: { stringValue: company || domain },
+        domain: { stringValue: domain },
+        phone: { stringValue: phone || '' },
+        architecture: { stringValue: architecture || '' },
+        scale: { stringValue: scale || '' },
+        createdAt: { stringValue: new Date().toISOString() },
+        status: { stringValue: status || 'new' },
+        geoScore: { integerValue: 0 },
+      }
+    };
+
+    await fetchFirestore(firestoreUrl, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(leadDoc),
+    });
+
+    res.json({ success: true, leadId });
+  } catch (err) {
+    console.error('Manual lead creation error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── LIST LEADS ────────────────────────────────────────────────────────────
 app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
   try {
@@ -817,6 +862,10 @@ app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
         status: f.status?.stringValue || 'new',
         geoScore: parseInt(f.geoScore?.integerValue || '0'),
         diagnosticId: f.diagnosticId?.stringValue || '',
+        searchTerms: (f.searchTerms?.arrayValue?.values || []).map(v => v.stringValue || '').filter(Boolean),
+        searchTermsStatus: f.searchTermsStatus?.stringValue || 'pending',
+        companyOverview: f.companyOverview?.stringValue || '',
+        searchTermsAnalyzedAt: f.searchTermsAnalyzedAt?.stringValue || '',
       };
     });
 
@@ -908,10 +957,172 @@ app.delete('/api/admin/leads/:id', verifyAdminToken, async (req, res) => {
   }
 });
 
+// ─── SEARCH TERMS ANALYZER & EDIT ENDPOINTS ──────────────────────────────────
+app.post('/api/admin/leads/:leadId/analyze-search-terms', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.params;
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    let lead = null;
+    let leadDocPath = null;
+    for (const doc of (leadsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === leadId || f.id?.stringValue === leadId) {
+        lead = {
+          id: f.id?.stringValue || docId,
+          url: f.url?.stringValue || '',
+        };
+        leadDocPath = doc.name;
+        break;
+      }
+    }
+
+    if (!lead || !leadDocPath) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const baseUrl = lead.url.startsWith('http') ? lead.url : `https://${lead.url}`;
+    let htmlContent = '';
+    try {
+      const siteRes = await fetchUrl(baseUrl);
+      htmlContent = siteRes.body;
+    } catch (e) {
+      htmlContent = '';
+    }
+
+    const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+    const result = await runSearchTermsAnalyzerAgent(baseUrl, htmlContent, openrouterKey);
+
+    const updateMask = 'updateMask.fieldPaths=searchTerms&updateMask.fieldPaths=searchTermsStatus&updateMask.fieldPaths=companyOverview&updateMask.fieldPaths=searchTermsAnalyzedAt';
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${leadDocPath}?${updateMask}`;
+
+    const fields = {
+      searchTerms: toFirestoreValue(result.searchTerms),
+      searchTermsStatus: toFirestoreValue('generated'),
+      companyOverview: toFirestoreValue(result.companyOverview),
+      searchTermsAnalyzedAt: toFirestoreValue(new Date().toISOString()),
+    };
+
+    await fetchFirestore(firestoreUrl, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    });
+
+    res.json({
+      success: true,
+      searchTerms: result.searchTerms,
+      companyOverview: result.companyOverview,
+      searchTermsStatus: 'generated',
+      searchTermsAnalyzedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Erro na análise de termos de pesquisa:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/leads/:leadId/save-search-terms', verifyAdminToken, async (req, res) => {
+  const { leadId } = req.params;
+  const { searchTerms } = req.body;
+
+  if (!Array.isArray(searchTerms) || searchTerms.length === 0 || searchTerms.some(t => !t || !t.trim())) {
+    return res.status(400).json({ error: 'É necessário fornecer os 10 termos de pesquisa devidamente preenchidos.' });
+  }
+
+  const cleanTerms = searchTerms.map(t => String(t).trim()).slice(0, 10);
+
+  try {
+    const accessToken = await getGoogleAccessToken();
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    let leadDocPath = null;
+    for (const doc of (leadsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === leadId || f.id?.stringValue === leadId) {
+        leadDocPath = doc.name;
+        break;
+      }
+    }
+
+    if (!leadDocPath) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    const updateMask = 'updateMask.fieldPaths=searchTerms&updateMask.fieldPaths=searchTermsStatus&updateMask.fieldPaths=searchTermsApprovedAt';
+    const firestoreUrl = `https://firestore.googleapis.com/v1/${leadDocPath}?${updateMask}`;
+
+    const fields = {
+      searchTerms: toFirestoreValue(cleanTerms),
+      searchTermsStatus: toFirestoreValue('approved'),
+      searchTermsApprovedAt: toFirestoreValue(new Date().toISOString()),
+    };
+
+    await fetchFirestore(firestoreUrl, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    });
+
+    res.json({
+      success: true,
+      searchTerms: cleanTerms,
+      searchTermsStatus: 'approved',
+    });
+  } catch (err) {
+    console.error('Erro ao salvar termos de pesquisa:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── RUN DIAGNOSTIC ────────────────────────────────────────────────────────
 app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
   const { leadId } = req.body;
   if (!leadId) return res.status(400).json({ error: 'leadId é obrigatório' });
+
+  let lead = null;
+  let leadDocPath = null;
+  let accessToken = null;
+
+  try {
+    accessToken = await getGoogleAccessToken();
+
+    // Fetch lead data
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
+    const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    for (const doc of (leadsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (f.id?.stringValue === leadId || docId === leadId) {
+        lead = {
+          id: f.id?.stringValue || leadId,
+          url: f.url?.stringValue || '',
+          email: f.email?.stringValue || '',
+          name: f.name?.stringValue || '',
+          company: f.company?.stringValue || '',
+          searchTerms: (f.searchTerms?.arrayValue?.values || []).map(v => v.stringValue || '').filter(Boolean),
+          searchTermsStatus: f.searchTermsStatus?.stringValue || 'pending',
+        };
+        leadDocPath = doc.name;
+        break;
+      }
+    }
+
+    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
+
+    // TRAVA DE EXECUÇÃO: Se os 10 termos não estiverem preenchidos/aprovados, recusa a execução
+    if (!lead.searchTerms || lead.searchTerms.length === 0 || lead.searchTermsStatus !== 'approved') {
+      return res.status(400).json({
+        error: 'O diagnóstico está travado! É necessário analisar e aprovar os 10 termos de pesquisa antes de executar o diagnóstico completo.',
+        requiresSearchTerms: true
+      });
+    }
+
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 
   // Respond immediately — diagnostic runs async
   res.json({ success: true, message: 'Diagnóstico iniciado em background' });
@@ -919,31 +1130,6 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
   // Run async
   (async () => {
     try {
-      const accessToken = await getGoogleAccessToken();
-
-      // Fetch lead data
-      const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`;
-      const leadsData = await fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-
-      let lead = null;
-      let leadDocPath = null;
-      for (const doc of (leadsData.documents || [])) {
-        const f = doc.fields || {};
-        if (f.id?.stringValue === leadId) {
-          lead = {
-            id: f.id.stringValue,
-            url: f.url?.stringValue || '',
-            email: f.email?.stringValue || '',
-            name: f.name?.stringValue || '',
-            company: f.company?.stringValue || '',
-          };
-          leadDocPath = doc.name;
-          break;
-        }
-      }
-
-      if (!lead) throw new Error('Lead não encontrado');
-
       // Update status to processing
       await fetchFirestore(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=status`, {
         method: 'PATCH',
@@ -975,8 +1161,8 @@ app.post('/api/admin/diagnostic/run', verifyAdminToken, async (req, res) => {
         runSeoOptimizerAgent(baseUrl, htmlContent),
       ]);
 
-      // Agente Intent (uses OpenRouter API)
-      const visibility = await runIntentAgent(lead.url, htmlContent, openrouterKey);
+      // Agente Intent (uses OpenRouter API with approved custom search terms)
+      const visibility = await runIntentAgent(lead.url, htmlContent, openrouterKey, lead.searchTerms);
 
       // Agente Checklist Architect (QA & Developer Checklists)
       const checklist = await runChecklistArchitectAgent(gatekeeper, metadata, content, seo, semantic, offpage, domain, baseUrl);
@@ -1252,11 +1438,15 @@ app.get('/api/admin/diagnostic/html/:leadId', verifyAdminToken, async (req, res)
     }
     if (!diagnostic) return res.status(404).json({ error: 'Diagnóstico não encontrado' });
 
-    // Gerar o HTML completo (inclui seção de auditoria se agentAuditLog estiver presente)
-    const htmlReport = generateHtmlReport(lead, diagnostic);
+    // Gerar o HTML do cliente ou auditoria interna
+    const mode = req.query.mode || req.query.type;
+    const isInternal = mode === 'audit' || mode === 'internal' || req.query.isInternal === 'true';
+    const htmlReport = isInternal 
+      ? generateCompleteHtmlReport(lead, diagnostic)
+      : generateHtmlReport(lead, diagnostic, { isInternal: false });
 
     const domainClean = (lead.url || 'diagnostico').replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/[^a-z0-9_-]/gi, '_');
-    const filename = `Relatorio_GEO_Completo_${domainClean}.html`;
+    const filename = isInternal ? `Relatorio_GEO_Auditoria_${domainClean}.html` : `Relatorio_GEO_${domainClean}.html`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

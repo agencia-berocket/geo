@@ -68,30 +68,56 @@ function fetchUrl(url, options = {}, redirectCount = 0) {
 
 // ─── OpenRouter helper ───────────────────────────────────────────────────────
 async function callOpenRouter(model, systemPrompt, userPrompt, apiKey) {
-  const body = JSON.stringify({
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    max_tokens: 600,
-    temperature: 0.3,
-  });
+  // Mapeamento de fallbacks para resiliência caso o provedor descontinue ou altere IDs de modelos no OpenRouter
+  const fallbacksByModel = {
+    'anthropic/claude-haiku-4.5': ['anthropic/claude-3-haiku', 'anthropic/claude-sonnet-4.6'],
+    'anthropic/claude-3.5-haiku': ['anthropic/claude-haiku-4.5', 'anthropic/claude-3-haiku'],
+    'google/gemini-2.5-flash': ['google/gemini-flash-1.5'],
+    'openai/gpt-4o-mini': ['openai/gpt-4o-mini'],
+    'perplexity/sonar': ['perplexity/sonar-reasoning']
+  };
 
-  const res = await fetchUrl('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://geo.berocket.com.br',
-      'X-Title': 'b.rocket GEO Diagnostic',
-    },
-    body,
-  });
+  const candidateModels = Array.isArray(model)
+    ? model
+    : [model, ...(fallbacksByModel[model] || [])];
 
-  const parsed = JSON.parse(res.body);
-  if (parsed.error) throw new Error(`OpenRouter: ${parsed.error.message}`);
-  return parsed.choices?.[0]?.message?.content || '';
+  let lastError = null;
+
+  for (const candidate of candidateModels) {
+    try {
+      const body = JSON.stringify({
+        model: candidate,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 600,
+        temperature: 0.3,
+      });
+
+      const res = await fetchUrl('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://geo.berocket.com.br',
+          'X-Title': 'b.rocket GEO Diagnostic',
+        },
+        body,
+      });
+
+      const parsed = JSON.parse(res.body);
+      if (parsed.error) throw new Error(`OpenRouter (${candidate}): ${parsed.error.message}`);
+      return parsed.choices?.[0]?.message?.content || '';
+    } catch (err) {
+      lastError = err;
+      if (candidateModels.length > 1) {
+        console.warn(`[callOpenRouter] Falha ao chamar ${candidate}: ${err.message}. Tentando modelo fallback...`);
+      }
+    }
+  }
+
+  throw lastError || new Error('OpenRouter: Falha em todas as tentativas');
 }
 
 // ─── PageSpeed Insights (Core Web Vitals reais) ─────────────────────────────
@@ -900,7 +926,8 @@ function renderUnavailableNotice(dataSourceDetail, fontSans) {
 }
 
 // ─── HTML Report Generator ────────────────────────────────────────────────────
-function generateHtmlReport(lead, diagnostic) {
+function generateHtmlReport(lead, diagnostic, options = {}) {
+  const isInternal = Boolean(options && options.isInternal);
   const score = diagnostic.overallGeoScore;
   const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
   
@@ -950,12 +977,14 @@ function generateHtmlReport(lead, diagnostic) {
   const iconNote = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
   const iconChart = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`;
   const iconList = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#09090b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`;
+  const iconRocket = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:8px;"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.71 1.26-1.5 1.5-2.5-1.5 0-3-.5-4.5-2-.5.5-1 1-1.5 1.5z"/><path d="M15 9l-3 3"/><path d="M9 18c-4.51 2-5-2-7-2 2-2 4-2.5 6-7 4.51-10 14-10 14-10s0 9.49-10 14z"/></svg>`;
 
   const formatCheck = (ok) => ok
     ? `<span style="display:inline-block;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;width:18px;height:18px;line-height:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-align:middle;">✓</span>`
     : `<span style="display:inline-block;color:#dc2626;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;width:18px;height:18px;line-height:16px;text-align:center;font-size:11px;font-weight:bold;margin-right:8px;vertical-align:middle;">✗</span>`;
 
   const impactStyles = (impact) => {
+    if (!impact) return 'background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
     if (impact.includes('Crítico')) return 'background:#fef2f2;color:#dc2626;border:1px solid #fca5a5;';
     if (impact.includes('Alto')) return 'background:#fff7ed;color:#d97706;border:1px solid #fed7aa;';
     return 'background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
@@ -1349,8 +1378,8 @@ function generateHtmlReport(lead, diagnostic) {
   </div>
   ` : ''}
 
-  <!-- Checklist Interativo b.rocket (QA & DEVS) -->
-  ${diagnostic.checklist && diagnostic.checklist.interactiveChecklist ? `
+  ${isInternal && diagnostic.checklist && diagnostic.checklist.interactiveChecklist ? `
+  <!-- Checklist Interativo b.rocket (QA & DEVS) (USO INTERNO / AUDITORIA) -->
   <div style="${cardStyle}">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
@@ -1409,7 +1438,8 @@ ${item.codeSnippet.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
   </div>
   ` : ''}
 
-  <!-- Plano de Ação Priorizado -->
+  ${isInternal && diagnostic.actionItemsPriorityList && diagnostic.actionItemsPriorityList.length > 0 ? `
+  <!-- Plano de Ação Priorizado (USO INTERNO / AUDITORIA) -->
   <div style="${cardStyle}">
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
       <tr>
@@ -1432,6 +1462,52 @@ ${item.codeSnippet.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
       </div>
     </div>
     `).join('')}
+  </div>
+  ` : ''}
+
+  <!-- Resumo Executivo & Copy de Fechamento b.rocket -->
+  <div style="${cardStyle} border-left:4px solid #dc2626; background:#fcfcfd;">
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;border-bottom:1px solid #f1f2f5;padding-bottom:12px;">
+      <tr>
+        <td align="left" style="vertical-align:middle;">
+          ${iconRocket}
+          <span style="${fontDisplay} font-weight:800;color:#09090b;font-size:16px;vertical-align:middle;text-transform:uppercase;letter-spacing:-0.2px;">Por que Fechar Contrato de Implantação com a b.rocket?</span>
+        </td>
+        <td align="right" style="vertical-align:middle;">
+          <span style="${fontMono} font-size:9px;font-weight:bold;padding:4px 8px;border-radius:6px;color:#dc2626;background:#fef2f2;border:1px solid #fca5a5;">
+            OPORTUNIDADE GEO
+          </span>
+        </td>
+      </tr>
+    </table>
+
+    <div style="font-size:13px;color:#3f3f46;line-height:1.65;${fontSans}">
+      <p style="margin:0 0 14px;color:#18181b;font-weight:500;">
+        Este diagnóstico científico mapeou com precisão os gargalos técnicos, semânticos e estruturais que hoje impedem o seu site de ser recomendado ativamente pelos principais motores de busca generativa por IA — incluindo <strong>ChatGPT, Claude, Gemini, Perplexity e Copilot</strong>.
+      </p>
+      
+      <div style="background:#ffffff;border:1px solid #e4e4e7;border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,0.02);">
+        <p style="margin:0 0 12px;font-weight:700;color:#09090b;font-size:13.5px;${fontDisplay}">
+          Ao fechar contrato de implantação com a b.rocket e autorizar nosso time a executar as correções necessárias:
+        </p>
+        
+        <div style="margin-bottom:12px;font-size:13px;color:#27272a;line-height:1.5;">
+          📈 <strong style="color:#09090b;">Elevação Significativa do GEO Score:</strong> Eliminamos as falhas de indexabilidade, otimização semântica e schemas JSON-LD, garantindo uma subida expressiva no seu score de visibilidade generativa em poucas semanas.
+        </div>
+        
+        <div style="margin-bottom:12px;font-size:13px;color:#27272a;line-height:1.5;">
+          🎯 <strong style="color:#09090b;">Prioridade de Citação perante Concorrentes:</strong> Quando um usuário ou comprador em potencial pesquisar no ChatGPT, Claude ou Perplexity pelo produto ou serviço que a sua empresa oferece, a probabilidade da sua marca ser citada e recomendada como autoridade número #1 no setor se torna drasticamente maior do que a dos seus concorrentes.
+        </div>
+
+        <div style="margin:0;font-size:13px;color:#27272a;line-height:1.5;">
+          💼 <strong style="color:#09090b;">Monopólio de Consideração de Compra:</strong> Conquiste leads de altíssima intenção no momento exato em que estão usando IA para decidir a contratação, garantindo retorno real sobre o investimento.
+        </div>
+      </div>
+
+      <p style="margin:0;font-size:12px;color:#71717a;font-style:italic;line-height:1.5;">
+        Identificar o problema é o primeiro passo; implementar a engenharia de citação com rigor científico é o que garante o topo. Vamos juntos transformar esses gargalos em liderança de mercado.
+      </p>
+    </div>
   </div>
 
   <!-- CTA de Agendamento -->
@@ -2136,8 +2212,101 @@ ${seoSignals}`;
   }
 }
 
+// ─── AGENTE: Search Terms Analyzer (OpenRouter) ──────────────────────────────
+async function runSearchTermsAnalyzerAgent(url, htmlContent, apiKey) {
+  const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+  const brandName = extractCleanBrandName(domain, {}, htmlContent);
+  const seoSignals = extractSeoSignals(htmlContent, brandName, domain);
+
+  if (!apiKey) {
+    const heuristicNiche = extractNicheAndServices(htmlContent, brandName, domain);
+    const loc = extractLocationHints(htmlContent, domain);
+    const defaultPrompts = generateContextualPrompts(brandName, heuristicNiche.nicheName, heuristicNiche.services, loc, heuristicNiche.intentType);
+    const terms = defaultPrompts.slice(0, 10);
+    while (terms.length < 10) {
+      terms.push(`Serviços de ${heuristicNiche.nicheName} oferecidos por ${brandName}`);
+    }
+    return {
+      companyOverview: `Empresa atuante no nicho de ${heuristicNiche.nicheName}.`,
+      nicheName: heuristicNiche.nicheName,
+      searchTerms: terms.slice(0, 10),
+    };
+  }
+
+  const systemPrompt = `Você é um agente especialista em SEO, GEO (Generative Engine Optimization) e Inteligência de Mercado.
+Sua missão é analisar minuciosamente as informações do site de um lead/empresa, compreender quais produtos, serviços, soluções e proposta de valor ela oferece, e criar EXATAMENTE 10 termos de pesquisa (prompts de busca) ultra-realistas que potenciais clientes usariam nas IAs (ChatGPT, Gemini, Claude, Perplexity) ao procurar pela empresa ou por suas soluções no Brasil.`;
+
+  const prompt = `Analise os dados extraídos do site abaixo e responda EXCLUSIVAMENTE com um objeto JSON válido no formato informado, sem markdown e sem textos adicionais.
+
+FORMATO JSON ESPERADO:
+{
+  "companyOverview": "Um resumo claro, profissional e direto (de 2 a 3 frases) explicando o que a empresa faz, quais produtos e serviços oferece e qual o seu diferencial/nicho.",
+  "nicheName": "Nome do nicho da empresa",
+  "searchTerms": [
+    "Termo/Pergunta 1 que um cliente faria no ChatGPT",
+    "Termo/Pergunta 2",
+    "Termo/Pergunta 3",
+    "Termo/Pergunta 4",
+    "Termo/Pergunta 5",
+    "Termo/Pergunta 6",
+    "Termo/Pergunta 7",
+    "Termo/Pergunta 8",
+    "Termo/Pergunta 9",
+    "Termo/Pergunta 10"
+  ]
+}
+
+DADOS DO SITE DA EMPRESA:
+- URL: ${url}
+- Domínio: ${domain}
+- Nome da Marca: ${brandName}
+${seoSignals}
+
+DIRETRIZES PARA OS 10 TERMOS DE PESQUISA:
+1. Inclua variações de descoberta (ex: "Onde encontrar [produto/serviço]...", "Melhores empresas de [nicho]...").
+2. Inclua perguntas de intenção de compra ou contratação (ex: "Quem contratar para [serviço] em [cidade/região]...").
+3. Inclua pesquisas institucionais/marca (ex: "A empresa [Marca] é boa para [serviço]?", "Quais os serviços oferecidos pela [Marca]?").
+4. Crie termos em português natural e fluido do Brasil.
+5. Garanta que a lista tenha EXATAMENTE 10 itens.`;
+
+  try {
+    const raw = await callOpenRouter('openai/gpt-4o-mini', systemPrompt, prompt, apiKey);
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Resposta da LLM não continha JSON válido');
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    let terms = Array.isArray(parsed.searchTerms) ? parsed.searchTerms.map(t => String(t).trim()).filter(Boolean) : [];
+    if (terms.length < 10) {
+      const fallbackNiche = parsed.nicheName || 'serviços especializados';
+      while (terms.length < 10) {
+        terms.push(`Onde contratar ${fallbackNiche} no Brasil com a ${brandName}?`);
+      }
+    }
+    terms = terms.slice(0, 10);
+
+    return {
+      companyOverview: parsed.companyOverview || `Empresa do segmento de ${parsed.nicheName || brandName}.`,
+      nicheName: parsed.nicheName || 'Empresa',
+      searchTerms: terms,
+    };
+  } catch (e) {
+    const heuristicNiche = extractNicheAndServices(htmlContent, brandName, domain);
+    const loc = extractLocationHints(htmlContent, domain);
+    const defaultPrompts = generateContextualPrompts(brandName, heuristicNiche.nicheName, heuristicNiche.services, loc, heuristicNiche.intentType);
+    const terms = defaultPrompts.slice(0, 10);
+    while (terms.length < 10) {
+      terms.push(`Opções de ${heuristicNiche.nicheName} oferecidas por ${brandName}`);
+    }
+    return {
+      companyOverview: `Empresa no segmento de ${heuristicNiche.nicheName}.`,
+      nicheName: heuristicNiche.nicheName,
+      searchTerms: terms.slice(0, 10),
+    };
+  }
+}
+
 // ─── AGENTE 5: Intent Prompt Agent (OpenRouter) ──────────────────────────────
-async function runIntentAgent(url, htmlContent, apiKey) {
+async function runIntentAgent(url, htmlContent, apiKey, customSearchTerms = null) {
   const domain = url.replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
   const brandName = extractCleanBrandName(domain, {}, htmlContent);
   // 1º: Inferência de nicho via LLM — entende qualquer negócio lendo o site
@@ -2160,20 +2329,25 @@ async function runIntentAgent(url, htmlContent, apiKey) {
 
   const models = [
     'openai/gpt-4o-mini',
-    'anthropic/claude-3.5-haiku',
+    'anthropic/claude-haiku-4.5',
     'google/gemini-2.5-flash',
     'perplexity/sonar',
   ];
 
   const systemPrompt = `Você é um assistente especialista em mercado corporativo brasileiro. Responda em português de forma objetiva, listando nomes completos de empresas e marcas sem abreviar.`;
 
-  const prompts = generateContextualPrompts(
-    brandName,
-    niche,
-    nicheResolved.services,
-    locationHints,
-    nicheResolved.intentType
-  );
+  let prompts;
+  if (Array.isArray(customSearchTerms) && customSearchTerms.filter(t => t && t.trim()).length > 0) {
+    prompts = customSearchTerms.map(t => String(t).trim()).filter(Boolean).slice(0, 10);
+  } else {
+    prompts = generateContextualPrompts(
+      brandName,
+      niche,
+      nicheResolved.services,
+      locationHints,
+      nicheResolved.intentType
+    );
+  }
 
   if (!apiKey) {
     return {
@@ -2197,7 +2371,11 @@ async function runIntentAgent(url, htmlContent, apiKey) {
   const agentAuditLog = [];
 
   for (const model of models) {
-    const modelKey = model.split('/')[1].replace(/-\d.*/, '');
+    const modelKey = model.includes('gpt') ? 'gpt'
+      : model.includes('claude') ? 'claude'
+      : model.includes('gemini') ? 'gemini'
+      : model.includes('sonar') ? 'sonar'
+      : model.split('/')[1].replace(/-\d.*/, '');
     citationsByModel[modelKey] = 0;
 
     for (const prompt of prompts) {
@@ -2706,8 +2884,8 @@ async function takeReportScreenshots(htmlContent) {
 // ─── Relatório HTML Completo (uso interno b.rocket) ──────────────────────────
 // Inclui: relatório comercial + evidências visuais (prints) + trilha de auditoria
 function generateCompleteHtmlReport(lead, diagnostic, screenshots = []) {
-  // Gera o relatório comercial limpo (base)
-  const cleanHtml = generateHtmlReport(lead, diagnostic);
+  // Gera o relatório comercial base com detalhes de uso interno/auditoria
+  const cleanHtml = generateHtmlReport(lead, diagnostic, { isInternal: true });
 
   const fontMono = `font-family:'JetBrains Mono', 'Courier New', monospace;`;
   const fontSans = `font-family:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;`;
@@ -2784,6 +2962,7 @@ module.exports = {
   runMetadataAgent,
   runContentAgent,
   runIntentAgent,
+  runSearchTermsAnalyzerAgent,
   runSemanticExplorerAgent,
   runOffPageEntityAgent,
   runSeoOptimizerAgent,

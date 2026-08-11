@@ -59,6 +59,11 @@ export interface Lead {
   status: 'new' | 'processing' | 'completed' | 'converted';
   geoScore?: number;
   diagnosticId?: string;
+  searchTerms?: string[];
+  searchTermsStatus?: 'pending' | 'generated' | 'approved';
+  companyOverview?: string;
+  searchTermsAnalyzedAt?: string;
+  searchTermsApprovedAt?: string;
 }
 
 export interface DiagnosticReport {
@@ -147,6 +152,26 @@ export function useLeads() {
     }
   }, []);
 
+  const addLead = useCallback(async (data: {
+    url: string;
+    email: string;
+    name?: string;
+    company?: string;
+    phone?: string;
+    architecture?: string;
+    scale?: string;
+    status?: string;
+  }) => {
+    const result = await apiFetch<{ success: boolean; leadId: string }>('/admin/leads', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    if (result.success) {
+      await fetchLeads();
+    }
+    return result;
+  }, [fetchLeads]);
+
   const editLead = useCallback(async (leadId: string, data: Partial<Lead>) => {
     const result = await apiFetch<{ success: boolean }>(`/admin/leads/${leadId}`, {
       method: 'PATCH',
@@ -196,9 +221,9 @@ export function useLeads() {
     });
   }, []);
 
-  const downloadHtmlReport = useCallback(async (leadId: string, companyOrDomain?: string) => {
+  const downloadHtmlReport = useCallback(async (leadId: string, companyOrDomain?: string, mode: 'client' | 'audit' = 'client') => {
     const token = await auth.currentUser?.getIdToken(false);
-    const res = await fetch(`${API_BASE}/admin/diagnostic/html/${leadId}`, {
+    const res = await fetch(`${API_BASE}/admin/diagnostic/html/${leadId}?mode=${mode}`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     if (!res.ok) {
@@ -210,7 +235,8 @@ export function useLeads() {
     const a = document.createElement('a');
     a.href = url;
     const label = (companyOrDomain || leadId).replace(/[^a-z0-9_-]/gi, '_');
-    a.download = `Relatorio_GEO_Completo_${label}.html`;
+    const prefix = mode === 'audit' ? 'Relatorio_GEO_Auditoria_' : 'Relatorio_GEO_';
+    a.download = `${prefix}${label}.html`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -224,7 +250,50 @@ export function useLeads() {
     });
   }, []);
 
-  return { leads, loading, error, fetchLeads, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadHtmlReport };
+  const analyzeSearchTerms = useCallback(async (leadId: string) => {
+    const res = await apiFetch<{
+      success: boolean;
+      searchTerms: string[];
+      companyOverview: string;
+      searchTermsStatus: 'generated';
+      searchTermsAnalyzedAt: string;
+    }>(`/admin/leads/${leadId}/analyze-search-terms`, {
+      method: 'POST',
+    });
+
+    if (res.success) {
+      setLeads(prev => prev.map(l => (l.id === leadId ? {
+        ...l,
+        searchTerms: res.searchTerms,
+        companyOverview: res.companyOverview,
+        searchTermsStatus: 'generated',
+        searchTermsAnalyzedAt: res.searchTermsAnalyzedAt,
+      } : l)));
+    }
+    return res;
+  }, []);
+
+  const saveSearchTerms = useCallback(async (leadId: string, searchTerms: string[]) => {
+    const res = await apiFetch<{
+      success: boolean;
+      searchTerms: string[];
+      searchTermsStatus: 'approved';
+    }>(`/admin/leads/${leadId}/save-search-terms`, {
+      method: 'POST',
+      body: JSON.stringify({ searchTerms }),
+    });
+
+    if (res.success) {
+      setLeads(prev => prev.map(l => (l.id === leadId ? {
+        ...l,
+        searchTerms: res.searchTerms,
+        searchTermsStatus: 'approved',
+      } : l)));
+    }
+    return res;
+  }, []);
+
+  return { leads, loading, error, fetchLeads, addLead, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadHtmlReport, analyzeSearchTerms, saveSearchTerms };
 }
 
 export function useDiagnostic(leadId: string | null) {

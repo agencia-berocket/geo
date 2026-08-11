@@ -94,7 +94,7 @@ export default function AdminLayout({ children, user, currentPage, onNavigate }:
                   id={`nav-${item.id}`}
                   onClick={() => handleNavigate(item.id)}
                   title={!desktopSidebarOpen ? item.label : undefined}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer ${
+                  className={`w-full flex items-center gap-3 px-3.5 py-3 min-h-[44px] rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer ${
                     !desktopSidebarOpen ? 'lg:justify-center lg:px-0' : ''
                   } ${
                     currentPage === item.id
@@ -136,33 +136,34 @@ export default function AdminLayout({ children, user, currentPage, onNavigate }:
       {/* Main content area */}
       <main className="flex-1 overflow-auto flex flex-col min-h-screen min-w-0">
         {/* Top bar with mobile hamburger and status */}
-        <div className="h-16 flex items-center px-4 lg:px-8 gap-4 justify-between border-b border-zinc-200/40 bg-white/40 backdrop-blur-sm sticky top-0 z-10">
-          <div className="flex items-center gap-3">
+        <div className="h-16 flex items-center px-4 lg:px-8 gap-3 justify-between border-b border-zinc-200/40 bg-white/40 backdrop-blur-sm sticky top-0 z-10">
+          <div className="flex items-center gap-2.5 min-w-0">
             {/* Hamburger Button for Mobile */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="lg:hidden text-zinc-650 hover:text-zinc-900 p-1.5 rounded-lg border border-zinc-200 bg-white shadow-xs cursor-pointer"
+              className="lg:hidden text-zinc-650 hover:text-zinc-900 p-2 min-h-[40px] min-w-[40px] rounded-xl border border-zinc-200 bg-white shadow-xs cursor-pointer flex items-center justify-center shrink-0"
+              aria-label="Menu Admin"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-4 h-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="w-5 h-5">
                 <line x1="4" y1="6" x2="20" y2="6" />
                 <line x1="4" y1="12" x2="20" y2="12" />
                 <line x1="4" y1="18" x2="20" y2="18" />
               </svg>
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-zinc-950 rounded-full animate-ping" />
-              <span className="text-[10px] text-zinc-500 font-mono tracking-wider font-semibold">GEO_CORE_V10 // ACTIVE</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <div className="w-2 h-2 bg-zinc-950 rounded-full animate-ping shrink-0" />
+              <span className="text-[10px] text-zinc-500 font-mono tracking-wider font-semibold truncate">GEO_CORE_V10 // ACTIVE</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-zinc-500 font-mono bg-white px-3 py-1 rounded-full border border-zinc-200/60 shadow-xs">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] sm:text-xs text-zinc-500 font-mono bg-white px-2.5 sm:px-3 py-1 rounded-full border border-zinc-200/60 shadow-xs whitespace-nowrap">
               {new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
             </span>
           </div>
         </div>
 
         {/* Content Container - Ensure responsiveness padding */}
-        <div className="p-4 lg:p-8 max-w-7xl w-full mx-auto flex-1 min-w-0">
+        <div className="p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto flex-1 min-w-0">
           {children}
         </div>
       </main>

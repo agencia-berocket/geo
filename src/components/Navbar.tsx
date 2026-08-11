@@ -45,15 +45,15 @@ export default function Navbar() {
   return (
     <header 
       id="navbar" 
-      className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 py-4 px-6 md:px-12 ${
+      className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 py-2.5 sm:py-4 px-3 sm:px-6 md:px-12 ${
         visible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
       <div 
-        className={`max-w-7xl mx-auto px-6 md:px-8 py-3.5 flex justify-between items-center transition-all duration-300 ${
+        className={`max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-2.5 sm:py-3.5 flex justify-between items-center transition-all duration-300 rounded-2xl ${
           scrolled 
-            ? 'tactile-raised bg-white translate-y-2' 
-            : 'bg-transparent border-b border-zinc-200/40'
+            ? 'tactile-raised bg-white translate-y-1 sm:translate-y-2' 
+            : 'bg-white/80 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border-b border-zinc-200/40'
         }`}
       >
         {/* Logo */}
@@ -75,11 +75,11 @@ export default function Navbar() {
             <div className="absolute left-[1px] top-1/2 -translate-y-1/2 w-[1px] h-[3px] bg-zinc-800 rounded-r" />
             <div className="absolute right-[1px] top-1/2 -translate-y-1/2 w-[1px] h-[3px] bg-zinc-800 rounded-l" />
           </div>
-          <span className="font-display font-extrabold text-lg tracking-[0.08em] text-zinc-950 uppercase">
+          <span className="font-display font-extrabold text-base sm:text-lg tracking-[0.08em] text-zinc-950 uppercase">
             b.rocket
           </span>
           <motion.span 
-            className="text-zinc-900 font-bold text-lg"
+            className="text-zinc-900 font-bold text-base sm:text-lg"
             animate={{ rotate: 360 }}
             transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
           >
@@ -101,26 +101,26 @@ export default function Navbar() {
           ))}
           <button
             onClick={handleOpenBooking}
-            className="tactile-raised !bg-zinc-950 text-white font-mono text-[10px] xl:text-xs font-bold px-5 py-2.5 hover:bg-zinc-800 uppercase tracking-widest transition-all duration-300 flex items-center gap-1.5 rounded-xl shadow-lg border-t border-zinc-700 hover:scale-102 cursor-pointer whitespace-nowrap"
+            className="tactile-raised !bg-zinc-950 text-white font-mono text-[10px] xl:text-xs font-bold px-5 py-2.5 hover:bg-zinc-800 uppercase tracking-widest transition-all duration-300 flex items-center gap-1.5 rounded-xl shadow-lg border-t border-zinc-700 hover:scale-102 cursor-pointer whitespace-nowrap min-h-[44px]"
           >
             Implantar GEO <ArrowUpRight className="w-3.5 h-3.5 text-zinc-300" />
           </button>
         </nav>
 
         {/* Mobile Toggle */}
-        <div className="lg:hidden flex items-center gap-3">
+        <div className="lg:hidden flex items-center gap-2">
           <button
             onClick={handleOpenBooking}
-            className="bg-zinc-950 text-white font-mono text-[10px] font-bold px-4 py-2 hover:bg-zinc-800 uppercase tracking-wider transition-all duration-300 rounded-xl"
+            className="bg-zinc-950 text-white font-mono text-[10px] sm:text-xs font-bold px-3.5 sm:px-4 py-2.5 min-h-[40px] hover:bg-zinc-800 uppercase tracking-wider transition-all duration-300 rounded-xl flex items-center justify-center"
           >
             Implantar GEO
           </button>
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center border border-white shadow-sm text-zinc-950 hover:text-zinc-700 focus:outline-none"
+            className="w-10 h-10 min-h-[40px] min-w-[40px] rounded-xl bg-zinc-100 flex items-center justify-center border border-zinc-200 shadow-sm text-zinc-950 hover:text-zinc-700 active:scale-95 transition-all focus:outline-none cursor-pointer"
             aria-label="Toggle Menu"
           >
-            {isOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
+            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>
@@ -133,15 +133,15 @@ export default function Navbar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            className="absolute top-full left-0 w-full px-6 py-4 lg:hidden z-40"
+            className="absolute top-full left-0 w-full px-3 sm:px-6 py-2 lg:hidden z-40"
           >
-            <div className="tactile-raised bg-white p-6 flex flex-col gap-4 shadow-2xl">
+            <div className="tactile-raised bg-white p-5 rounded-2xl flex flex-col gap-1.5 shadow-2xl border border-zinc-200">
               {menuItems.map((item, index) => (
                 <a
                   key={index}
                   href={item.href}
                   onClick={() => setIsOpen(false)}
-                  className="font-display font-extrabold text-sm text-zinc-800 hover:text-zinc-950 uppercase tracking-wider border-b border-zinc-100 pb-2"
+                  className="font-display font-extrabold text-sm text-zinc-800 hover:text-zinc-950 uppercase tracking-wider py-3 px-3 rounded-xl hover:bg-zinc-100/80 active:bg-zinc-100 transition-colors flex items-center min-h-[44px]"
                 >
                   {item.name}
                 </a>
@@ -151,7 +151,7 @@ export default function Navbar() {
                   setIsOpen(false);
                   handleOpenBooking(e);
                 }}
-                className="bg-zinc-950 text-white font-mono text-xs font-bold py-3 text-center uppercase tracking-widest flex items-center justify-center gap-2 mt-2 rounded-xl"
+                className="bg-zinc-950 text-white font-mono text-xs font-bold py-3.5 min-h-[48px] text-center uppercase tracking-widest flex items-center justify-center gap-2 mt-3 rounded-xl shadow-md border-t border-zinc-700 cursor-pointer active:scale-[0.99] transition-all"
               >
                 Implantar GEO <ArrowUpRight className="w-4 h-4" />
               </button>
