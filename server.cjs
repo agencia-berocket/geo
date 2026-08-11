@@ -844,32 +844,97 @@ app.post('/api/admin/leads', verifyAdminToken, async (req, res) => {
 app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
   try {
     const accessToken = await getGoogleAccessToken();
-    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?orderBy=createdAt+desc&pageSize=100`;
-    const data = await fetchFirestore(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    const leadsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?orderBy=createdAt+desc&pageSize=100`;
+    const hunterUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?orderBy=createdAt+desc&pageSize=100`;
 
-    const leads = (data.documents || []).map(doc => {
+    const [leadsRes, hunterRes] = await Promise.all([
+      fetchFirestore(leadsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } }).catch(() => ({ documents: [] })),
+      fetchFirestore(hunterUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } }).catch(() => ({ documents: [] })),
+    ]);
+
+    const leadDocs = leadsRes.documents || [];
+    const hunterDocs = hunterRes.documents || [];
+
+    const parseLead = (doc, isHunter = false) => {
       const f = doc.fields || {};
+      const rawSource = f.source?.stringValue || (isHunter ? 'mining_google' : 'lp');
+      let sourceLabel = f.sourceLabel?.stringValue || '';
+      if (!sourceLabel) {
+        if (rawSource === 'lp') sourceLabel = 'Landing Page (LP)';
+        else if (rawSource === 'mining_google' || rawSource === 'google') sourceLabel = 'Mineração (Google)';
+        else if (rawSource === 'mining_linkedin' || rawSource === 'linkedin') sourceLabel = 'Mineração (LinkedIn)';
+        else if (rawSource === 'mining_import' || rawSource === 'import') sourceLabel = 'Mineração (Importación)';
+        else if (rawSource === 'mining_auto' || rawSource === 'auto') sourceLabel = 'Mineração (IA Auto)';
+        else sourceLabel = 'Direto / Outro';
+      }
+
+      const domain = f.domain?.stringValue || f.url?.stringValue?.replace(/^https?:\/\//i, '').replace(/\/.*$/, '') || f.company?.stringValue || '';
+      const url = f.url?.stringValue || (domain ? `https://${domain}` : '');
+
       return {
         id: f.id?.stringValue || doc.name.split('/').pop(),
-        url: f.url?.stringValue || '',
+        url: url,
+        domain: domain,
         email: f.email?.stringValue || '',
-        name: f.name?.stringValue || '',
-        company: f.company?.stringValue || '',
+        name: f.name?.stringValue || f.contactName?.stringValue || '',
+        contactName: f.contactName?.stringValue || f.name?.stringValue || '',
+        company: f.company?.stringValue || domain,
         phone: f.phone?.stringValue || '',
         architecture: f.architecture?.stringValue || '',
         scale: f.scale?.stringValue || '',
-        createdAt: f.createdAt?.stringValue || '',
+        createdAt: f.createdAt?.stringValue || new Date().toISOString(),
         status: f.status?.stringValue || 'new',
-        geoScore: parseInt(f.geoScore?.integerValue || '0'),
+        source: rawSource,
+        sourceLabel: sourceLabel,
+        contactRole: f.contactRole?.stringValue || '',
+        linkedinUrl: f.linkedinUrl?.stringValue || '',
+        niche: f.niche?.stringValue || 'Geral',
+        location: f.location?.stringValue || 'Brasil',
+        companySize: f.companySize?.stringValue || '',
+        temperature: f.temperature?.stringValue || 'cold',
+        sequenceStage: parseInt(f.sequenceStage?.integerValue || '0'),
+        responded: f.responded?.booleanValue || false,
+        geoScore: parseInt(f.geoScore?.integerValue || f.geoScoreEstimado?.integerValue || '0'),
+        geoScoreEstimado: parseInt(f.geoScoreEstimado?.integerValue || f.geoScore?.integerValue || '0'),
         diagnosticId: f.diagnosticId?.stringValue || '',
         searchTerms: (f.searchTerms?.arrayValue?.values || []).map(v => v.stringValue || '').filter(Boolean),
         searchTermsStatus: f.searchTermsStatus?.stringValue || 'pending',
         companyOverview: f.companyOverview?.stringValue || '',
         searchTermsAnalyzedAt: f.searchTermsAnalyzedAt?.stringValue || '',
+        searchTermsApprovedAt: f.searchTermsApprovedAt?.stringValue || '',
+        outreachCopies: f.outreachCopies?.mapValue?.fields
+          ? Object.fromEntries(Object.entries(f.outreachCopies.mapValue.fields).map(([k, v]) => [k, v.stringValue || '']))
+          : {},
+        sentHistory: (f.sentHistory?.arrayValue?.values || []).map(v => {
+          const item = v.mapValue?.fields || {};
+          return {
+            copyKey: item.copyKey?.stringValue || '',
+            sentAt: item.sentAt?.stringValue || '',
+            channel: item.channel?.stringValue || 'email',
+            subject: item.subject?.stringValue || '',
+            attachPdf: item.attachPdf?.booleanValue || false,
+          };
+        }),
       };
-    });
+    };
 
-    res.json({ leads });
+    const mainLeads = leadDocs.map(doc => parseLead(doc, false));
+    const hunterLeads = hunterDocs.map(doc => parseLead(doc, true));
+
+    // Dedup by ID or URL/domain
+    const seenIds = new Set();
+    const allLeads = [];
+
+    for (const lead of [...mainLeads, ...hunterLeads]) {
+      if (!seenIds.has(lead.id)) {
+        seenIds.add(lead.id);
+        allLeads.push(lead);
+      }
+    }
+
+    allLeads.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json({ leads: allLeads });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

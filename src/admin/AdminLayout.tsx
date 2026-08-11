@@ -12,8 +12,7 @@ interface AdminLayoutProps {
 
 const navItems = [
   { id: 'dashboard', icon: IconDashboard, label: 'Dashboard' },
-  { id: 'lead_hunter', icon: IconTarget, label: 'Lead Hunter' },
-  { id: 'leads', icon: IconLeads, label: 'Leads' },
+  { id: 'leads', icon: IconTarget, label: 'Lead Hunter & Leads' },
   { id: 'clients', icon: IconClients, label: 'Clientes' },
   { id: 'newsletter', icon: IconMail, label: 'Newsletter' },
 ];

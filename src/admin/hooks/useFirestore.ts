@@ -46,9 +46,21 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
   return res.json();
 }
 
+export type LeadSource = 'lp' | 'mining_google' | 'mining_linkedin' | 'mining_auto' | 'mining_import' | 'direct';
+export type LeadTemperature = 'cold' | 'warm' | 'hot' | 'converted' | 'lost';
+
+export interface SentHistoryItem {
+  copyKey: string;
+  sentAt: string;
+  channel: 'email' | 'linkedin';
+  subject?: string;
+  attachPdf?: boolean;
+}
+
 export interface Lead {
   id: string;
   url: string;
+  domain?: string;
   email: string;
   name?: string;
   company?: string;
@@ -56,14 +68,32 @@ export interface Lead {
   architecture?: string;
   scale?: string;
   createdAt: string;
-  status: 'new' | 'processing' | 'completed' | 'converted';
+  status: 'new' | 'processing' | 'completed' | 'converted' | 'unscanned' | 'audited' | 'outreach_ready' | 'contacted';
+  source?: LeadSource | string;
+  sourceLabel?: string;
+  contactName?: string;
+  contactRole?: string;
+  linkedinUrl?: string;
+  niche?: string;
+  location?: string;
+  companySize?: string;
+  temperature?: LeadTemperature;
+  sequenceStage?: number;
+  responded?: boolean;
+  sentHistory?: SentHistoryItem[];
+  outreachCopies?: Record<string, string>;
   geoScore?: number;
+  geoScoreEstimado?: number;
   diagnosticId?: string;
   searchTerms?: string[];
   searchTermsStatus?: 'pending' | 'generated' | 'approved';
   companyOverview?: string;
   searchTermsAnalyzedAt?: string;
   searchTermsApprovedAt?: string;
+  aiCrawlersBlocked?: boolean;
+  hasBlog?: boolean;
+  hasAnswerFirst?: boolean;
+  citedCompetitor?: string;
 }
 
 export interface DiagnosticReport {

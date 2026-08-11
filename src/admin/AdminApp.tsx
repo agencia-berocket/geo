@@ -7,8 +7,7 @@ import LeadsList from './pages/LeadsList';
 import ClientsList from './pages/ClientsList';
 import Newsletter from './pages/Newsletter';
 import AgentConfig from './pages/AgentConfig';
-import LeadHunter from './pages/LeadHunter';
-import { useAuth } from './hooks/useAuth';
+import LeadDetailPage from './pages/LeadDetailPage';
 
 type Page = 'dashboard' | 'lead_hunter' | 'leads' | 'clients' | 'newsletter' | 'configs';
 
@@ -20,12 +19,12 @@ export default function AdminApp() {
   // Set browser tab title dynamically
   useEffect(() => {
     if (authState === 'authorized') {
-      const pageTitle = currentPage === 'lead_hunter' ? 'Lead Hunter' : currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
+      const pageTitle = selectedId ? 'Detalhes do Lead' : currentPage === 'lead_hunter' || currentPage === 'leads' ? 'Lead Hunter & Leads' : currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
       document.title = `Admin GEO | b.rocket - ${pageTitle}`;
     } else {
       document.title = 'Admin GEO | b.rocket - Restrito';
     }
-  }, [authState, currentPage]);
+  }, [authState, currentPage, selectedId]);
 
   const handleNavigate = (page: string, id?: string) => {
     setCurrentPage(page as Page);
@@ -75,9 +74,14 @@ export default function AdminApp() {
 
   // Authorized admin
   const renderPage = () => {
+    if (selectedId && (currentPage === 'leads' || currentPage === 'lead_hunter')) {
+      return <LeadDetailPage leadId={selectedId} onNavigate={handleNavigate} />;
+    }
+
     switch (currentPage) {
-      case 'lead_hunter': return <LeadHunter onNavigate={handleNavigate} />;
-      case 'leads': return <LeadsList onNavigate={handleNavigate} selectedLeadId={selectedId} />;
+      case 'lead_hunter':
+      case 'leads':
+        return <LeadsList onNavigate={handleNavigate} selectedLeadId={selectedId} />;
       case 'clients': return <ClientsList onNavigate={handleNavigate} />;
       case 'newsletter': return <Newsletter />;
       case 'configs': return <AgentConfig />;
