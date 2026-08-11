@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useDiagnostic, type Lead, type SentHistoryItem } from '../hooks/useFirestore';
+import { useLeads, useDiagnostic, type Lead, type SentHistoryItem } from '../hooks/useFirestore';
 import GeoScoreGauge from '../components/GeoScoreGauge';
 import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
 import StatusBadge from '../components/StatusBadge';
@@ -30,8 +30,10 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   const [savingTerms, setSavingTerms] = useState(false);
   const [termsError, setTermsError] = useState<string | null>(null);
 
-  // Diagnostic state
-  const { runDiagnostic, running: runningDiagnostic, error: diagError } = useDiagnostic();
+  // Diagnostic hooks & state
+  const { runDiagnostic: triggerDiagnostic } = useLeads();
+  const { diagnostic: hookDiagnostic, fetchDiagnostic } = useDiagnostic(leadId);
+  const [runningDiagnostic, setRunningDiagnostic] = useState(false);
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
 
@@ -203,12 +205,18 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
       return;
     }
 
+    setRunningDiagnostic(true);
     try {
-      await runDiagnostic(lead.id);
+      await triggerDiagnostic(lead.id);
       showToast('🚀 Diagnóstico de 8 Agentes iniciado em segundo plano!');
-      setTimeout(() => fetchLeadDetails(), 3000);
+      setTimeout(() => {
+        fetchLeadDetails();
+        fetchDiagnostic();
+        setRunningDiagnostic(false);
+      }, 3000);
     } catch (err: any) {
       showToast(`Erro ao rodar diagnóstico: ${err.message}`);
+      setRunningDiagnostic(false);
     }
   };
 
@@ -659,10 +667,10 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
 
                 {/* Audit & Screenshots Panel */}
                 <AuditAndScreenshotsPanel
-                  clientUrl={lead.url}
-                  gatekeeperStatus={diagnosticData.gatekeeperStatus}
-                  metadataAnalysis={diagnosticData.metadataAnalysis}
-                  contentReview={diagnosticData.contentReview}
+                  entityType="lead"
+                  entityId={lead.id}
+                  diagnostic={diagnosticData || hookDiagnostic}
+                  leadUrl={lead.url}
                 />
               </div>
             )}
