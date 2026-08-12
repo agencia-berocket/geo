@@ -925,11 +925,21 @@ function renderUnavailableNotice(dataSourceDetail, fontSans) {
   </div>`;
 }
 
+// Helper para formatação de data e horário em Português do Brasil (DD/MM/AAAA às HH:MM:SS)
+function formatDateTimeBR(dateInput) {
+  const d = dateInput ? new Date(dateInput) : new Date();
+  if (isNaN(d.getTime())) return new Date().toLocaleString('pt-BR');
+  const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return `${dateStr} às ${timeStr}`;
+}
+
 // ─── HTML Report Generator ────────────────────────────────────────────────────
 function generateHtmlReport(lead, diagnostic, options = {}) {
   const isInternal = Boolean(options && options.isInternal);
   const score = diagnostic.overallGeoScore;
   const scoreColor = score >= 70 ? '#16a34a' : score >= 40 ? '#d97706' : '#dc2626';
+  const diagTimestamp = formatDateTimeBR(diagnostic.generatedAt);
   
   // Neumorphic cards that replicate .tactile-raised (without heavy borders, utilizing soft shadow depth)
   const cardStyle = `background-color:#ffffff; border:1px solid #e8e8eb; border-radius:24px; box-shadow:0px 10px 30px rgba(13,20,33,0.04); padding:28px; margin-bottom:24px;`;
@@ -947,7 +957,7 @@ function generateHtmlReport(lead, diagnostic, options = {}) {
       <div style="background:#fef2f2; border-left:4px solid #dc2626; padding:16px; border-radius:8px; margin-top:16px; text-align:left;">
         <p style="margin:0 0 8px; font-weight:bold; color:#991b1b; ${fontDisplay} font-size:14px; text-transform:uppercase;">🚨 Alerta Crítico de Visibilidade por Inteligência Artificial</p>
         <p style="margin:0; color:#7f1d1d; font-size:12.5px; line-height:1.5;">
-          Seu site está atualmente <strong>invisível para as respostas do ChatGPT, Claude e Gemini</strong> (Score de ${score}%). Os decisores de compras que usam IA para buscar as melhores soluções no seu segmento nunca encontrarão sua marca. Isto significa perda diária de leads qualificados para concorrentes que já otimizaram seus sites. A boa notícia é que com a metodologia científica da <strong>b.rocket</strong>, conseguimos reverter esse cenário e fazer sua marca figurar como a principal recomendação destas IAs em poucas semanas.
+          Seu site está atualmente <strong>invisível para as respostas do ChatGPT, Claude e Gemini</strong> (Score de ${score}%). Os decisores de compras que usam IA para buscar as melhores soluções no seu segmento nunca encontrarão sua marca. Isto significa perda diária de leads qualificados para concorrentes que já otimizeram seus sites. A boa notícia é que com a metodologia científica da <strong>b.rocket</strong>, conseguimos reverter esse cenário e fazer sua marca figurar como a principal recomendação destas IAs em poucas semanas.
         </p>
       </div>
     `;
@@ -1057,7 +1067,7 @@ function generateHtmlReport(lead, diagnostic, options = {}) {
         </div>
       </td>
       <td align="right" style="${fontMono} font-size:9px;color:#71717a;font-weight:bold;vertical-align:middle;">
-        DIAGNÓSTICO // ${new Date().toLocaleDateString('pt-BR')} // CONFIDENCIAL
+        DIAGNÓSTICO // ${diagTimestamp} // CONFIDENCIAL
       </td>
     </tr>
   </table>
@@ -1075,6 +1085,9 @@ function generateHtmlReport(lead, diagnostic, options = {}) {
       <div style="font-size:64px;font-weight:800;color:${scoreColor};${fontMono} line-height:1;margin:0 auto 10px;">${score}%</div>
       <div style="${fontMono} font-size:11px;color:#71717a;letter-spacing:1px;font-weight:bold;text-transform:uppercase;">
         GEO SCORE // <span style="color:${scoreColor};font-weight:bold;">${score >= 70 ? 'BOM' : score >= 40 ? 'MÉDIO' : 'CRÍTICO'}</span>
+      </div>
+      <div style="${fontMono} font-size:10px;color:#71717a;margin-top:10px;font-weight:bold;">
+        🕒 Realizado em: <span style="color:#09090b;">${diagTimestamp}</span>
       </div>
       <!-- Resumo didático comercial sob o score -->
       ${salesArgument}
@@ -2589,7 +2602,7 @@ function generateRobotsTxt(domain, allowAi = true) {
   const cleanDomain = (domain || '').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
   return `# robots.txt recomendado para otimização GEO (Generative Engine Optimization)
 # Domínio: ${cleanDomain}
-# Data de Geração: ${new Date().toLocaleDateString('pt-BR')}
+# Data e Horário de Geração: ${formatDateTimeBR(new Date())}
 
 User-agent: *
 Allow: /
@@ -2727,7 +2740,7 @@ function generateLlmsTxtContent(lead, diagnostic, htmlContent = '') {
 
 - **Domínio Principal:** https://${cleanDomain}
 - **Segmento / Nicho:** ${nicheInfo.nicheName}
-${scoreLine}- **Última Atualização:** ${new Date().toLocaleDateString('pt-BR')}
+${scoreLine}- **Última Atualização:** ${formatDateTimeBR(new Date())}
 
 ---
 
@@ -2818,7 +2831,7 @@ function generateActionPlanByStages(diagnostic) {
   return `# Roteiro de Implantação GEO — Plano Estratégico em 5 Etapas para ${brandName}
 > **Empresa / Marca:** ${brandName} (${url})
 > **GEO Score Inicial:** ${score}%
-> **Gerado por:** Orquestrador GEO b.rocket em ${new Date().toLocaleDateString('pt-BR')}
+> **Gerado por:** Orquestrador GEO b.rocket em ${formatDateTimeBR(new Date())}
 
 ---
 
@@ -2976,7 +2989,7 @@ function generateCompleteHtmlReport(lead, diagnostic, screenshots = []) {
       </div>
     </div>`).join('')}
     <div style="text-align:center;margin-top:16px;border-top:1px solid #27272a;padding-top:14px;">
-      <span style="${fontMono} font-size:9px;color:#4b5563;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">b.rocket Intent Prompt Agent · ${auditLog.length} chamadas · ${isSimulated ? 'MODO SIMULADO' : 'RESPOSTAS REAIS'} · Gerado em ${new Date(diagnostic.generatedAt || Date.now()).toLocaleDateString('pt-BR')}</span>
+      <span style="${fontMono} font-size:9px;color:#4b5563;font-weight:bold;text-transform:uppercase;letter-spacing:1px;">b.rocket Intent Prompt Agent · ${auditLog.length} chamadas · ${isSimulated ? 'MODO SIMULADO' : 'RESPOSTAS REAIS'} · Gerado em ${formatDateTimeBR(diagnostic.generatedAt || Date.now())}</span>
     </div>
   </div>` : '';
 

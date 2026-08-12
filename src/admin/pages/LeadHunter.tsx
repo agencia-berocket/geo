@@ -79,7 +79,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
   const [savingCopy, setSavingCopy] = useState(false);
 
   // Mining parameters
-  const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'auto' | 'import'>('google');
+  const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'import'>('google');
   const [importUrls, setImportUrls] = useState('');
   const [niche, setNiche] = useState('SaaS B2B');
   const [location, setLocation] = useState('Brasil');
@@ -753,7 +753,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                   >
                     <option value="google">📍 Google (Business / Maps)</option>
                     <option value="linkedin">💼 LinkedIn (Decisores B2B)</option>
-                    <option value="auto">⚡ Automático (Combinado)</option>
                     <option value="import">📥 Importação por Lista de URLs</option>
                   </select>
                 </div>
@@ -814,7 +813,6 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                 >
                   <option value="google">📍 Google (Business / Maps)</option>
                   <option value="linkedin">💼 LinkedIn (Decisores B2B)</option>
-                  <option value="auto">⚡ Automático (Combinado)</option>
                   <option value="import">📥 Importação por Lista de URLs</option>
                 </select>
               </div>

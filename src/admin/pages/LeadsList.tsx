@@ -44,7 +44,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
   // Mining drawer/collapsible state
   const [showMiningPanel, setShowMiningPanel] = useState(false);
   const [mining, setMining] = useState(false);
-  const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'auto' | 'import'>('google');
+  const [miningSource, setMiningSource] = useState<'google' | 'linkedin' | 'import'>('google');
   const [importUrls, setImportUrls] = useState('');
   const [niche, setNiche] = useState('SaaS B2B');
   const [location, setLocation] = useState('Brasil');
@@ -247,11 +247,10 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
             {/* Mining Source Selection */}
             <div>
               <label className="block text-xs font-mono font-bold text-zinc-700 mb-2 uppercase">Canal de Mineração:</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { id: 'google', label: '🔵 Google Search / Places' },
                   { id: 'linkedin', label: '🟣 LinkedIn (Decisores)' },
-                  { id: 'auto', label: '⚡ IA Autônoma' },
                   { id: 'import', label: '🟧 Importar Lista de URLs' },
                 ].map(item => (
                   <button

@@ -264,25 +264,27 @@ function LeadHistoryPanel({ client }: { client: Client }) {
 }
 
 // ─── PANEL: HISTORY & EVOLUTION (Antes vs. Depois) ───────────────────────────
-function ClientHistoryPanel({ client }: { client: Client }) {
+function ClientHistoryPanel({ client, refreshKey }: { client: Client; refreshKey?: number }) {
   const { fetchClientHistory } = useClients();
   const { downloadHtmlReport } = useLeads();
   const [historyData, setHistoryData] = useState<ClientHistory | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const res = await fetchClientHistory(client.id);
+      if (res.success) setHistoryData(res.clientHistory);
+    } catch (e) {
+      console.error('Erro ao buscar histórico do cliente:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await fetchClientHistory(client.id);
-        if (res.success) setHistoryData(res.clientHistory);
-      } catch (e) {
-        console.error('Erro ao buscar histórico do cliente:', e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [client.id]);
+    loadHistory();
+  }, [client.id, refreshKey]);
 
   if (loading) {
     return <div className="p-8 text-center text-zinc-400 font-mono text-xs">Carregando histórico e evolução do cliente...</div>;
@@ -296,6 +298,12 @@ function ClientHistoryPanel({ client }: { client: Client }) {
         <p className="text-zinc-500 text-xs max-w-md mx-auto">
           Execute os diagnósticos dos Agentes no Workspace para registrar cada marco e acompanhar a evolução temporal do GEO Score.
         </p>
+        <button
+          onClick={loadHistory}
+          className="px-4 py-2 bg-zinc-950 text-white rounded-xl text-xs font-bold hover:bg-zinc-800 transition-colors"
+        >
+          🔄 Recarregar Histórico
+        </button>
       </div>
     );
   }
@@ -311,14 +319,14 @@ function ClientHistoryPanel({ client }: { client: Client }) {
         <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-xs text-center">
           <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider block">GEO Score Inicial</span>
           <span className="text-3xl font-mono font-bold text-zinc-700 block mt-1">{initialScore}%</span>
-          <span className="text-[10px] text-zinc-400 block mt-0.5">{new Date(firstDiag.generatedAt).toLocaleDateString('pt-BR')}</span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">{firstDiag.generatedAt ? new Date(firstDiag.generatedAt).toLocaleString('pt-BR') : '—'}</span>
         </div>
         <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-xs text-center">
           <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider block">GEO Score Atual</span>
           <span className={`text-3xl font-mono font-bold block mt-1 ${latestScore >= 70 ? 'text-emerald-600' : latestScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
             {latestScore}%
           </span>
-          <span className="text-[10px] text-zinc-400 block mt-0.5">{new Date(lastDiag.generatedAt).toLocaleDateString('pt-BR')}</span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">{lastDiag.generatedAt ? new Date(lastDiag.generatedAt).toLocaleString('pt-BR') : '—'}</span>
         </div>
         <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-xs text-center">
           <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider block">Variação de Pontos</span>
@@ -336,9 +344,18 @@ function ClientHistoryPanel({ client }: { client: Client }) {
 
       {/* Comparative Before vs After Matrix */}
       <div className="bg-white border border-zinc-200 rounded-2xl p-5 shadow-xs space-y-4">
-        <h4 className="font-display font-bold text-zinc-900 text-sm flex items-center justify-between">
+        <h4 className="font-display font-bold text-zinc-900 text-sm flex items-center justify-between flex-wrap gap-2">
           <span>🔄 Comparativo: Antes vs. Depois da Implantação</span>
-          <span className="text-xs font-mono text-zinc-400">{diagnostics.length} auditoria(s) registrada(s)</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={loadHistory}
+              disabled={loading}
+              className="text-xs bg-zinc-100 hover:bg-zinc-200 border border-zinc-300 text-zinc-800 font-semibold px-3 py-1 rounded-lg transition-all shadow-xs cursor-pointer flex items-center gap-1"
+            >
+              🔄 Atualizar Dados
+            </button>
+            <span className="text-xs font-mono text-zinc-400">{diagnostics.length} auditoria(s) registrada(s)</span>
+          </div>
         </h4>
 
         <div className="overflow-x-auto">
@@ -354,32 +371,32 @@ function ClientHistoryPanel({ client }: { client: Client }) {
             <tbody className="divide-y divide-zinc-150">
               <tr>
                 <td className="p-3 font-semibold text-zinc-900">robots.txt para IAs</td>
-                <td className="p-3 text-zinc-600">{firstDiag.gatekeeperStatus.robotsTxtAllowAiBots ? '✓ Liberado' : '✗ Bloqueado'}</td>
-                <td className="p-3 font-semibold text-zinc-900">{lastDiag.gatekeeperStatus.robotsTxtAllowAiBots ? '✓ Liberado' : '✗ Bloqueado'}</td>
-                <td className="p-3">{lastDiag.gatekeeperStatus.robotsTxtAllowAiBots ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-amber-600 font-bold">Pendente</span>}</td>
+                <td className="p-3 text-zinc-600">{firstDiag.gatekeeperStatus?.robotsTxtAllowAiBots ? '✓ Liberado' : '✗ Bloqueado'}</td>
+                <td className="p-3 font-semibold text-zinc-900">{lastDiag.gatekeeperStatus?.robotsTxtAllowAiBots ? '✓ Liberado' : '✗ Bloqueado'}</td>
+                <td className="p-3">{lastDiag.gatekeeperStatus?.robotsTxtAllowAiBots ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-amber-600 font-bold">Pendente</span>}</td>
               </tr>
               <tr>
                 <td className="p-3 font-semibold text-zinc-900">Schema Organization</td>
-                <td className="p-3 text-zinc-600">{firstDiag.metadataAnalysis.organizationSchemaPresent ? '✓ Presente' : '✗ Ausente'}</td>
-                <td className="p-3 font-semibold text-zinc-900">{lastDiag.metadataAnalysis.organizationSchemaPresent ? '✓ Presente' : '✗ Ausente'}</td>
-                <td className="p-3">{lastDiag.metadataAnalysis.organizationSchemaPresent ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-red-600 font-bold">Crítico</span>}</td>
+                <td className="p-3 text-zinc-600">{firstDiag.metadataAnalysis?.organizationSchemaPresent ? '✓ Presente' : '✗ Ausente'}</td>
+                <td className="p-3 font-semibold text-zinc-900">{lastDiag.metadataAnalysis?.organizationSchemaPresent ? '✓ Presente' : '✗ Ausente'}</td>
+                <td className="p-3">{lastDiag.metadataAnalysis?.organizationSchemaPresent ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-red-600 font-bold">Crítico</span>}</td>
               </tr>
               <tr>
                 <td className="p-3 font-semibold text-zinc-900">Arquivo /llms.txt</td>
-                <td className="p-3 text-zinc-600">{firstDiag.metadataAnalysis.llmsTxtPublished ? '✓ Publicado' : '✗ Ausente'}</td>
-                <td className="p-3 font-semibold text-zinc-900">{lastDiag.metadataAnalysis.llmsTxtPublished ? '✓ Publicado' : '✗ Ausente'}</td>
-                <td className="p-3">{lastDiag.metadataAnalysis.llmsTxtPublished ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-amber-600 font-bold">Pendente</span>}</td>
+                <td className="p-3 text-zinc-600">{firstDiag.metadataAnalysis?.llmsTxtPublished ? '✓ Publicado' : '✗ Ausente'}</td>
+                <td className="p-3 font-semibold text-zinc-900">{lastDiag.metadataAnalysis?.llmsTxtPublished ? '✓ Publicado' : '✗ Ausente'}</td>
+                <td className="p-3">{lastDiag.metadataAnalysis?.llmsTxtPublished ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-amber-600 font-bold">Pendente</span>}</td>
               </tr>
               <tr>
                 <td className="p-3 font-semibold text-zinc-900">Resposta AEO (&lt;60 palavras)</td>
-                <td className="p-3 text-zinc-600">{firstDiag.contentReview.factorsDetected.hasTldrAnswerFirstParagraph ? '✓ Sim' : '✗ Não'}</td>
-                <td className="p-3 font-semibold text-zinc-900">{lastDiag.contentReview.factorsDetected.hasTldrAnswerFirstParagraph ? '✓ Sim' : '✗ Não'}</td>
-                <td className="p-3">{lastDiag.contentReview.factorsDetected.hasTldrAnswerFirstParagraph ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-amber-600 font-bold">Pendente</span>}</td>
+                <td className="p-3 text-zinc-600">{firstDiag.contentReview?.factorsDetected?.hasTldrAnswerFirstParagraph ? '✓ Sim' : '✗ Não'}</td>
+                <td className="p-3 font-semibold text-zinc-900">{lastDiag.contentReview?.factorsDetected?.hasTldrAnswerFirstParagraph ? '✓ Sim' : '✗ Não'}</td>
+                <td className="p-3">{lastDiag.contentReview?.factorsDetected?.hasTldrAnswerFirstParagraph ? <span className="text-emerald-600 font-bold">✓ Otimizado</span> : <span className="text-amber-600 font-bold">Pendente</span>}</td>
               </tr>
               <tr>
                 <td className="p-3 font-semibold text-zinc-900">Citation Share nas IAs</td>
-                <td className="p-3 text-zinc-600">{Math.round((firstDiag.visibilityBenchmarking.citationSharePercentage || 0) * 100)}%</td>
-                <td className="p-3 font-semibold text-zinc-900">{Math.round((lastDiag.visibilityBenchmarking.citationSharePercentage || 0) * 100)}%</td>
+                <td className="p-3 text-zinc-600">{Math.round((firstDiag.visibilityBenchmarking?.citationSharePercentage || 0) * 100)}%</td>
+                <td className="p-3 font-semibold text-zinc-900">{Math.round((lastDiag.visibilityBenchmarking?.citationSharePercentage || 0) * 100)}%</td>
                 <td className="p-3"><span className="text-emerald-600 font-bold">✓ Medido</span></td>
               </tr>
             </tbody>
@@ -392,10 +409,12 @@ function ClientHistoryPanel({ client }: { client: Client }) {
         <h4 className="font-display font-bold text-zinc-900 text-sm">📅 Linha do Tempo de Relatórios Salvos no Firestore</h4>
         <div className="space-y-3">
           {diagnostics.map((diag, index) => (
-            <div key={diag.id || index} className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-xl">
+            <div key={diag.id || index} className="flex items-center justify-between p-4 bg-zinc-50 border border-zinc-200 rounded-xl flex-wrap gap-3">
               <div>
                 <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase block">Relatório #{index + 1}</span>
-                <span className="text-xs font-semibold text-zinc-900">{new Date(diag.generatedAt).toLocaleString('pt-BR')}</span>
+                <span className="text-xs font-semibold text-zinc-900">
+                  🕒 {diag.generatedAt ? new Date(diag.generatedAt).toLocaleString('pt-BR') : 'Sem data'}
+                </span>
               </div>
               <div className="flex items-center gap-3">
                 <span className={`font-mono font-bold text-sm ${diag.overallGeoScore >= 70 ? 'text-emerald-600' : diag.overallGeoScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
@@ -494,6 +513,7 @@ export default function ClientDetailPage({ clientId, onNavigate }: ClientDetailP
   const [running, setRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState<number>(1);
+  const [historyRefreshKey, setHistoryRefreshKey] = useState<number>(0);
   const [agentOutputs, setAgentOutputs] = useState<Record<AgentName, any>>({
     orchestrator: null,
     gatekeeper: null,
@@ -619,10 +639,37 @@ export default function ClientDetailPage({ clientId, onNavigate }: ClientDetailP
     setLogs([`[${new Date().toLocaleTimeString()}] Executando ${targetAgent}...`]);
     try {
       const res = await runAgentForClient(client.id, targetAgent, { url: client.url });
-      setAgentOutputs(prev => ({
-        ...prev,
-        [targetAgent]: res.result,
-      }));
+      
+      if (targetAgent === 'orchestrator' && res.result) {
+        setAgentOutputs({
+          orchestrator: res.result,
+          gatekeeper: res.result.gatekeeper ? {
+            ...res.result.gatekeeper,
+            recommendedRobotsTxt: res.result.deliverables?.robotsTxt,
+          } : null,
+          metadata: res.result.metadata ? {
+            ...res.result.metadata,
+            generatedJsonLd: res.result.deliverables?.jsonLdSchema,
+            llmsTxt: res.result.deliverables?.llmsTxt,
+          } : null,
+          content: res.result.content ? {
+            ...res.result.content,
+            aeoTemplates: res.result.deliverables?.aeoTemplates,
+          } : null,
+          seo_optimizer: res.result.seoOptimizer || null,
+          semantic_explorer: res.result.semanticExplorer || null,
+          offpage: res.result.offpage || null,
+          intent: res.result.visibility || null,
+          checklist_architect: res.result.checklistArchitect || null,
+        });
+      } else {
+        setAgentOutputs(prev => ({
+          ...prev,
+          [targetAgent]: res.result,
+        }));
+      }
+
+      setHistoryRefreshKey(k => k + 1);
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Concluído com sucesso! Entregáveis gravados.`]);
       await loadClient();
     } catch (e: any) {
@@ -1105,7 +1152,7 @@ export default function ClientDetailPage({ clientId, onNavigate }: ClientDetailP
       )}
 
       {/* VIEW 3: HISTORY & EVOLUTION */}
-      {mainView === 'history' && <ClientHistoryPanel client={client} />}
+      {mainView === 'history' && <ClientHistoryPanel client={client} refreshKey={historyRefreshKey} />}
 
       {/* VIEW 4: AUDITORIA LLM & PRINTS */}
       {mainView === 'audit' && (
