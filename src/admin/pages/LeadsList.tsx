@@ -19,6 +19,21 @@ function getGeoScoreColor(score: number) {
   return 'text-red-600';
 }
 
+function getTemperatureBadge(temp?: string) {
+  switch (temp) {
+    case 'hot':
+      return <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">🚀 Quente</span>;
+    case 'warm':
+      return <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-200">🔥 Morno</span>;
+    case 'converted':
+      return <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">💎 Convertido</span>;
+    case 'lost':
+      return <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-zinc-200 text-zinc-600 border border-zinc-300">❌ Inativo</span>;
+    default:
+      return <span className="inline-flex items-center gap-1 text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">❄️ Frio</span>;
+  }
+}
+
 export default function LeadsList({ onNavigate }: LeadsListProps) {
   const { leads, loading, error, fetchLeads, deleteLead, addLead } = useLeads();
   const [searchTerm, setSearchTerm] = useState('');
@@ -543,7 +558,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                   <th className="p-4">Empresa / Lead</th>
                   <th className="p-4">Origem</th>
                   <th className="p-4">Decisor & Nicho</th>
-                  <th className="p-4">Termos de Pesquisa</th>
+                  <th className="p-4">Temperatura</th>
                   <th className="p-4 text-center">Score GEO</th>
                   <th className="p-4">Status do Pipeline</th>
                   <th className="p-4 text-right">Excluir</th>
@@ -587,17 +602,9 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                         </div>
                       </td>
 
-                      {/* Termos de Pesquisa */}
+                      {/* Temperatura */}
                       <td className="p-4">
-                        {lead.searchTermsStatus === 'approved' ? (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                            <IconCheck className="w-3 h-3" /> Aprovados (14)
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-                            <IconLock className="w-3 h-3" /> Pendente
-                          </span>
-                        )}
+                        {getTemperatureBadge(lead.temperature)}
                       </td>
 
                       {/* Score GEO — apenas número e cor, sem gráfico */}
@@ -660,10 +667,8 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
 
                   <div className="flex items-center justify-between text-xs pt-1">
                     <div>
-                      <span className="text-zinc-400 block text-[9px] font-mono">TERMOS</span>
-                      <span className={`font-bold ${lead.searchTermsStatus === 'approved' ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {lead.searchTermsStatus === 'approved' ? 'Aprovados' : 'Pendente'}
-                      </span>
+                      <span className="text-zinc-400 block text-[9px] font-mono">TEMPERATURA</span>
+                      {getTemperatureBadge(lead.temperature)}
                     </div>
 
                     <div>

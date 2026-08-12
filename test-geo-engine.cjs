@@ -121,6 +121,25 @@ test('testHtmlReportClientVsInternal', () => {
   assert.ok(internalHtml.includes('Por que Fechar Contrato de Implantação com a b.rocket?'), 'Relatório de Auditoria DEVE conter a Copy de Fechamento');
 });
 
+// ─── TESTE DE MENSAGEM DO USUÁRIO INCORPORADA NO E-MAIL ────────────────────
+test('testHtmlReportIncorporatesUserMessage', () => {
+  const lead = { url: 'https://exemplo.com.br', company: 'Exemplo Corp' };
+  const diagnostic = {
+    overallGeoScore: 50,
+    gatekeeperStatus: { robotsTxtAllowAiBots: true, ssrActive: true, hasPriceGatekeeperIssue: false, serverLatencyMs: 120, blockedCrawlers: [], dataSource: 'deterministic' },
+    metadataAnalysis: { organizationSchemaPresent: true, personSchemaPresent: false, llmsTxtPublished: true, organizationSameAsCount: 3, missingSchemas: [], dataSource: 'deterministic' },
+    contentReview: { factorsDetected: { hasTldrAnswerFirstParagraph: true, hasStatisticsPer150Words: true, hasExpertQuotes: false, hasHtmlComparisonTables: true }, meanChunkSizeTokens: 140, priceNotMentioned: false },
+    visibilityBenchmarking: { dataSource: 'heuristic', citationSharePercentage: 0.45, brandSentimentScore: 'Positivo', totalPromptsTest: 10, citationsByModel: { ChatGPT: 4, Gemini: 3 } },
+    actionItemsPriorityList: []
+  };
+
+  const userMessage = 'Olá João, tudo bem?\n\nSeguem os dados estratégicos do seu domínio.';
+  const htmlWithMessage = engine.generateHtmlReport(lead, diagnostic, { userMessage });
+
+  assert.ok(htmlWithMessage.includes('MENSAGEM DE PROPOSTA &amp; ABORDAGEM') || htmlWithMessage.includes('MENSAGEM DE PROPOSTA & ABORDAGEM'), 'Relatório DEVE conter o bloco da mensagem');
+  assert.ok(htmlWithMessage.includes('Olá João, tudo bem?'), 'Relatório DEVE incluir a mensagem do usuário formatada');
+});
+
 // ─── FASE 6: template AEO não deve ter citação fabricada ────────────────────
 test('testAeoTemplateHasNoFabricatedQuoteSource', () => {
   const html = '<html><head><title>Empresa Teste</title></head><body></body></html>';

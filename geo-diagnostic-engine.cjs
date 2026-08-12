@@ -990,6 +990,27 @@ function generateHtmlReport(lead, diagnostic, options = {}) {
     return 'background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;';
   };
 
+  let userMessageHtml = '';
+  if (options.userMessage && typeof options.userMessage === 'string' && options.userMessage.trim()) {
+    const formattedParagraphs = options.userMessage
+      .trim()
+      .split(/\n\s*\n/)
+      .map(p => `<p style="margin:0 0 12px;font-size:14px;line-height:1.65;color:#18181b;">${p.replace(/\n/g, '<br/>')}</p>`)
+      .join('');
+
+    userMessageHtml = `
+  <!-- Mensagem de Abordagem / Proposta Personalizada -->
+  <div style="${cardStyle} border-left:4px solid #09090b; background-color:#ffffff; margin-bottom:28px;">
+    <div style="${fontMono} font-size:10px; font-weight:bold; color:#71717a; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">
+      MENSAGEM DE PROPOSTA & ABORDAGEM
+    </div>
+    <div style="${fontSans}">
+      ${formattedParagraphs}
+    </div>
+  </div>
+`;
+  }
+
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -1040,6 +1061,8 @@ function generateHtmlReport(lead, diagnostic, options = {}) {
       </td>
     </tr>
   </table>
+
+  ${userMessageHtml}
 
   <!-- Hero & Score -->
   <div id="section-score" style="text-align:center;margin-bottom:32px;">

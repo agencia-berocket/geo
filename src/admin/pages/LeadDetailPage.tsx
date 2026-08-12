@@ -1099,7 +1099,7 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                     onChange={(e) => setAttachReportLink(e.target.checked)}
                     className="rounded text-zinc-950 focus:ring-zinc-950"
                   />
-                  <span>Anexar Relatório de Diagnóstico no e-mail</span>
+                  <span>Incorporar Relatório de Diagnóstico no e-mail</span>
                 </label>
 
                 <button

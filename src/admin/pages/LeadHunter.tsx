@@ -1403,7 +1403,7 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
                           onChange={e => setAttachHtmlReport(e.target.checked)} 
                           className="rounded text-emerald-600 focus:ring-emerald-500"
                         />
-                        <span>Anexar Relatório HTML no E-mail</span>
+                        <span>Incorporar Relatório HTML no E-mail</span>
                       </label>
                       <label className="font-semibold text-zinc-700 flex items-center gap-1.5 cursor-pointer">
                         <input 

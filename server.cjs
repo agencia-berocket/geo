@@ -3905,7 +3905,7 @@ app.delete('/api/admin/lead-hunter/leads/:leadId', verifyAdminToken, async (req,
   }
 });
 
-// POST /api/admin/lead-hunter/send-email (Enviar E-mail com Opção de Anexo PDF)
+// POST /api/admin/lead-hunter/send-email (Enviar E-mail com Relatório Incorporado no Corpo)
 app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res) => {
   const { leadId, framework } = req.body;
   const recipientEmail = req.body.recipientEmail || req.body.email;
@@ -3918,17 +3918,24 @@ app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res)
   }
 
   try {
-    const mailOptions = {
-      from: `"Guilherme Rossi | b.rocket" <${process.env.EMAIL_USER || 'workflows.berocket@gmail.com'}>`,
-      to: recipientEmail,
-      subject: subject || 'Diagnóstico de Visibilidade GEO — b.rocket',
-      text: emailBody,
-      attachments: []
-    };
+    let accessToken = null;
+    let foundLead = null;
+    if (leadId) {
+      try {
+        accessToken = await getGoogleAccessToken();
+        foundLead = await findLeadDoc(accessToken, leadId);
+      } catch (e) {
+        console.warn('findLeadDoc warning:', e.message);
+      }
+    }
 
-    // Se solicitado anexo do relatório HTML — NUNCA anexar um relatório fabricado.
+    let finalHtml = null;
+
+    // Se solicitado incorporar o relatório de diagnóstico HTML no corpo do e-mail
     if (attachPdf && leadId) {
-      const accessToken = await getGoogleAccessToken();
+      if (!accessToken) {
+        accessToken = await getGoogleAccessToken();
+      }
       const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
@@ -3946,15 +3953,39 @@ app.post('/api/admin/lead-hunter/send-email', verifyAdminToken, async (req, res)
         return res.status(404).json({ error: 'Diagnóstico não encontrado para este lead. Execute o diagnóstico real antes de enviar o relatório por e-mail.' });
       }
 
-      const leadObj = { company: recipientEmail.split('@')[1] || 'Cliente', url: `https://${recipientEmail.split('@')[1] || 'site.com'}` };
-      const htmlReportContent = generateHtmlReport(leadObj, diagnostic);
+      const companyName = foundLead?.fields?.company || foundLead?.fields?.domain || recipientEmail.split('@')[1] || 'Cliente';
+      const websiteUrl = foundLead?.fields?.url || `https://${foundLead?.fields?.domain || recipientEmail.split('@')[1] || 'site.com'}`;
+      const leadObj = { company: companyName, url: websiteUrl };
 
-      mailOptions.attachments.push({
-        filename: `Relatorio_GEO_${recipientEmail.split('@')[1] || 'b.rocket'}.html`,
-        content: htmlReportContent,
-        contentType: 'text/html'
-      });
+      // Gera o HTML do relatório incorporando a mensagem/copy do usuário no topo
+      finalHtml = generateHtmlReport(leadObj, diagnostic, { userMessage: emailBody });
+    } else {
+      // Sem o relatório de diagnóstico incorporado: formata a mensagem em um layout HTML limpo e responsivo
+      const formattedBody = emailBody
+        .trim()
+        .split(/\n\s*\n/)
+        .map(p => `<p style="margin:0 0 12px; font-size:14px; line-height:1.6; color:#18181b;">${p.replace(/\n/g, '<br/>')}</p>`)
+        .join('');
+
+      finalHtml = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"/></head>
+<body style="background-color:#f4f5f8; font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif; margin:0; padding:20px;">
+  <div style="max-width:650px; margin:0 auto; background:#ffffff; padding:28px; border-radius:16px; border:1px solid #e8e8eb; box-shadow:0px 10px 30px rgba(13,20,33,0.04);">
+    ${formattedBody}
+  </div>
+</body>
+</html>`;
     }
+
+    const mailOptions = {
+      from: `"Guilherme Rossi | b.rocket" <${process.env.EMAIL_USER || 'workflows.berocket@gmail.com'}>`,
+      to: recipientEmail,
+      subject: subject || 'Diagnóstico de Visibilidade GEO — b.rocket',
+      text: emailBody,
+      html: finalHtml,
+      attachments: []
+    };
 
     await transporter.sendMail(mailOptions);
 
