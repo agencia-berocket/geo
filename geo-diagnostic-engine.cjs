@@ -929,8 +929,8 @@ function renderUnavailableNotice(dataSourceDetail, fontSans) {
 function formatDateTimeBR(dateInput) {
   const d = dateInput ? new Date(dateInput) : new Date();
   if (isNaN(d.getTime())) return new Date().toLocaleString('pt-BR');
-  const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const dateStr = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Sao_Paulo' });
+  const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Sao_Paulo' });
   return `${dateStr} às ${timeStr}`;
 }
 

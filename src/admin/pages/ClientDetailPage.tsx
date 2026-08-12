@@ -191,7 +191,7 @@ function LeadHistoryPanel({ client }: { client: Client }) {
           <InfoField label="LINKEDIN" value={client.linkedinUrl || '—'} isLink />
           <InfoField label="NICHO" value={client.niche || '—'} />
           <InfoField label="ORIGEM DO LEAD" value={client.sourceLabel || client.source || '—'} />
-          <InfoField label="CONVERTIDO EM" value={client.convertedAt ? new Date(client.convertedAt).toLocaleString('pt-BR') : '—'} />
+          <InfoField label="CONVERTIDO EM" value={client.convertedAt ? new Date(client.convertedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'} />
           <InfoField label="SCORE GEO INICIAL (NA CONVERSÃO)" value={`${client.initialGeoScore ?? 0}%`} />
         </div>
         {client.companyOverview && (
@@ -237,7 +237,7 @@ function LeadHistoryPanel({ client }: { client: Client }) {
               {client.sentHistory.map((h, i) => (
                 <div key={i} className="text-xs text-zinc-600 flex items-center gap-2">
                   <IconCheck className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="font-bold">{h.copyKey}</span> via {h.channel} em {new Date(h.sentAt).toLocaleString('pt-BR')}
+                  <span className="font-bold">{h.copyKey}</span> via {h.channel} em {new Date(h.sentAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
                 </div>
               ))}
             </div>
@@ -319,14 +319,14 @@ function ClientHistoryPanel({ client, refreshKey }: { client: Client; refreshKey
         <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-xs text-center">
           <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider block">GEO Score Inicial</span>
           <span className="text-3xl font-mono font-bold text-zinc-700 block mt-1">{initialScore}%</span>
-          <span className="text-[10px] text-zinc-400 block mt-0.5">{firstDiag.generatedAt ? new Date(firstDiag.generatedAt).toLocaleString('pt-BR') : '—'}</span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">{firstDiag.generatedAt ? new Date(firstDiag.generatedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'}</span>
         </div>
         <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-xs text-center">
           <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider block">GEO Score Atual</span>
           <span className={`text-3xl font-mono font-bold block mt-1 ${latestScore >= 70 ? 'text-emerald-600' : latestScore >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
             {latestScore}%
           </span>
-          <span className="text-[10px] text-zinc-400 block mt-0.5">{lastDiag.generatedAt ? new Date(lastDiag.generatedAt).toLocaleString('pt-BR') : '—'}</span>
+          <span className="text-[10px] text-zinc-400 block mt-0.5">{lastDiag.generatedAt ? new Date(lastDiag.generatedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—'}</span>
         </div>
         <div className="bg-white border border-zinc-200 p-5 rounded-2xl shadow-xs text-center">
           <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase tracking-wider block">Variação de Pontos</span>
@@ -413,7 +413,7 @@ function ClientHistoryPanel({ client, refreshKey }: { client: Client; refreshKey
               <div>
                 <span className="text-[10px] font-mono font-bold text-zinc-400 uppercase block">Relatório #{index + 1}</span>
                 <span className="text-xs font-semibold text-zinc-900">
-                  🕒 {diag.generatedAt ? new Date(diag.generatedAt).toLocaleString('pt-BR') : 'Sem data'}
+                  🕒 {diag.generatedAt ? new Date(diag.generatedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Sem data'}
                 </span>
               </div>
               <div className="flex items-center gap-3">

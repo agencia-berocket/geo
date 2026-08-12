@@ -2114,111 +2114,107 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
     let result = {};
     // Função de persistência do resultado no Firestore para o cliente
     const saveAgentResultToFirestore = async (diagnosticPatch, createNew = false) => {
-      try {
-        const accessToken = await getGoogleAccessToken();
-        const diagsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
-        const diagsData = await fetchFirestore(diagsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+      const accessToken = await getGoogleAccessToken();
+      const diagsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
+      const diagsData = await fetchFirestore(diagsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
 
-        let latestDiagDoc = null;
-        let latestDiagDate = 0;
+      let latestDiagDoc = null;
+      let latestDiagDate = 0;
 
-        if (!createNew) {
-          for (const doc of (diagsData.documents || [])) {
-            const f = doc.fields || {};
-            const docClientId = f.clientId?.stringValue;
-            const docLeadId = f.leadId?.stringValue;
-            if (docClientId === clientId || docLeadId === clientId || doc.name.split('/').pop() === clientId) {
-              const genAt = f.generatedAt?.stringValue ? new Date(f.generatedAt.stringValue).getTime() : 0;
-              if (!latestDiagDoc || genAt > latestDiagDate) {
-                latestDiagDoc = doc;
-                latestDiagDate = genAt;
-              }
+      if (!createNew) {
+        for (const doc of (diagsData.documents || [])) {
+          const f = doc.fields || {};
+          const docClientId = f.clientId?.stringValue;
+          const docLeadId = f.leadId?.stringValue;
+          if (docClientId === clientId || docLeadId === clientId || doc.name.split('/').pop() === clientId) {
+            const genAt = f.generatedAt?.stringValue ? new Date(f.generatedAt.stringValue).getTime() : 0;
+            if (!latestDiagDoc || genAt > latestDiagDate) {
+              latestDiagDoc = doc;
+              latestDiagDate = genAt;
             }
           }
         }
+      }
 
-        if (latestDiagDoc && !createNew) {
-          // Atualizar diagnóstico mais recente existente via PATCH
-          const fields = {};
-          const updateMaskPaths = [];
-          const patchData = { ...diagnosticPatch, generatedAt: new Date().toISOString() };
-          for (const [k, v] of Object.entries(patchData)) {
-            fields[k] = toFirestoreValue(v);
-            updateMaskPaths.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+      if (latestDiagDoc && !createNew) {
+        // Atualizar diagnóstico mais recente existente via PATCH
+        const fields = {};
+        const updateMaskPaths = [];
+        const patchData = { ...diagnosticPatch, generatedAt: new Date().toISOString() };
+        for (const [k, v] of Object.entries(patchData)) {
+          fields[k] = toFirestoreValue(v);
+          updateMaskPaths.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
+        }
+        const patchUrl = `https://firestore.googleapis.com/v1/${latestDiagDoc.name}?${updateMaskPaths.join('&')}`;
+        await fetchFirestore(patchUrl, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields }),
+        });
+      } else {
+        // Criar NOVO documento de diagnóstico para este cliente (novo marco temporal na linha do tempo)
+        const newDiagId = `diag_${clientId}_${Date.now()}`;
+        const fullDiag = {
+          id: newDiagId,
+          clientId,
+          leadId: clientId,
+          clientUrl: baseUrl,
+          generatedAt: new Date().toISOString(),
+          ...diagnosticPatch,
+        };
+        const fields = {};
+        for (const [k, v] of Object.entries(fullDiag)) {
+          fields[k] = toFirestoreValue(v);
+        }
+        await fetchFirestore(diagsUrl, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields }),
+        });
+      }
+
+      // Se o patch inclui overallGeoScore, atualizar o histórico do cliente no doc de clientes
+      if (diagnosticPatch.overallGeoScore !== undefined) {
+        const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
+        const clientsData = await fetchFirestore(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+        let clientDocName = null;
+        let existingGeoHistory = [];
+
+        for (const doc of (clientsData.documents || [])) {
+          const docId = doc.name.split('/').pop();
+          const f = doc.fields || {};
+          if (docId === clientId || f.id?.stringValue === clientId) {
+            clientDocName = doc.name;
+            if (f.geoScoreHistory?.arrayValue?.values) {
+              existingGeoHistory = f.geoScoreHistory.arrayValue.values.map(v => {
+                const m = v.mapValue?.fields || {};
+                return {
+                  date: m.date?.stringValue || new Date().toISOString(),
+                  score: m.score?.integerValue ? parseInt(m.score.integerValue, 10) : (m.score?.doubleValue || 0)
+                };
+              });
+            }
+            break;
           }
-          const patchUrl = `https://firestore.googleapis.com/v1/${latestDiagDoc.name}?${updateMaskPaths.join('&')}`;
-          await fetchFirestore(patchUrl, {
+        }
+
+        if (clientDocName) {
+          const newScore = Math.round(diagnosticPatch.overallGeoScore);
+          const newHistoryItem = { date: new Date().toISOString(), score: newScore };
+          const updatedHistory = [...existingGeoHistory, newHistoryItem];
+
+          const fields = {
+            geoScoreHistory: toFirestoreValue(updatedHistory),
+            geoScore: { integerValue: String(newScore) },
+            latestGeoScore: { integerValue: String(newScore) },
+          };
+          const updateMask = 'updateMask.fieldPaths=geoScoreHistory&updateMask.fieldPaths=geoScore&updateMask.fieldPaths=latestGeoScore';
+          await fetchFirestore(`https://firestore.googleapis.com/v1/${clientDocName}?${updateMask}`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ fields }),
           });
-        } else {
-          // Criar NOVO documento de diagnóstico para este cliente (novo marco temporal na linha do tempo)
-          const newDiagId = `diag_${clientId}_${Date.now()}`;
-          const fullDiag = {
-            id: newDiagId,
-            clientId,
-            leadId: clientId,
-            clientUrl: baseUrl,
-            generatedAt: new Date().toISOString(),
-            ...diagnosticPatch,
-          };
-          const fields = {};
-          for (const [k, v] of Object.entries(fullDiag)) {
-            fields[k] = toFirestoreValue(v);
-          }
-          await fetchFirestore(diagsUrl, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields }),
-          });
         }
-
-        // Se o patch inclui overallGeoScore, atualizar o histórico do cliente no doc de clientes
-        if (diagnosticPatch.overallGeoScore !== undefined) {
-          const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
-          const clientsData = await fetchFirestore(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
-          let clientDocName = null;
-          let existingGeoHistory = [];
-
-          for (const doc of (clientsData.documents || [])) {
-            const docId = doc.name.split('/').pop();
-            const f = doc.fields || {};
-            if (docId === clientId || f.id?.stringValue === clientId) {
-              clientDocName = doc.name;
-              if (f.geoScoreHistory?.arrayValue?.values) {
-                existingGeoHistory = f.geoScoreHistory.arrayValue.values.map(v => {
-                  const m = v.mapValue?.fields || {};
-                  return {
-                    date: m.date?.stringValue || new Date().toISOString(),
-                    score: m.score?.integerValue ? parseInt(m.score.integerValue, 10) : (m.score?.doubleValue || 0)
-                  };
-                });
-              }
-              break;
-            }
-          }
-
-          if (clientDocName) {
-            const newScore = Math.round(diagnosticPatch.overallGeoScore);
-            const newHistoryItem = { date: new Date().toISOString(), score: newScore };
-            const updatedHistory = [...existingGeoHistory, newHistoryItem];
-
-            const fields = {
-              geoScoreHistory: toFirestoreValue(updatedHistory),
-              geoScore: { integerValue: String(newScore) },
-              latestGeoScore: { integerValue: String(newScore) },
-            };
-            const updateMask = 'updateMask.fieldPaths=geoScoreHistory&updateMask.fieldPaths=geoScore&updateMask.fieldPaths=latestGeoScore';
-            await fetchFirestore(`https://firestore.googleapis.com/v1/${clientDocName}?${updateMask}`, {
-              method: 'PATCH',
-              headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ fields }),
-            });
-          }
-        }
-      } catch (err) {
-        console.error(`Erro ao salvar resultado do agente ${agentName} no Firestore:`, err);
       }
     };
 
