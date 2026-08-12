@@ -402,10 +402,10 @@ function ClientHistoryPanel({ client }: { client: Client }) {
                   Score: {diag.overallGeoScore}%
                 </span>
                 <button
-                  onClick={() => downloadHtmlReport(client.leadId || client.id, client.company || 'Cliente')}
+                  onClick={() => downloadHtmlReport(diag.id || diag.leadId || diag.clientId || client.leadId || client.id, client.company || 'Cliente', 'audit')}
                   className="text-xs bg-zinc-900 hover:bg-zinc-800 text-white font-semibold px-3 py-1.5 rounded-lg transition-all shadow-xs cursor-pointer"
                 >
-                  🌐 Baixar Relatório HTML
+                  🌐 Baixar Relatório HTML (Auditoria Completa)
                 </button>
               </div>
             </div>
@@ -624,6 +624,7 @@ export default function ClientDetailPage({ clientId, onNavigate }: ClientDetailP
         [targetAgent]: res.result,
       }));
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Concluído com sucesso! Entregáveis gravados.`]);
+      await loadClient();
     } catch (e: any) {
       setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] Erro: ${e.message}`]);
     } finally {

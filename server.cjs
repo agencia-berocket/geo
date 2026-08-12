@@ -1414,11 +1414,6 @@ app.get('/api/admin/diagnostic/html/:leadId', verifyAdminToken, async (req, res)
   try {
     const accessToken = await getGoogleAccessToken();
 
-    // Fetch lead
-    const leadsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-
     function fromFsHtml(val) {
       if (!val) return null;
       if ('stringValue' in val) return val.stringValue;
@@ -1437,35 +1432,74 @@ app.get('/api/admin/diagnostic/html/:leadId', verifyAdminToken, async (req, res)
       return null;
     }
 
-    let lead = null;
-    for (const doc of (leadsData.documents || [])) {
-      const f = doc.fields || {};
-      if (f.id?.stringValue === leadId) {
-        lead = { url: f.url?.stringValue, email: f.email?.stringValue, name: f.name?.stringValue, company: f.company?.stringValue };
-        break;
-      }
-    }
-    if (!lead) return res.status(404).json({ error: 'Lead não encontrado' });
-
-    // Fetch diagnostic
+    // 1. Fetch diagnostic by id, leadId or clientId
     const diagData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`, {
       headers: { 'Authorization': `Bearer ${accessToken}` }
     });
 
     let diagnostic = null;
     for (const doc of (diagData.documents || [])) {
+      const docNameId = doc.name.split('/').pop();
       const diag = {};
       for (const [k, v] of Object.entries(doc.fields || {})) {
-        // Pular o htmlReportContent (campo grande desnecessário aqui)
         if (k === 'htmlReportContent') continue;
         diag[k] = fromFsHtml(v);
       }
-      if (diag.leadId === leadId) {
+      if (diag.id === leadId || docNameId === leadId || diag.leadId === leadId || diag.clientId === leadId) {
         diagnostic = diag;
         break;
       }
     }
     if (!diagnostic) return res.status(404).json({ error: 'Diagnóstico não encontrado' });
+
+    // 2. Fetch lead info from leads, hunter_leads, or clients
+    let lead = null;
+
+    // Check leads collection
+    const leadsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    for (const doc of (leadsData.documents || [])) {
+      const f = doc.fields || {};
+      if (f.id?.stringValue === leadId || f.id?.stringValue === diagnostic.leadId || f.id?.stringValue === diagnostic.clientId) {
+        lead = { url: f.url?.stringValue, email: f.email?.stringValue, name: f.name?.stringValue, company: f.company?.stringValue };
+        break;
+      }
+    }
+
+    // Check hunter_leads collection if not found
+    if (!lead) {
+      const hunterData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/hunter_leads?pageSize=100`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      for (const doc of (hunterData.documents || [])) {
+        const f = parseFirestoreDoc(doc);
+        if (f.id === leadId || f.id === diagnostic.leadId || f.domain === leadId) {
+          lead = { url: f.url || `https://${f.domain}`, email: f.email, name: f.contactName || f.name, company: f.company || f.domain };
+          break;
+        }
+      }
+    }
+
+    // Check clients collection if not found
+    if (!lead) {
+      const clientsData = await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      for (const doc of (clientsData.documents || [])) {
+        const f = parseFirestoreDoc(doc);
+        if (f.id === leadId || f.id === diagnostic.clientId || f.leadId === leadId || f.leadId === diagnostic.leadId) {
+          lead = { url: f.url, email: f.email, name: f.name, company: f.company };
+          break;
+        }
+      }
+    }
+
+    // Fallback if lead still not found
+    if (!lead) {
+      const targetUrl = diagnostic.clientUrl || (leadId.startsWith('http') ? leadId : `https://${leadId}`);
+      lead = { url: targetUrl, company: diagnostic.company || diagnostic.clientCompany || leadId };
+    }
 
     // Gerar o HTML do cliente ou auditoria interna
     const mode = req.query.mode || req.query.type;
@@ -2074,24 +2108,12 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
 
     let result = {};
         // Funçao de persistência do resultado no Firestore para o cliente
-        const saveAgentResultToFirestore = async (diagnosticPatch) => {
+        const saveAgentResultToFirestore = async (diagnosticPatch, createNew = false) => {
           try {
             const accessToken = await getGoogleAccessToken();
-            
-            // 1. Buscar diagnóstico existente do cliente ou criar um novo se não existir
             const diagsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
             const diagsRes = await fetch(diagsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
             const diagsData = await diagsRes.json();
-
-            let targetDiagName = null;
-            for (const doc of (diagsData.documents || [])) {
-              const f = doc.fields || {};
-              const docClientId = f.clientId?.stringValue;
-              if (docClientId === clientId || doc.name.split('/').pop() === clientId) {
-                targetDiagName = doc.name;
-                break;
-              }
-            }
 
             function toFirestoreValue(val) {
               if (val === null || val === undefined) return { nullValue: null };
@@ -2108,26 +2130,46 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
               return { stringValue: String(val) };
             }
 
-            if (targetDiagName) {
-              // Atualizar via PATCH com updateMask
+            let latestDiagDoc = null;
+            let latestDiagDate = 0;
+
+            if (!createNew) {
+              for (const doc of (diagsData.documents || [])) {
+                const f = doc.fields || {};
+                const docClientId = f.clientId?.stringValue;
+                const docLeadId = f.leadId?.stringValue;
+                if (docClientId === clientId || docLeadId === clientId || doc.name.split('/').pop() === clientId) {
+                  const genAt = f.generatedAt?.stringValue ? new Date(f.generatedAt.stringValue).getTime() : 0;
+                  if (!latestDiagDoc || genAt > latestDiagDate) {
+                    latestDiagDoc = doc;
+                    latestDiagDate = genAt;
+                  }
+                }
+              }
+            }
+
+            if (latestDiagDoc && !createNew) {
+              // Atualizar diagnóstico mais recente existente via PATCH
               const fields = {};
               const updateMaskPaths = [];
-              for (const [k, v] of Object.entries(diagnosticPatch)) {
+              const patchData = { ...diagnosticPatch, generatedAt: new Date().toISOString() };
+              for (const [k, v] of Object.entries(patchData)) {
                 fields[k] = toFirestoreValue(v);
                 updateMaskPaths.push(`updateMask.fieldPaths=${encodeURIComponent(k)}`);
               }
-              const patchUrl = `https://firestore.googleapis.com/v1/${targetDiagName}?${updateMaskPaths.join('&')}`;
+              const patchUrl = `https://firestore.googleapis.com/v1/${latestDiagDoc.name}?${updateMaskPaths.join('&')}`;
               await fetch(patchUrl, {
                 method: 'PATCH',
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fields }),
               });
             } else {
-              // Criar novo diagnóstico para este cliente
+              // Criar NOVO documento de diagnóstico para este cliente (novo marco temporal na linha do tempo)
               const newDiagId = `diag_${clientId}_${Date.now()}`;
               const fullDiag = {
                 id: newDiagId,
                 clientId,
+                leadId: clientId,
                 clientUrl: baseUrl,
                 generatedAt: new Date().toISOString(),
                 ...diagnosticPatch,
@@ -2141,6 +2183,51 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
                 headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fields }),
               });
+            }
+
+            // Se o patch inclui overallGeoScore, atualizar o histórico do cliente no doc de clientes
+            if (diagnosticPatch.overallGeoScore !== undefined) {
+              const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
+              const clientsRes = await fetch(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+              const clientsData = await clientsRes.json();
+              let clientDocName = null;
+              let existingGeoHistory = [];
+
+              for (const doc of (clientsData.documents || [])) {
+                const docId = doc.name.split('/').pop();
+                const f = doc.fields || {};
+                if (docId === clientId || f.id?.stringValue === clientId) {
+                  clientDocName = doc.name;
+                  if (f.geoScoreHistory?.arrayValue?.values) {
+                    existingGeoHistory = f.geoScoreHistory.arrayValue.values.map(v => {
+                      const m = v.mapValue?.fields || {};
+                      return {
+                        date: m.date?.stringValue || new Date().toISOString(),
+                        score: m.score?.integerValue ? parseInt(m.score.integerValue) : (m.score?.doubleValue || 0)
+                      };
+                    });
+                  }
+                  break;
+                }
+              }
+
+              if (clientDocName) {
+                const newScore = Math.round(diagnosticPatch.overallGeoScore);
+                const newHistoryItem = { date: new Date().toISOString(), score: newScore };
+                const updatedHistory = [...existingGeoHistory, newHistoryItem];
+
+                const fields = {
+                  geoScoreHistory: toFirestoreValue(updatedHistory),
+                  geoScore: { integerValue: String(newScore) },
+                  latestGeoScore: { integerValue: String(newScore) },
+                };
+                const updateMask = 'updateMask.fieldPaths=geoScoreHistory&updateMask.fieldPaths=geoScore&updateMask.fieldPaths=latestGeoScore';
+                await fetch(`https://firestore.googleapis.com/v1/${clientDocName}?${updateMask}`, {
+                  method: 'PATCH',
+                  headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ fields }),
+                });
+              }
             }
           } catch (err) {
             console.error(`Erro ao salvar resultado do agente ${agentName} no Firestore:`, err);
@@ -2274,7 +2361,7 @@ app.post('/api/admin/agent/run', verifyAdminToken, async (req, res) => {
               actionItemsPriorityList: actions,
               deliverables,
               actionPlanMarkdown,
-            });
+            }, true);
 
             // Salvar pasta de auditoria e prints para o cliente
             await saveAuditArtifacts('client', clientId, { id: clientId, url: baseUrl, company: clientInfo.company, name: clientInfo.name }, { clientUrl: baseUrl, overallGeoScore: score, gatekeeperStatus: gk, metadataAnalysis: md, contentReview: ct, visibilityBenchmarking: vis, seoAnalysis: seo, semanticAnalysis: sem, offpageAnalysis: off, checklist: chk, actionItemsPriorityList: actions, generatedAt: new Date().toISOString() });
