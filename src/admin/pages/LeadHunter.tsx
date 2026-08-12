@@ -242,7 +242,8 @@ export default function LeadHunter({ onNavigate }: LeadHunterProps) {
           setSelectedLeadForDetail(updated);
         }
       } else {
-        showToastMsg(`Erro ao gerar copys para ${lead.company}`);
+        const data = await res.json().catch(() => ({}));
+        showToastMsg(`⚠️ ${data.error || 'Aprovação dos 14 Termos de Pesquisa necessária'}`);
       }
     } catch (err: any) {
       showToastMsg(`Erro: ${err.message}`);

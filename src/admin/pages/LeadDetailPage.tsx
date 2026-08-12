@@ -422,6 +422,13 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   // Generate Outreach Copy
   const handleGenerateCopy = async () => {
     if (!lead) return;
+
+    if (lead.searchTermsStatus !== 'approved') {
+      showToast('⚠️ Geração de copy travada! É necessário analisar e aprovar os 14 Termos de Pesquisa Estratégicos (Etapa 2) antes de gerar as copys.');
+      setActiveTab('search_terms');
+      return;
+    }
+
     setGeneratingCopy(true);
     try {
       const token = await getAdminToken();
@@ -1066,6 +1073,27 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
         {/* TAB 4: PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="space-y-6">
+            {lead.searchTermsStatus !== 'approved' && (
+              <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm space-y-3 animate-fadeIn">
+                <div className="flex items-center gap-2 font-display font-bold text-amber-950 text-sm">
+                  <IconLock className="w-5 h-5 text-amber-600 shrink-0" />
+                  <span>Geração de Copy Travada (Requer Aprovação do GEO Intent)</span>
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  Para que o agente de inteligência comercial entenda profundamente o <strong>nicho do lead</strong>, os <strong>produtos/serviços que ele oferece</strong> e as <strong>pesquisas reais de clientes</strong> nas IAs, é necessário primeiro analisar e aprovar os 14 Termos de Pesquisa Estratégicos na <strong>Etapa 2</strong>.
+                </p>
+                <div>
+                  <button
+                    onClick={() => setActiveTab('search_terms')}
+                    className="px-4 py-2.5 bg-amber-950 hover:bg-amber-900 text-white rounded-xl text-xs font-bold font-display flex items-center gap-2 transition-all cursor-pointer shadow-md"
+                  >
+                    <IconSparkles className="w-4 h-4 text-amber-400" />
+                    <span>Ir para Etapa 2: Analisar & Aprovar 14 Termos</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-sm space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
                 <div>
@@ -1074,13 +1102,14 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                     Pipeline de Abordagem (9 Frameworks de Copywriting)
                   </h3>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Copys calibradas dinamicamente com as falhas técnicas encontradas no diagnóstico do lead.
+                    Copys calibradas dinamicamente com base no nicho, produtos/serviços e nos 14 termos de pesquisa GEO Intent do lead.
                   </p>
                 </div>
                 <button
                   onClick={handleGenerateCopy}
-                  disabled={generatingCopy}
-                  className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold font-display flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+                  disabled={generatingCopy || lead.searchTermsStatus !== 'approved'}
+                  className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-40 text-white rounded-xl text-xs font-bold font-display flex items-center gap-2 transition-all cursor-pointer shadow-sm"
+                  title={lead.searchTermsStatus !== 'approved' ? 'Aprovação prévia dos 14 Termos de Pesquisa necessária na Etapa 2' : 'Gerar copy com IA'}
                 >
                   {generatingCopy ? (
                     <>
