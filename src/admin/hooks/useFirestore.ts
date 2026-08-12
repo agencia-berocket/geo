@@ -166,6 +166,24 @@ export interface Client {
   createdAt: string;
   geoScoreHistory: Array<{ date: string; score: number }>;
   notes?: string;
+  // Campos herdados do Lead no momento da conversão — alimentam a aba "Histórico do Lead"
+  contactName?: string;
+  contactRole?: string;
+  phone?: string;
+  linkedinUrl?: string;
+  niche?: string;
+  location?: string;
+  companySize?: string;
+  domain?: string;
+  source?: LeadSource | string;
+  sourceLabel?: string;
+  initialDiagnosticId?: string;
+  initialGeoScore?: number;
+  searchTerms?: string[];
+  companyOverview?: string;
+  outreachCopies?: Record<string, string>;
+  sentHistory?: SentHistoryItem[];
+  convertedAt?: string;
 }
 
 export function useLeads() {
@@ -242,13 +260,6 @@ export function useLeads() {
     return apiFetch<{ success: boolean }>('/admin/diagnostic/send-report', {
       method: 'POST',
       body: JSON.stringify({ leadId }),
-    });
-  }, []);
-
-  const convertToClient = useCallback(async (leadId: string, data: Partial<Client>) => {
-    return apiFetch<{ success: boolean; clientId: string }>('/admin/clients', {
-      method: 'POST',
-      body: JSON.stringify({ leadId, ...data }),
     });
   }, []);
 
@@ -331,7 +342,7 @@ export function useLeads() {
     return res;
   }, []);
 
-  return { leads, loading, error, fetchLeads, addLead, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, convertToClient, updateDiagnostic, downloadHtmlReport, analyzeSearchTerms, saveSearchTerms };
+  return { leads, loading, error, fetchLeads, addLead, editLead, deleteLead, runDiagnostic, sendReport, sendFollowup, updateDiagnostic, downloadHtmlReport, analyzeSearchTerms, saveSearchTerms };
 }
 
 export function useDiagnostic(leadId: string | null) {
@@ -415,7 +426,23 @@ export function useClients() {
     return apiFetch<{ success: boolean; clientHistory: ClientHistory }>(`/admin/clients/${clientId}/history`);
   }, []);
 
-  return { clients, loading, error, fetchClients, editClient, deleteClient, runAgentForClient, fetchClientHistory };
+  const convertLeadToClient = useCallback(async (leadId: string, data: {
+    name?: string;
+    company?: string;
+    plan?: 'premium' | 'enterprise';
+    currentStage?: number;
+  }) => {
+    const result = await apiFetch<{ success: boolean; clientId: string }>('/admin/clients', {
+      method: 'POST',
+      body: JSON.stringify({ leadId, ...data }),
+    });
+    if (result.success) {
+      await fetchClients();
+    }
+    return result;
+  }, [fetchClients]);
+
+  return { clients, loading, error, fetchClients, editClient, deleteClient, runAgentForClient, fetchClientHistory, convertLeadToClient };
 }
 
 export interface AgentHealth {

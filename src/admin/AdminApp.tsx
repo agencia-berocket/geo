@@ -8,6 +8,7 @@ import ClientsList from './pages/ClientsList';
 import Newsletter from './pages/Newsletter';
 import AgentConfig from './pages/AgentConfig';
 import LeadDetailPage from './pages/LeadDetailPage';
+import ClientDetailPage from './pages/ClientDetailPage';
 import { useAuth } from './hooks/useAuth';
 
 type Page = 'dashboard' | 'lead_hunter' | 'leads' | 'clients' | 'newsletter' | 'configs';
@@ -20,7 +21,9 @@ export default function AdminApp() {
   // Set browser tab title dynamically
   useEffect(() => {
     if (authState === 'authorized') {
-      const pageTitle = selectedId ? 'Detalhes do Lead' : currentPage === 'lead_hunter' || currentPage === 'leads' ? 'Leads' : currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
+      const pageTitle = selectedId
+        ? (currentPage === 'clients' ? 'Detalhes do Cliente' : 'Detalhes do Lead')
+        : currentPage === 'lead_hunter' || currentPage === 'leads' ? 'Leads' : currentPage.charAt(0).toUpperCase() + currentPage.slice(1);
       document.title = `Admin GEO | b.rocket - ${pageTitle}`;
     } else {
       document.title = 'Admin GEO | b.rocket - Restrito';
@@ -77,6 +80,9 @@ export default function AdminApp() {
   const renderPage = () => {
     if (selectedId && (currentPage === 'leads' || currentPage === 'lead_hunter')) {
       return <LeadDetailPage leadId={selectedId} onNavigate={handleNavigate} />;
+    }
+    if (selectedId && currentPage === 'clients') {
+      return <ClientDetailPage clientId={selectedId} onNavigate={handleNavigate} />;
     }
 
     switch (currentPage) {

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useLeads, useDiagnostic, type Lead, type SentHistoryItem } from '../hooks/useFirestore';
+import { useLeads, useClients, useDiagnostic, type Lead, type Client, type SentHistoryItem } from '../hooks/useFirestore';
 import GeoScoreGauge from '../components/GeoScoreGauge';
 import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
+import Modal from '../components/Modal';
 import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS } from '../lib/pipeline';
 import {
   IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
@@ -9,6 +10,59 @@ import {
   IconSend, IconChevron, IconSparkles, IconLock, IconTarget, IconMail
 } from '../components/icons';
 import { getAuth } from 'firebase/auth';
+
+interface ConvertToClientModalProps {
+  lead: Lead;
+  converting: boolean;
+  onConfirm: (data: { name: string; company: string; plan: Client['plan']; currentStage: number }) => void;
+  onCancel: () => void;
+}
+
+function ConvertToClientModal({ lead, converting, onConfirm, onCancel }: ConvertToClientModalProps) {
+  const [name, setName] = useState(lead.contactName || lead.name || '');
+  const [company, setCompany] = useState(lead.company || lead.domain || '');
+  const [plan, setPlan] = useState<Client['plan']>('premium');
+  const [currentStage, setCurrentStage] = useState(1);
+
+  return (
+    <Modal onClose={onCancel} title="Converter Lead em Cliente" maxWidth="max-w-lg">
+      <form onSubmit={(e) => { e.preventDefault(); onConfirm({ name, company, plan, currentStage }); }} className="space-y-4 text-xs">
+        <p className="text-zinc-500 text-xs leading-relaxed">
+          Este lead sairá da lista ativa de Leads e um novo Cliente será criado, herdando contato, termos de pesquisa aprovados, copies de prospecção e o diagnóstico inicial (Score GEO: <b>{lead.geoScore || lead.geoScoreEstimado || 0}%</b>).
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-zinc-400 font-bold block">Nome do Responsável</label>
+            <input required value={name} onChange={e => setName(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-zinc-400 font-bold block">Empresa</label>
+            <input required value={company} onChange={e => setCompany(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-zinc-400 font-bold block">Plano</label>
+            <select value={plan} onChange={e => setPlan(e.target.value as Client['plan'])} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+              <option value="premium">Premium</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-zinc-400 font-bold block">Etapa Inicial</label>
+            <select value={currentStage} onChange={e => setCurrentStage(parseInt(e.target.value))} className="w-full bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-2">
+              {[1, 2, 3, 4, 5].map(s => <option key={s} value={s}>Etapa {s}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end pt-2 border-t border-zinc-100">
+          <button type="button" onClick={onCancel} className="px-4 py-2 border border-zinc-200 rounded-xl font-bold cursor-pointer hover:bg-zinc-50">Cancelar</button>
+          <button type="submit" disabled={converting} className="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold cursor-pointer hover:bg-emerald-700 disabled:opacity-50">
+            {converting ? 'Convertendo...' : '💎 Confirmar Conversão'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 interface LeadDetailPageProps {
   leadId: string;
@@ -52,11 +106,14 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
 
   // Diagnostic hooks & state
   const { runDiagnostic: triggerDiagnostic, editLead } = useLeads();
+  const { convertLeadToClient } = useClients();
   const { diagnostic: hookDiagnostic, fetchDiagnostic } = useDiagnostic(leadId);
   const [runningDiagnostic, setRunningDiagnostic] = useState(false);
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [diagnosticErrorMsg, setDiagnosticErrorMsg] = useState<string | null>(null);
   const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   // Pipeline / Outreach state
   const [copyTab, setCopyTab] = useState<CopyFramework>('PAS');
@@ -324,6 +381,24 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
     setContactDirty(true);
   };
 
+  // Convert Lead to Client
+  const handleConvertToClient = async (data: { name: string; company: string; plan: Client['plan']; currentStage: number }) => {
+    if (!lead) return;
+    setConverting(true);
+    try {
+      const res = await convertLeadToClient(lead.id, data);
+      if (res.success) {
+        showToast('💎 Lead convertido em Cliente com sucesso!');
+        setShowConvertModal(false);
+        onNavigate('clients', res.clientId);
+      }
+    } catch (err: any) {
+      showToast(`Erro ao converter lead: ${err.message}`);
+    } finally {
+      setConverting(false);
+    }
+  };
+
   // Update Lead Temperature
   const handleUpdateTemperature = async (temp: 'cold' | 'warm' | 'hot' | 'converted' | 'lost') => {
     if (!lead) return;
@@ -570,6 +645,17 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
             <option value="converted">💎 Convertido</option>
             <option value="lost">❌ Perdido</option>
           </select>
+
+          {/* Convert to Client Button — só aparece se ainda não foi convertido */}
+          {lead.status !== 'converted' && lead.temperature !== 'converted' && (
+            <button
+              onClick={() => setShowConvertModal(true)}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-display font-bold text-xs flex items-center gap-2 shadow-sm transition-all cursor-pointer"
+            >
+              <IconStar className="w-3.5 h-3.5" />
+              <span>Converter em Cliente</span>
+            </button>
+          )}
 
           {/* Diagnostic Button */}
           <button
@@ -1153,6 +1239,16 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
           </div>
         )}
       </div>
+
+      {/* Convert to Client Modal */}
+      {showConvertModal && lead && (
+        <ConvertToClientModal
+          lead={lead}
+          converting={converting}
+          onConfirm={handleConvertToClient}
+          onCancel={() => setShowConvertModal(false)}
+        />
+      )}
 
       {/* HTML Report Preview Modal */}
       {htmlPreviewUrl && (

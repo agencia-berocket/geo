@@ -1862,7 +1862,7 @@ app.get('/api/admin/clients', verifyAdminToken, async (req, res) => {
   }
 });
 
-// ─── CREATE CLIENT ──────────────────────────────────────────────────────────
+// ─── CREATE CLIENT (convert lead → client) ─────────────────────────────────
 app.post('/api/admin/clients', verifyAdminToken, async (req, res) => {
   const { leadId, name, company, plan, currentStage } = req.body;
   if (!leadId) return res.status(400).json({ error: 'leadId é obrigatório' });
@@ -1870,68 +1870,76 @@ app.post('/api/admin/clients', verifyAdminToken, async (req, res) => {
   try {
     const accessToken = await getGoogleAccessToken();
 
-    // Fetch lead
-    const leadsRes = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/leads?pageSize=100`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    const leadsData = await leadsRes.json();
-    let lead = null;
-    let leadDocPath = null;
-    for (const doc of (leadsData.documents || [])) {
-      const f = doc.fields || {};
-      if (f.id?.stringValue === leadId) {
-        lead = {
-          url: f.url?.stringValue,
-          email: f.email?.stringValue,
-          geoScore: parseInt(f.geoScore?.integerValue || '0'),
-        };
-        leadDocPath = doc.name;
-        break;
-      }
-    }
-    if (!lead) throw new Error('Lead não encontrado');
+    // Busca em `leads` E `hunter_leads` — leads minerados vivem na segunda coleção
+    const found = await findLeadDoc(accessToken, leadId);
+    if (!found) throw new Error('Lead não encontrado');
+    const lead = found.fields;
 
     const clientId = `client_${leadId}_${Date.now()}`;
-    const clientDoc = {
-      fields: {
-        id: { stringValue: clientId },
-        leadId: { stringValue: leadId },
-        url: { stringValue: lead.url },
-        email: { stringValue: lead.email },
-        name: { stringValue: name || lead.email.split('@')[0] },
-        company: { stringValue: company || lead.url },
-        plan: { stringValue: plan || 'premium' },
-        currentStage: { integerValue: currentStage || 1 },
-        createdAt: { stringValue: new Date().toISOString() },
-        geoScoreHistory: {
-          arrayValue: {
-            values: [{ mapValue: { fields: {
-              date: { stringValue: new Date().toISOString() },
-              score: { integerValue: lead.geoScore || 0 },
-            }}}]
-          }
-        },
-        notes: { stringValue: '' },
-      }
+    const initialScore = parseInt(lead.geoScore || lead.geoScoreEstimado || 0) || 0;
+
+    const clientPayload = {
+      id: clientId,
+      leadId,
+      url: lead.url || '',
+      email: lead.email || '',
+      name: name || lead.contactName || lead.name || (lead.email || '').split('@')[0],
+      company: company || lead.company || lead.domain || lead.url || '',
+      plan: plan || 'premium',
+      currentStage: currentStage || 1,
+      createdAt: new Date().toISOString(),
+      geoScoreHistory: [{ date: new Date().toISOString(), score: initialScore }],
+      notes: '',
+      // Campos herdados de contato/prospecção do lead
+      contactName: lead.contactName || lead.name || '',
+      contactRole: lead.contactRole || '',
+      phone: lead.phone || '',
+      linkedinUrl: lead.linkedinUrl || '',
+      niche: lead.niche || '',
+      location: lead.location || '',
+      companySize: lead.companySize || '',
+      domain: lead.domain || '',
+      source: lead.source || '',
+      sourceLabel: lead.sourceLabel || '',
+      // Diagnóstico feito ainda como lead, herdado como "diagnóstico de entrada"
+      initialDiagnosticId: lead.diagnosticId || '',
+      initialGeoScore: initialScore,
+      // Histórico de prospecção
+      searchTerms: lead.searchTerms || [],
+      companyOverview: lead.companyOverview || '',
+      outreachCopies: lead.outreachCopies || {},
+      sentHistory: lead.sentHistory || [],
+      convertedAt: new Date().toISOString(),
     };
 
-    await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(clientDoc),
-    });
-
-    // Update lead status
-    if (leadDocPath) {
-      await fetch(`https://firestore.googleapis.com/v1/${leadDocPath}?updateMask.fieldPaths=status`, {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: { status: { stringValue: 'converted' } } }),
-      });
+    const fields = {};
+    for (const [k, v] of Object.entries(clientPayload)) {
+      fields[k] = toFirestoreValue(v);
     }
 
+    await fetchFirestore(`https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fields }),
+    });
+
+    // Sincroniza status + temperature + pipelineStage no lead original (mantém consultável, some da visão ativa)
+    await fetchFirestore(`https://firestore.googleapis.com/v1/${found.docPath}?updateMask.fieldPaths=status&updateMask.fieldPaths=temperature&updateMask.fieldPaths=pipelineStage`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fields: {
+          status: { stringValue: 'converted' },
+          temperature: { stringValue: 'converted' },
+          pipelineStage: { stringValue: 'converted' },
+        },
+      }),
+    });
+
     // Auto-subscribe client to newsletter
-    await autoSubscribeNewsletter(accessToken, name || lead.email.split('@')[0], lead.email);
+    if (lead.email) {
+      await autoSubscribeNewsletter(accessToken, clientPayload.name, lead.email).catch(() => {});
+    }
 
     res.json({ success: true, clientId });
   } catch (err) {
@@ -2288,6 +2296,21 @@ app.get('/api/admin/clients/:id/history', verifyAdminToken, async (req, res) => 
   const { id: clientId } = req.params;
   try {
     const accessToken = await getGoogleAccessToken();
+
+    // Busca o leadId ORIGINAL no doc do cliente — derivar de clientId.split('_') quebra porque
+    // o leadId também contém underscores (formato lead_<timestamp>_<hex>)
+    const clientsUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/clients?pageSize=100`;
+    const clientsData = await fetchFirestore(clientsUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+    let originalLeadId = null;
+    for (const doc of (clientsData.documents || [])) {
+      const docId = doc.name.split('/').pop();
+      const f = doc.fields || {};
+      if (docId === clientId || f.id?.stringValue === clientId) {
+        originalLeadId = f.leadId?.stringValue || null;
+        break;
+      }
+    }
+
     const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/diagnostics?pageSize=100`;
     const response = await fetch(url, { headers: { 'Authorization': `Bearer ${accessToken}` } });
     const data = await response.json();
@@ -2310,7 +2333,6 @@ app.get('/api/admin/clients/:id/history', verifyAdminToken, async (req, res) => 
       return null;
     }
 
-    const leadId = clientId.startsWith('client_') ? clientId.split('_')[1] : clientId;
     const clientDiagnostics = [];
 
     for (const doc of (data.documents || [])) {
@@ -2318,7 +2340,9 @@ app.get('/api/admin/clients/:id/history', verifyAdminToken, async (req, res) => 
       for (const [k, v] of Object.entries(doc.fields || {})) {
         diag[k] = fromFirestoreValue(v);
       }
-      if (diag.clientId === clientId || diag.leadId === clientId || diag.leadId === leadId) {
+      // Considera diagnósticos indexados por clientId (gerados via runAgentForClient) e
+      // diagnósticos indexados pelo leadId original (o diagnóstico inicial, feito antes da conversão)
+      if (diag.clientId === clientId || diag.leadId === clientId || (originalLeadId && diag.leadId === originalLeadId)) {
         clientDiagnostics.push(diag);
       }
     }

@@ -152,6 +152,10 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
 
   // Filtering leads
   const filteredLeads = leads.filter(l => {
+    // Leads convertidos em cliente saem da visão padrão — só aparecem com o filtro "Convertido" explícito
+    const isConverted = l.status === 'converted' || l.temperature === 'converted';
+    if (isConverted && temperatureFilter !== 'converted') return false;
+
     const searchMatch = !searchTerm || [l.company, l.domain, l.url, l.email, l.contactName, l.name, l.niche].some(field =>
       (field || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -177,6 +181,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
     mined: leads.filter(l => l.source && l.source !== 'lp').length,
     approvedTerms: leads.filter(l => l.searchTermsStatus === 'approved').length,
     diagnosed: leads.filter(l => l.diagnosticId || l.geoScore).length,
+    converted: leads.filter(l => l.status === 'converted' || l.temperature === 'converted').length,
   };
 
   return (
@@ -467,7 +472,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
       )}
 
       {/* OVERVIEW STATS CARDS */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-xs">
           <span className="font-mono text-[9px] text-zinc-400 font-bold uppercase tracking-wider block">TOTAL DE LEADS</span>
           <span className="font-display font-black text-2xl text-zinc-950 mt-1 block">{stats.total}</span>
@@ -488,9 +493,14 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
           <span className="font-display font-black text-2xl text-amber-700 mt-1 block">{stats.approvedTerms}</span>
         </div>
 
-        <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-xs col-span-2 sm:col-span-1">
+        <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-xs">
           <span className="font-mono text-[9px] text-purple-600 font-bold uppercase tracking-wider block">DIAGNOSTICADOS</span>
           <span className="font-display font-black text-2xl text-purple-700 mt-1 block">{stats.diagnosed}</span>
+        </div>
+
+        <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-xs col-span-2 sm:col-span-1">
+          <span className="font-mono text-[9px] text-emerald-700 font-bold uppercase tracking-wider block">CONVERTIDOS</span>
+          <span className="font-display font-black text-2xl text-emerald-800 mt-1 block">{stats.converted}</span>
         </div>
       </div>
 
