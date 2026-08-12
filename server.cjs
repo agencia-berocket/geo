@@ -2044,11 +2044,13 @@ app.delete('/api/admin/clients/:id', verifyAdminToken, async (req, res) => {
     const clientsData = await clientsResponse.json();
     
     let clientDocPath = null;
+    let associatedLeadId = null;
     for (const doc of (clientsData.documents || [])) {
       const docId = doc.name.split('/').pop();
-      const f = doc.fields || {};
-      if (docId === id || f.id?.stringValue === id) {
+      const f = parseFirestoreDoc(doc);
+      if (docId === id || f.id === id) {
         clientDocPath = doc.name;
+        associatedLeadId = f.leadId;
         break;
       }
     }
@@ -2063,6 +2065,20 @@ app.delete('/api/admin/clients/:id', verifyAdminToken, async (req, res) => {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
+
+    // Limpar resquícios na coleção de leads e hunter_leads se existirem
+    try {
+      const targetId = associatedLeadId || id;
+      const foundLead = await findLeadDoc(accessToken, targetId);
+      if (foundLead) {
+        await fetchFirestore(`https://firestore.googleapis.com/v1/${foundLead.docPath}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+      }
+    } catch (cleanErr) {
+      console.warn('Aviso: falha ao limpar lead associado ao excluir cliente:', cleanErr.message);
+    }
 
     res.json({ success: true });
   } catch (err) {
