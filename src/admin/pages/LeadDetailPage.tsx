@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLeads, useClients, useDiagnostic, type Lead, type Client, type SentHistoryItem } from '../hooks/useFirestore';
 import GeoScoreGauge from '../components/GeoScoreGauge';
 import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
+import { NotepadPanel } from '../components/NotepadPanel';
 import Modal from '../components/Modal';
 import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS } from '../lib/pipeline';
 import {
@@ -877,6 +878,17 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
                 </button>
               </div>
             </div>
+
+            {/* Bloco de Notas & Anexos do Lead */}
+            <NotepadPanel
+              entityType="lead"
+              entityId={lead.id}
+              initialNotes={lead.notes}
+              initialAttachments={lead.noteAttachments}
+              onNotesSaved={(updatedNotes) => {
+                setLead(prev => prev ? { ...prev, notes: updatedNotes } : null);
+              }}
+            />
           </div>
         )}
 

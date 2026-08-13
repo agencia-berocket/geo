@@ -57,6 +57,15 @@ export interface SentHistoryItem {
   attachPdf?: boolean;
 }
 
+export interface NoteAttachment {
+  id: string;
+  name: string;
+  url: string;
+  sizeBytes: number;
+  fileType: 'image' | 'html' | 'pdf' | 'document' | 'other';
+  createdAt: string;
+}
+
 export interface Lead {
   id: string;
   url: string;
@@ -96,6 +105,8 @@ export interface Lead {
   citedCompetitor?: string;
   emailSentAt?: string;
   pipelineStage?: PipelineStage;
+  notes?: string;
+  noteAttachments?: NoteAttachment[];
 }
 
 export type PipelineStage = 'new' | 'terms_approved' | 'diagnosed' | 'email_sent' | 'responded' | 'converted';
@@ -166,6 +177,7 @@ export interface Client {
   createdAt: string;
   geoScoreHistory: Array<{ date: string; score: number }>;
   notes?: string;
+  noteAttachments?: NoteAttachment[];
   // Campos herdados do Lead no momento da conversão — alimentam a aba "Histórico do Lead"
   contactName?: string;
   contactRole?: string;

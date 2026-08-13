@@ -30,6 +30,7 @@ const {
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 app.use('/audits', express.static(path.join(__dirname, 'public', 'audits')));
+app.use('/notes', express.static(path.join(__dirname, 'public', 'notes')));
 
 function getAuditFolder(entityType, entityId) {
   const cleanType = entityType === 'client' ? 'client' : 'lead';
@@ -45,10 +46,15 @@ async function saveAuditArtifacts(entityType, entityId, leadObj, diagnosticObj) 
     const cleanType = entityType === 'client' ? 'client' : 'lead';
     const folderPath = getAuditFolder(cleanType, entityId);
 
-    // 1. Relatório HTML completo
+    // 1. Relatório HTML completo (Auditoria Interna)
     const fullHtml = generateCompleteHtmlReport(leadObj, diagnosticObj);
     const htmlFilePath = path.join(folderPath, 'relatorio_geo.html');
     fs.writeFileSync(htmlFilePath, fullHtml, 'utf8');
+
+    // 1b. Relatório HTML resumido (Proposta / Lead)
+    const summaryHtml = generateHtmlReport(leadObj, diagnosticObj, { isInternal: false });
+    const summaryHtmlFilePath = path.join(folderPath, 'relatorio_geo_resumido.html');
+    fs.writeFileSync(summaryHtmlFilePath, summaryHtml, 'utf8');
 
     // 2. Screenshots das seções-chave via Puppeteer
     const screenshots = await takeReportScreenshots(fullHtml);
@@ -77,7 +83,8 @@ async function saveAuditArtifacts(entityType, entityId, leadObj, diagnosticObj) 
       generatedAt: diagnosticObj.generatedAt || new Date().toISOString(),
       agentAuditLog: diagnosticObj.visibilityBenchmarking?.agentAuditLog || [],
       savedScreenshots,
-      htmlReportUrl: `/audits/${cleanType}_${entityId}/relatorio_geo.html`
+      htmlReportUrl: `/audits/${cleanType}_${entityId}/relatorio_geo.html`,
+      htmlSummaryReportUrl: `/audits/${cleanType}_${entityId}/relatorio_geo_resumido.html`
     };
     fs.writeFileSync(path.join(folderPath, 'audit_log.json'), JSON.stringify(auditLogData, null, 2), 'utf8');
 
@@ -1514,7 +1521,7 @@ app.get('/api/admin/diagnostic/html/:leadId', verifyAdminToken, async (req, res)
       : generateHtmlReport(lead, diagnostic, { isInternal: false });
 
     const domainClean = (lead.url || 'diagnostico').replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/[^a-z0-9_-]/gi, '_');
-    const filename = isInternal ? `Relatorio_GEO_Auditoria_${domainClean}.html` : `Relatorio_GEO_${domainClean}.html`;
+    const filename = isInternal ? `Relatorio_GEO_Auditoria_${domainClean}.html` : `Relatorio_GEO_Resumido_${domainClean}.html`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -1917,6 +1924,34 @@ app.post('/api/admin/clients', verifyAdminToken, async (req, res) => {
     const clientId = `client_${leadId}_${Date.now()}`;
     const initialScore = parseInt(lead.geoScore || lead.geoScoreEstimado || 0) || 0;
 
+    // Herança de Bloco de Notas e Anexos do Lead
+    const leadNotes = lead.notes || '';
+    const rawLeadAttachments = lead.noteAttachments || [];
+    const clientAttachments = rawLeadAttachments.map(att => {
+      const fileName = att.url ? att.url.split('/').pop() : att.name;
+      return {
+        ...att,
+        url: `/notes/client_${clientId}/${fileName}`
+      };
+    });
+
+    // Copia física da pasta de notas do lead para a pasta do cliente se existir
+    const leadNotesFolder = path.join(__dirname, 'public', 'notes', `lead_${leadId}`);
+    const clientNotesFolder = path.join(__dirname, 'public', 'notes', `client_${clientId}`);
+    if (fs.existsSync(leadNotesFolder)) {
+      if (!fs.existsSync(clientNotesFolder)) {
+        fs.mkdirSync(clientNotesFolder, { recursive: true });
+      }
+      try {
+        const files = fs.readdirSync(leadNotesFolder);
+        for (const file of files) {
+          fs.copyFileSync(path.join(leadNotesFolder, file), path.join(clientNotesFolder, file));
+        }
+      } catch (copyErr) {
+        console.warn('Aviso ao copiar pasta de notas:', copyErr.message);
+      }
+    }
+
     const clientPayload = {
       id: clientId,
       leadId,
@@ -1928,7 +1963,8 @@ app.post('/api/admin/clients', verifyAdminToken, async (req, res) => {
       currentStage: currentStage || 1,
       createdAt: new Date().toISOString(),
       geoScoreHistory: [{ date: new Date().toISOString(), score: initialScore }],
-      notes: '',
+      notes: leadNotes,
+      noteAttachments: clientAttachments,
       // Campos herdados de contato/prospecção do lead
       contactName: lead.contactName || lead.name || '',
       contactRole: lead.contactRole || '',
@@ -1981,6 +2017,135 @@ app.post('/api/admin/clients', verifyAdminToken, async (req, res) => {
     }
 
     res.json({ success: true, clientId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── NOTES & ATTACHMENTS API ────────────────────────────────────────────────
+// POST /api/admin/notes/:entityType/:entityId/upload
+app.post('/api/admin/notes/:entityType/:entityId/upload', verifyAdminToken, async (req, res) => {
+  const { entityType, entityId } = req.params;
+  const { fileName, base64Data, fileType } = req.body;
+  if (!fileName || !base64Data) {
+    return res.status(400).json({ error: 'fileName e base64Data são obrigatórios.' });
+  }
+
+  try {
+    const cleanType = entityType === 'client' ? 'client' : 'lead';
+    const folderPath = path.join(__dirname, 'public', 'notes', `${cleanType}_${entityId}`);
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+
+    const safeName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+    const filePath = path.join(folderPath, safeName);
+    const base64Pure = base64Data.replace(/^data:.*?;base64,/, '');
+    fs.writeFileSync(filePath, Buffer.from(base64Pure, 'base64'));
+
+    const fileUrl = `/notes/${cleanType}_${entityId}/${safeName}`;
+    const stat = fs.statSync(filePath);
+
+    let detectedType = fileType || 'other';
+    if (!fileType) {
+      if (/\.(png|jpg|jpeg|webp|gif)$/i.test(fileName)) detectedType = 'image';
+      else if (/\.html?$/i.test(fileName)) detectedType = 'html';
+      else if (/\.pdf$/i.test(fileName)) detectedType = 'pdf';
+      else if (/\.(docx?|xlsx?|pptx?|txt|csv)$/i.test(fileName)) detectedType = 'document';
+    }
+
+    const newAttachment = {
+      id: `att_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`,
+      name: fileName,
+      url: fileUrl,
+      sizeBytes: stat.size,
+      fileType: detectedType,
+      createdAt: new Date().toISOString()
+    };
+
+    const accessToken = await getGoogleAccessToken();
+    const collection = cleanType === 'client' ? 'clients' : 'leads';
+
+    const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${collection}?pageSize=100`;
+    const listData = await fetchFirestore(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    let targetDoc = null;
+    for (const doc of (listData.documents || [])) {
+      const f = parseFirestoreDoc(doc);
+      if (f.id === entityId || doc.name.endsWith(`/${entityId}`)) {
+        targetDoc = doc;
+        break;
+      }
+    }
+
+    if (targetDoc) {
+      const parsed = parseFirestoreDoc(targetDoc);
+      const currentAtts = parsed.noteAttachments || [];
+      const updatedAtts = [...currentAtts, newAttachment];
+
+      await fetchFirestore(`https://firestore.googleapis.com/v1/${targetDoc.name}?updateMask.fieldPaths=noteAttachments`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            noteAttachments: toFirestoreValue(updatedAtts)
+          }
+        })
+      });
+    }
+
+    res.json({ success: true, attachment: newAttachment });
+  } catch (err) {
+    console.error('Note attachment upload error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/admin/notes/:entityType/:entityId/attachment/:attachmentId
+app.delete('/api/admin/notes/:entityType/:entityId/attachment/:attachmentId', verifyAdminToken, async (req, res) => {
+  const { entityType, entityId, attachmentId } = req.params;
+  try {
+    const cleanType = entityType === 'client' ? 'client' : 'lead';
+    const accessToken = await getGoogleAccessToken();
+    const collection = cleanType === 'client' ? 'clients' : 'leads';
+
+    const listUrl = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/${collection}?pageSize=100`;
+    const listData = await fetchFirestore(listUrl, { headers: { 'Authorization': `Bearer ${accessToken}` } });
+
+    let targetDoc = null;
+    for (const doc of (listData.documents || [])) {
+      const f = parseFirestoreDoc(doc);
+      if (f.id === entityId || doc.name.endsWith(`/${entityId}`)) {
+        targetDoc = doc;
+        break;
+      }
+    }
+
+    if (targetDoc) {
+      const parsed = parseFirestoreDoc(targetDoc);
+      const currentAtts = parsed.noteAttachments || [];
+      const toDelete = currentAtts.find(a => a.id === attachmentId);
+      const updatedAtts = currentAtts.filter(a => a.id !== attachmentId);
+
+      if (toDelete && toDelete.url) {
+        const localPath = path.join(__dirname, 'public', toDelete.url.replace(/^\//, ''));
+        if (fs.existsSync(localPath)) {
+          try { fs.unlinkSync(localPath); } catch (_e) {}
+        }
+      }
+
+      await fetchFirestore(`https://firestore.googleapis.com/v1/${targetDoc.name}?updateMask.fieldPaths=noteAttachments`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fields: {
+            noteAttachments: toFirestoreValue(updatedAtts)
+          }
+        })
+      });
+    }
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2921,13 +3086,93 @@ function normalizeLocationText(text) {
     .trim();
 }
 
+// Formatação de telefone com DDD do Brasil garantido (ex: (11) 99999-8888 ou (11) 3333-4444)
+function formatBrazilianPhone(rawPhone, siteText = '') {
+  if (!rawPhone) return '';
+
+  let digits = String(rawPhone).replace(/\D/g, '');
+
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) {
+    digits = digits.slice(2);
+  }
+
+  if (digits.length === 11) {
+    const ddd = digits.slice(0, 2);
+    const numDdd = parseInt(ddd, 10);
+    if (numDdd >= 11 && numDdd <= 99) {
+      return `(${ddd}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+    }
+  }
+
+  if (digits.length === 10) {
+    const ddd = digits.slice(0, 2);
+    const numDdd = parseInt(ddd, 10);
+    if (numDdd >= 11 && numDdd <= 99) {
+      return `(${ddd}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    }
+  }
+
+  if (digits.startsWith('0800') || digits.startsWith('0300')) {
+    if (digits.length === 11) {
+      return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+    }
+  }
+
+  if ((digits.length === 8 || digits.length === 9) && siteText) {
+    const dddMatch = siteText.match(/(?:\(?([1-9]{2})\)?[\s\-.]?)(?:9\d{4}|\d{4})/);
+    if (dddMatch) {
+      const foundDDD = dddMatch[1];
+      if (digits.length === 9) return `(${foundDDD}) ${digits.slice(0, 5)}-${digits.slice(5)}`;
+      if (digits.length === 8) return `(${foundDDD}) ${digits.slice(0, 4)}-${digits.slice(4)}`;
+    }
+  }
+
+  return '';
+}
+
+// Refinamento de nicho baseado nas palavras-chave do site para EVITAR classificações genéricas tipo "SaaS" ou "Geral"
+function refineNiche(extractedNiche, title = '', metaDesc = '', cleanText = '') {
+  const combinedText = `${title} ${metaDesc} ${cleanText}`.toLowerCase();
+
+  const isGenericOrSaas = !extractedNiche || 
+    /^(saas|geral|tecnologia|software|outros|desconhecido|empresa|site|b2b|b2c)$/i.test(extractedNiche.trim());
+
+  if (isGenericOrSaas) {
+    if (/clínica|médic|saúde|odontol|dentista|hospital|pediatra|dermatol|psicolog|oftalmo|fisioter|psiquiat/i.test(combinedText)) return 'Clínica Médica / Saúde';
+    if (/advoc|advogad|jurídic|direito|lei|tributár|trabalhista|previdenci|cível/i.test(combinedText)) return 'Advocacia / Jurídico';
+    if (/contabil|contador|fiscal|tributár|escritório de contab|perícia fiscal/i.test(combinedText)) return 'Contabilidade / Audit';
+    if (/imobiliár|imóve|corretor|aluguel|venda de imóve|residencial|condomí|apartamento/i.test(combinedText)) return 'Imobiliária / Corretores';
+    if (/construç|engenhar|obra|reforma|arquitet|empreendimento|infraestrutura/i.test(combinedText)) return 'Construção Civil & Engenharia';
+    if (/energia solar|fotovoltaic|painel solar|inversor solar|geração distribuída/i.test(combinedText)) return 'Energia Solar / Renováveis';
+    if (/e-commerce|loja virtual|comprar online|comércio eletrônico|vestuário|calcado/i.test(combinedText)) return 'E-commerce / Varejo';
+    if (/estética|beleza|salão|barbearia|cosmétic|depilação|spa|harmonização/i.test(combinedText)) return 'Estética & Bem-Estar';
+    if (/restaurante|pizzaria|hambúrguer|gastronom|comida|delivery|bistrô|churrascaria/i.test(combinedText)) return 'Gastronomia & Restaurantes';
+    if (/escola|colégio|curso|faculdade|educaç|ensino|treinamento|vestibular/i.test(combinedText)) return 'Educação / Cursos';
+    if (/logístic|transporte|frete|cargas|armazenagem|expedição/i.test(combinedText)) return 'Logística & Transporte';
+    if (/pousada|hotel|turismo|viag|resort|hospedagem/i.test(combinedText)) return 'Turismo & Hotelaria';
+    if (/oficina|mecánic|funilar|auto|veículo|mecanic|peças automot/i.test(combinedText)) return 'Automotivo / Oficina';
+    if (/agência|marketing|design|publicidad|propaganda|branding|social media/i.test(combinedText)) return 'Marketing & Comunicação';
+    if (/consultor|assessoria|gestão de negócios|planejamento estratégico/i.test(combinedText)) return 'Consultoria / Gestão';
+    if (/indústria|fabric|manufatur|usinagem|equipamentos industriais/i.test(combinedText)) return 'Indústria & Manufatura';
+    if (/seguranç|alarme|monitoramento|cftv|portaria/i.test(combinedText)) return 'Segurança Patrimonial';
+    if (/móve|marcenaria|decoraç|design de interiores/i.test(combinedText)) return 'Móveis & Decoração';
+  }
+
+  if (extractedNiche && !isGenericOrSaas) {
+    return extractedNiche.trim();
+  }
+
+  return 'Serviços & Negócios';
+}
+
 // Função utilitária para varredura profunda de e-mail, telefone e LinkedIn no site da empresa
 async function extractLeadContactFromSite(domain) {
   let email = '';
   let phone = '';
   let linkedinUrl = '';
+  let accumulatedText = '';
 
-  if (!domain) return { email, phone, linkedinUrl };
+  if (!domain) return { email, phone, linkedinUrl, accumulatedText };
 
   const cleanDom = domain.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').replace(/^www\./i, '');
   const pagesToCrawl = [
@@ -2939,8 +3184,6 @@ async function extractLeadContactFromSite(domain) {
   ];
 
   for (const pageUrl of pagesToCrawl) {
-    if (email && phone && linkedinUrl) break;
-
     try {
       const res = await fetch(pageUrl, {
         headers: {
@@ -2951,6 +3194,7 @@ async function extractLeadContactFromSite(domain) {
 
       if (res.ok) {
         const html = await res.text();
+        accumulatedText += `\n --- PAGE (${pageUrl}) ---\n` + html.replace(/<[^>]+>/g, ' ');
 
         // 1. E-mail via href="mailto:..."
         if (!email) {
@@ -2976,18 +3220,43 @@ async function extractLeadContactFromSite(domain) {
           }
         }
 
-        // 3. Telefone via href="tel:..." ou Regex BR
+        // 3. Telefone via WhatsApp link (wa.me, api.whatsapp.com, web.whatsapp.com)
         if (!phone) {
-          const telMatch = html.match(/href="tel:([^"]+)"/i);
-          if (telMatch) {
-            phone = telMatch[1].replace(/\s+/g, '').trim();
-          } else {
-            const rawPhoneMatch = html.match(/(?:\+55[\s\-.]?)?(?:\(?\d{2}\)?[\s\-.]?)(?:9\d{4}[\s\-.]?\d{4}|\d{4}[\s\-.]?\d{4})/);
-            if (rawPhoneMatch) phone = rawPhoneMatch[0].trim();
+          const waMatch = html.match(/href="https?:\/\/(?:wa\.me|api\.whatsapp\.com\/send\?phone=|web\.whatsapp\.com\/send\?phone=)(\d+)"/i);
+          if (waMatch) {
+            phone = formatBrazilianPhone(waMatch[1], html);
           }
         }
 
-        // 4. LinkedIn via URL no HTML
+        // 4. Telefone via href="tel:..."
+        if (!phone) {
+          const telMatch = html.match(/href="tel:([^"]+)"/i);
+          if (telMatch) {
+            phone = formatBrazilianPhone(telMatch[1], html);
+          }
+        }
+
+        // 5. Telefone via microdados itemprop="telephone"
+        if (!phone) {
+          const itemPropMatch = html.match(/itemprop="telephone"[^>]*>([^<]+)</i);
+          if (itemPropMatch) {
+            phone = formatBrazilianPhone(itemPropMatch[1], html);
+          }
+        }
+
+        // 6. Telefone via Regex no HTML bruto (garantindo DDD)
+        if (!phone) {
+          const rawPhoneMatches = html.match(/(?:\+?55[\s.\-]?)?(?:\(?([1-9]{2})\)?[\s.\-]?)?(?:9?\d{4}[\s.\-]?\d{4}|\d{4}[\s.\-]?\d{4})/g) || [];
+          for (const rawP of rawPhoneMatches) {
+            const formatted = formatBrazilianPhone(rawP, html);
+            if (formatted) {
+              phone = formatted;
+              break;
+            }
+          }
+        }
+
+        // 7. LinkedIn via URL no HTML
         if (!linkedinUrl) {
           const linkedinMatch = html.match(/href="(https?:\/\/(?:www\.)?linkedin\.com\/(?:company|in)\/[^"?#\s]+)"/i);
           if (linkedinMatch) {
@@ -3000,7 +3269,7 @@ async function extractLeadContactFromSite(domain) {
     }
   }
 
-  return { email, phone, linkedinUrl };
+  return { email, phone, linkedinUrl, accumulatedText };
 }
 
 // Agente Extrator de Dados de Lead via IA (Gemini 2.5 Flash)
@@ -3015,35 +3284,47 @@ async function extractLeadInfoWithAI(url, htmlContent, type = 'website') {
     const metaDescMatch = htmlContent.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"/i) || htmlContent.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/i);
     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
     const metaDesc = metaDescMatch ? metaDescMatch[1].trim() : '';
-    const cleanText = htmlContent.replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/<style[\s\S]*?<\/style>/gi, '')
+    const cleanText = htmlContent
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
-      .slice(0, 3500);
+      .slice(0, 5000);
 
     const systemPrompt = `Você é um agente especialista em inteligência comercial e prospecção B2B (SDR/BDR).
-Sua tarefa é analisar o título, descrição meta e texto extraído de uma URL (${type}: ${url}) e extrair os dados mais precisos possíveis sobre o lead/empresa.
+Sua tarefa é analisar o título, descrição meta e texto extraído de uma empresa (${type}: ${url}) e extrair dados comerciais precisos.
 
 Título da Página: "${title}"
 Descrição Meta: "${metaDesc}"
 Texto Extraído: "${cleanText}"
 
+REGRAS RÍGIDAS DE EXTRAÇÃO:
+1. "niche": Identifique o nicho de mercado REAL e ESPECÍFICO da empresa com base no seu ramo de atuação (ex: "Clínica Médica / Saúde", "Advocacia", "Contabilidade", "Imobiliária", "Energia Solar", "E-commerce de Moda", "Construção Civil", "Gastronomia", "Educação", "Estética & Beleza", "Oficina Automotiva", "Consultoria de Vendas", "Agência de Marketing", "Indústria Metalúrgica", etc.).
+   CRÍTICO: NUNCA classifique como "SaaS" ou "Tecnologia" a não ser que a empresa seja EXPLICITAMENTE uma plataforma de software vendida como serviço (ex: CRM, ERP online). Se for um negócio físico, prestador de serviço tradicional ou comércio, use o nicho real do segmento! NUNCA use "Geral".
+2. "phone": Extraia o telefone de contato principal ou WhatsApp da empresa COM DDD de 2 dígitos (ex: "(11) 99999-8888" ou "(21) 3333-4444").
+3. "company": Nome oficial ou fantasia limpo da empresa (sem sufixos como "| Home" ou "- Página Oficial").
+4. "contactName": Nome do decisor, sócio, fundador ou diretor se citado, senão "".
+5. "contactRole": Cargo do decisor (ex: CEO, Founder, Diretor, Sócio) se identificado, senão "".
+6. "email": E-mail oficial de contato se citado.
+7. "location": Cidade e Estado da empresa no Brasil (ex: "São Paulo, SP" ou "Rio de Janeiro, RJ").
+
 Retorne APENAS um JSON estrito (sem tags markdown nem explicações) no seguinte formato:
 {
-  "company": "Nome oficial ou fantasia da empresa",
-  "contactName": "Nome do decisor/fundador/diretor se citado, senão \"\"",
-  "contactRole": "Cargo do contato se identificado (ex: CEO, Founder, CMO), senão \"\"",
-  "email": "E-mail de contato se citado",
-  "phone": "Telefone de contato se citado",
-  "linkedinUrl": "URL de perfil ou página do LinkedIn se citada",
-  "domain": "Domínio oficial sem protocolo (ex: empresa.com.br)",
-  "niche": "Segmento ou nicho de mercado principal",
-  "location": "Cidade, Estado ou País principal"
+  "company": "Nome da empresa",
+  "contactName": "",
+  "contactRole": "",
+  "email": "email@empresa.com",
+  "phone": "(11) 99999-8888",
+  "linkedinUrl": "",
+  "domain": "empresa.com.br",
+  "niche": "Nicho Específico Real",
+  "location": "Cidade, UF"
 }`;
 
     const payload = {
       contents: [{ parts: [{ text: systemPrompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 1024 }
+      generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
     };
 
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
@@ -3125,10 +3406,11 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
           // 1. Extração profunda por Regex se for site corporativo
           const siteContacts = (!isLinkedIn && cleanDom)
             ? await extractLeadContactFromSite(cleanDom)
-            : { email: '', phone: '', linkedinUrl: '' };
+            : { email: '', phone: '', linkedinUrl: '', accumulatedText: '' };
 
-          // 2. Extração via Agente IA (Gemini 2.5 Flash)
-          const aiExtracted = await extractLeadInfoWithAI(targetUrl, htmlContent, isLinkedInProfile ? 'linkedin_profile' : isLinkedInCompany ? 'linkedin_company' : 'website');
+          // 2. Extração via Agente IA (Gemini 2.5 Flash) com conteúdo consolidado das subpáginas
+          const combinedContent = `${htmlContent}\n${siteContacts.accumulatedText || ''}`;
+          const aiExtracted = await extractLeadInfoWithAI(targetUrl, combinedContent, isLinkedInProfile ? 'linkedin_profile' : isLinkedInCompany ? 'linkedin_company' : 'website');
 
           // 3. Consolidação dos dados extraídos com fallbacks inteligentes
           let companyName = aiExtracted?.company || '';
@@ -3141,6 +3423,7 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
               companyName = domTitle.charAt(0).toUpperCase() + domTitle.slice(1);
             }
           }
+          companyName = companyName.split('|')[0].split(' - ')[0].trim();
 
           let contactName = aiExtracted?.contactName || '';
           if (!contactName && isLinkedInProfile) {
@@ -3152,9 +3435,22 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
 
           let contactRole = aiExtracted?.contactRole || targetRole || 'Diretor / CEO';
           let finalEmail = siteContacts.email || aiExtracted?.email || '';
-          let finalPhone = siteContacts.phone || aiExtracted?.phone || '';
+          
+          // Garante telefone no formato brasileiro com DDD
+          let rawPhone = siteContacts.phone || aiExtracted?.phone || '';
+          let finalPhone = formatBrazilianPhone(rawPhone, combinedContent);
+
           let finalLinkedin = isLinkedInProfile ? targetUrl : (siteContacts.linkedinUrl || aiExtracted?.linkedinUrl || '');
-          let finalNiche = aiExtracted?.niche || niche || 'Geral';
+          
+          // Garante nicho preciso sem SaaS/Geral delirante
+          const tMatch = combinedContent.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+          const mMatch = combinedContent.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"/i) || combinedContent.match(/<meta[^>]*property="og:description"[^>]*content="([^"]*)"/i);
+          const tStr = tMatch ? tMatch[1] : '';
+          const mStr = mMatch ? mMatch[1] : '';
+          
+          let detectedNiche = refineNiche(aiExtracted?.niche, tStr, mStr, combinedContent);
+          let finalNiche = (niche && niche !== 'Geral' && niche !== 'SaaS') ? niche : detectedNiche;
+
           let finalLocation = aiExtracted?.location || location || 'Brasil';
           let finalDomain = aiExtracted?.domain || cleanDom;
 
@@ -3261,9 +3557,9 @@ app.post('/api/admin/lead-hunter/mine', verifyAdminToken, async (req, res) => {
                   contactRole: targetRole || 'Diretor / CEO',
                   linkedinUrl: place.socialMediaProfiles?.linkedIn || contacts.linkedinUrl || '',
                   email: contacts.email || '',
-                  phone: realPhone || contacts.phone || '',
+                  phone: formatBrazilianPhone(realPhone || contacts.phone || ''),
                   address: realAddress,
-                  niche: niche || 'Geral',
+                  niche: (niche && niche !== 'Geral' && niche !== 'SaaS') ? niche : refineNiche(niche, placeTitle, realAddress, placeTitle),
                   location: location || 'Brasil',
                   companySize: companySize || '10-50 funcionários',
                   source: 'google',

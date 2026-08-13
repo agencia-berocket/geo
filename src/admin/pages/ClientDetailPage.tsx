@@ -4,6 +4,7 @@ import Modal from '../components/Modal';
 import GeoScoreGauge from '../components/GeoScoreGauge';
 import { LeadChat } from '../components/LeadChat';
 import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
+import { NotepadPanel } from '../components/NotepadPanel';
 import { auth } from '../../lib/firebase';
 import {
   IconEdit, IconTrash, IconPlay, IconChat, IconBot, IconShield, IconFolder,
@@ -179,6 +180,14 @@ function LeadHistoryPanel({ client }: { client: Client }) {
 
   return (
     <div className="space-y-6">
+      {/* Bloco de Notas Auto-salvável & Anexos do Cliente */}
+      <NotepadPanel
+        entityType="client"
+        entityId={client.id}
+        initialNotes={client.notes}
+        initialAttachments={client.noteAttachments}
+      />
+
       <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs space-y-4">
         <h3 className="font-display font-bold text-zinc-950 text-base flex items-center gap-2">
           <IconClipboard className="w-5 h-5 text-blue-600" />

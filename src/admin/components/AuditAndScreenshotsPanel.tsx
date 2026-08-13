@@ -47,6 +47,7 @@ export function AuditAndScreenshotsPanel({
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [downloadingSummary, setDownloadingSummary] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAuditData = async () => {
@@ -71,6 +72,36 @@ export function AuditAndScreenshotsPanel({
   useEffect(() => {
     fetchAuditData();
   }, [entityType, entityId]);
+
+  const handleDownloadSummaryHtml = async () => {
+    setDownloadingSummary(true);
+    try {
+      const token = await getIdToken();
+      const res = await fetch(`/api/admin/diagnostic/html/${entityId}?mode=client`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        throw new Error('Falha ao gerar o HTML resumido.');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const domainClean = (leadUrl || diagnostic?.clientUrl || entityId)
+        .replace(/^https?:\/\//i, '')
+        .replace(/\/.*$/, '')
+        .replace(/[^a-z0-9_-]/gi, '_');
+      a.download = `Relatorio_GEO_Resumido_${domainClean}.html`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert(`Erro ao baixar HTML Resumido: ${e.message}`);
+    } finally {
+      setDownloadingSummary(false);
+    }
+  };
 
   // Consolidar agentAuditLog do diagnóstico local caso auditData do servidor ainda não exista
   const auditLogs: AuditEntry[] =
@@ -150,14 +181,14 @@ export function AuditAndScreenshotsPanel({
               Perguntas executadas pelos agentes, respostas brutas das IAs, citação de marca e capturas de tela armazenadas na pasta do {entityType === 'client' ? 'cliente' : 'lead'}.
             </p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
               className="bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-semibold py-2 px-3.5 rounded-xl text-xs shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
             >
               {uploading ? (
-                <><IconHourglass className="w-3.5 h-3.5" /> Enviando...</>
+                <><IconHourglass className="w-3.5 h-3.5 animate-spin" /> Enviando...</>
               ) : (
                 <>📸 Anexar Print de Conversa</>
               )}
@@ -169,6 +200,18 @@ export function AuditAndScreenshotsPanel({
               accept="image/*"
               className="hidden"
             />
+            <button
+              onClick={handleDownloadSummaryHtml}
+              disabled={downloadingSummary}
+              className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-semibold py-2 px-3.5 rounded-xl text-xs shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              title="Baixar HTML resumido para enviar via WhatsApp ou LinkedIn"
+            >
+              {downloadingSummary ? (
+                <><IconHourglass className="w-3.5 h-3.5 animate-spin" /> Baixando...</>
+              ) : (
+                <>📥 Baixar HTML Resumido</>
+              )}
+            </button>
             {htmlFile && (
               <a
                 href={htmlFile.url}
