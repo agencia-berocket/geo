@@ -934,6 +934,18 @@ app.get('/api/admin/leads', verifyAdminToken, async (req, res) => {
         }),
         emailSentAt: f.emailSentAt?.stringValue || '',
         pipelineStage: f.pipelineStage?.stringValue || '',
+        notes: f.notes?.stringValue || '',
+        noteAttachments: (f.noteAttachments?.arrayValue?.values || []).map(v => {
+          const item = v.mapValue?.fields || {};
+          return {
+            id: item.id?.stringValue || '',
+            name: item.name?.stringValue || '',
+            url: item.url?.stringValue || '',
+            sizeBytes: parseInt(item.sizeBytes?.integerValue || item.sizeBytes?.doubleValue || '0'),
+            fileType: item.fileType?.stringValue || 'other',
+            createdAt: item.createdAt?.stringValue || '',
+          };
+        }),
       };
     };
 

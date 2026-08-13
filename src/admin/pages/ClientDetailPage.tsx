@@ -171,7 +171,7 @@ function InfoField({ label, value, isLink }: { label: string; value: string; isL
 }
 
 // ─── PANEL: HISTÓRICO DO LEAD (dados herdados na conversão) ──────────────────
-function LeadHistoryPanel({ client }: { client: Client }) {
+function LeadHistoryPanel({ client, onNotesSaved }: { client: Client; onNotesSaved?: (notes: string) => void }) {
   const hasProspectingData = !!(
     client.contactName || client.phone || client.linkedinUrl ||
     (client.searchTerms && client.searchTerms.length > 0) ||
@@ -186,6 +186,7 @@ function LeadHistoryPanel({ client }: { client: Client }) {
         entityId={client.id}
         initialNotes={client.notes}
         initialAttachments={client.noteAttachments}
+        onNotesSaved={onNotesSaved}
       />
 
       <div className="bg-white border border-zinc-200 rounded-2xl p-6 shadow-xs space-y-4">
@@ -839,7 +840,14 @@ export default function ClientDetailPage({ clientId, onNavigate }: ClientDetailP
       </div>
 
       {/* VIEW 0: HISTÓRICO DO LEAD */}
-      {mainView === 'lead_history' && <LeadHistoryPanel client={client} />}
+      {mainView === 'lead_history' && (
+        <LeadHistoryPanel
+          client={client}
+          onNotesSaved={(updatedNotes) => {
+            setClient(prev => prev ? { ...prev, notes: updatedNotes } : null);
+          }}
+        />
+      )}
 
       {/* VIEW 1: AGENTS & DELIVERABLES */}
       {mainView === 'deliverables' && (
