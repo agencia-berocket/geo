@@ -43,9 +43,9 @@ export default function Modal({
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   return (
-    <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 md:p-8 overflow-y-auto">
+    <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-start justify-center p-3 sm:p-6 md:p-8 overflow-y-auto">
       <div
-        className={`tactile-raised bg-[#f4f5f8] w-full shadow-2xl flex flex-col p-4 sm:p-6 gap-4 transition-all rounded-2xl sm:rounded-3xl ${
+        className={`tactile-raised bg-[#f4f5f8] w-full my-auto shadow-2xl flex flex-col p-4 sm:p-6 gap-4 transition-all rounded-2xl sm:rounded-3xl max-h-[90vh] overflow-y-auto ${
           isFullscreen ? 'max-w-full min-h-[calc(100vh-2rem)]' : maxWidth
         }`}
       >

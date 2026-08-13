@@ -5,6 +5,7 @@ import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel
 import { NotepadPanel } from '../components/NotepadPanel';
 import Modal from '../components/Modal';
 import ManageLeadModal from '../components/ManageLeadModal';
+import LeadCommercialPipelinePanel from '../components/LeadCommercialPipelinePanel';
 import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS, COMMERCIAL_STAGES, COMMERCIAL_STAGE_MAP, getCommercialStageConfig, calculateLeadMetrics } from '../lib/pipeline';
 import {
   IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
@@ -1103,6 +1104,16 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
         {/* TAB 4: PIPELINE */}
         {activeTab === 'pipeline' && (
           <div className="space-y-6">
+            {/* Painel Navegável de Gestão do Pipeline Comercial (14 Etapas & 3 Perguntas) */}
+            <LeadCommercialPipelinePanel
+              lead={lead}
+              onSave={async (patch) => {
+                await editLead(lead.id, patch);
+                setLead(prev => prev ? { ...prev, ...patch } : null);
+                showToast('✅ Pipeline comercial atualizado com sucesso!');
+              }}
+            />
+
             {lead.searchTermsStatus !== 'approved' && (
               <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 shadow-sm space-y-3 animate-fadeIn">
                 <div className="flex items-center gap-2 font-display font-bold text-amber-950 text-sm">
