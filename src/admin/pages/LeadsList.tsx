@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useLeads, type Lead } from '../hooks/useFirestore';
-import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS } from '../lib/pipeline';
+import {
+  getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS,
+  COMMERCIAL_STAGES, COMMERCIAL_STAGE_MAP, getCommercialStage, getCommercialStageConfig, calculateLeadMetrics
+} from '../lib/pipeline';
+import ManageLeadModal from '../components/ManageLeadModal';
 import {
   IconCheck, IconX, IconTrash, IconPlay, IconTarget,
   IconShield, IconSearch, IconRefresh, IconPlus, IconSparkles, IconLock,
-  IconChevron, IconSend, IconMail
+  IconChevron, IconSend, IconMail, IconEdit
 } from '../components/icons';
 import { getAuth } from 'firebase/auth';
 
@@ -35,11 +39,12 @@ function getTemperatureBadge(temp?: string) {
 }
 
 export default function LeadsList({ onNavigate }: LeadsListProps) {
-  const { leads, loading, error, fetchLeads, deleteLead, addLead } = useLeads();
+  const { leads, loading, error, fetchLeads, deleteLead, addLead, editLead } = useLeads();
   const [searchTerm, setSearchTerm] = useState('');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [temperatureFilter, setTemperatureFilter] = useState<string>('all');
+  const [commercialStageFilter, setCommercialStageFilter] = useState<string>('all');
 
   // Mining drawer/collapsible state
   const [showMiningPanel, setShowMiningPanel] = useState(false);
@@ -57,6 +62,9 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addingLead, setAddingLead] = useState(false);
   const [newLead, setNewLead] = useState({ url: '', email: '', company: '', contactName: '', contactRole: '', phone: '', linkedinUrl: '', niche: '' });
+
+  // Manage Lead Modal state
+  const [selectedLeadForManage, setSelectedLeadForManage] = useState<Lead | null>(null);
 
   const showToastMsg = (msg: string) => {
     setToast(msg);
@@ -139,7 +147,18 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
     }
   };
 
-  // Rótulo textual simples da origem do lead (sem ícones/emojis)
+  const handleSaveManage = async (leadId: string, patch: Partial<Lead>) => {
+    try {
+      await editLead(leadId, patch);
+      showToastMsg('✅ Pipeline comercial atualizado com sucesso!');
+      fetchLeads();
+    } catch (err: any) {
+      showToastMsg(`Erro ao atualizar pipeline: ${err.message}`);
+      throw err;
+    }
+  };
+
+  // Rótulo textual simples da origem do lead
   const getSourceLabel = (lead: Lead) => {
     const src = lead.source || 'lp';
     if (src === 'lp') return 'Landing Page';
@@ -156,7 +175,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
     const isConverted = l.status === 'converted' || l.temperature === 'converted';
     if (isConverted && temperatureFilter !== 'converted') return false;
 
-    const searchMatch = !searchTerm || [l.company, l.domain, l.url, l.email, l.contactName, l.name, l.niche].some(field =>
+    const searchMatch = !searchTerm || [l.company, l.domain, l.url, l.email, l.contactName, l.name, l.niche, l.nextAction, l.lastInteraction].some(field =>
       (field || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -170,8 +189,9 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
 
     const statusMatch = statusFilter === 'all' || l.status === statusFilter;
     const tempMatch = temperatureFilter === 'all' || l.temperature === temperatureFilter;
+    const commStageMatch = commercialStageFilter === 'all' || getCommercialStage(l) === commercialStageFilter;
 
-    return searchMatch && sourceMatch && statusMatch && tempMatch;
+    return searchMatch && sourceMatch && statusMatch && tempMatch && commStageMatch;
   });
 
   // Calculate quick statistics
@@ -193,15 +213,24 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
         </div>
       )}
 
+      {/* MODAL DE GERENCIAMENTO DO LEAD */}
+      {selectedLeadForManage && (
+        <ManageLeadModal
+          lead={selectedLeadForManage}
+          onClose={() => setSelectedLeadForManage(null)}
+          onSave={handleSaveManage}
+        />
+      )}
+
       {/* Top Header & Mining Trigger */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm">
         <div>
           <h1 className="font-display font-black text-2xl text-zinc-950 tracking-tight flex items-center gap-2">
             <IconTarget className="w-6 h-6 text-zinc-900" />
-            Leads
+            Leads & Pipeline Comercial
           </h1>
           <p className="text-xs text-zinc-500 mt-1 font-mono">
-            Gerenciamento completo de prospecção, origem do lead, termos de pesquisa e diagnósticos GEO.
+            Gerenciamento completo de pipeline comercial (14 etapas), contatos, acompanhamento de datas e diagnósticos GEO.
           </p>
         </div>
 
@@ -244,7 +273,6 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
           </div>
 
           <form onSubmit={handleStartMining} className="space-y-4">
-            {/* Mining Source Selection */}
             <div>
               <label className="block text-xs font-mono font-bold text-zinc-700 mb-2 uppercase">Canal de Mineração:</label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -269,7 +297,6 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
               </div>
             </div>
 
-            {/* Inputs based on mining source */}
             {miningSource === 'import' ? (
               <div className="space-y-2">
                 <label className="block text-xs font-mono font-bold text-zinc-700">URLs ou Domínios para Importar (um por linha):</label>
@@ -512,10 +539,22 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por empresa, domínio, e-mail ou decisor..."
+            placeholder="Buscar por empresa, domínio, e-mail, decisor ou próxima ação..."
             className="w-full pl-10 pr-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-medium focus:outline-none focus:border-zinc-950 focus:bg-white"
           />
         </div>
+
+        {/* Commercial Stage Filter */}
+        <select
+          value={commercialStageFilter}
+          onChange={(e) => setCommercialStageFilter(e.target.value)}
+          className="w-full md:w-auto px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-mono font-bold text-zinc-800 cursor-pointer"
+        >
+          <option value="all">Todas as Etapas do Funil</option>
+          {COMMERCIAL_STAGES.map(s => (
+            <option key={s.key} value={s.key}>{s.label}</option>
+          ))}
+        </select>
 
         {/* Source Filter */}
         <select
@@ -569,15 +608,16 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                   <th className="p-4">Decisor & Nicho</th>
                   <th className="p-4">Temperatura</th>
                   <th className="p-4 text-center">Score GEO</th>
-                  <th className="p-4">Status do Pipeline</th>
-                  <th className="p-4 text-right">Excluir</th>
+                  <th className="p-4">Pipeline Comercial & Próxima Ação</th>
+                  <th className="p-4 text-right">Gerenciar & Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 text-xs">
                 {filteredLeads.map((lead) => {
                   const score = lead.geoScore || lead.geoScoreEstimado || 0;
-                  const stage = getPipelineStage(lead);
-                  const followupLabel = formatFollowupLabel(lead);
+                  const commConfig = getCommercialStageConfig(lead);
+                  const metrics = calculateLeadMetrics(lead);
+
                   return (
                     <tr
                       key={lead.id}
@@ -589,7 +629,7 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                         <div className="font-display font-bold text-zinc-950 text-sm group-hover:text-blue-600 transition-colors">
                           {lead.company || lead.domain || lead.url}
                         </div>
-                        <div className="text-[11px] text-zinc-400 font-mono truncate max-w-[200px]">
+                        <div className="text-[11px] text-zinc-400 font-mono truncate max-w-[180px]">
                           {lead.url}
                         </div>
                       </td>
@@ -616,34 +656,70 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                         {getTemperatureBadge(lead.temperature)}
                       </td>
 
-                      {/* Score GEO — apenas número e cor, sem gráfico */}
+                      {/* Score GEO */}
                       <td className="p-4 text-center">
                         <span className={`font-display font-black text-lg ${getGeoScoreColor(score)}`}>
                           {score}%
                         </span>
                       </td>
 
-                      {/* Status do Pipeline */}
+                      {/* PIPELINE COMERCIAL & PRÓXIMA AÇÃO (NOVA COLUNA SOLICITADA) */}
                       <td className="p-4">
-                        <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full border ${PIPELINE_STAGE_COLORS[stage]}`}>
-                          {PIPELINE_STAGE_LABELS[stage]}
-                        </span>
-                        {followupLabel && (
-                          <div className="text-[10px] text-zinc-400 font-mono mt-1">
-                            Follow-up: e-mail {followupLabel}
+                        <div className="space-y-1.5">
+                          <span className={`inline-flex items-center text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${commConfig.badgeClass}`}>
+                            {commConfig.label}
+                          </span>
+
+                          <div className="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                            <span className="text-blue-600 text-xs">👉</span>
+                            <span>{lead.nextAction || commConfig.defaultNextAction}</span>
                           </div>
-                        )}
+
+                          <div className="flex flex-wrap items-center gap-2 text-[10px] font-mono text-zinc-500">
+                            {metrics.followupStatus === 'overdue' && (
+                              <span className="text-red-700 font-bold bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">
+                                {metrics.followupStatusFormatted}
+                              </span>
+                            )}
+                            {metrics.followupStatus === 'due_today' && (
+                              <span className="text-amber-800 font-bold bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                                {metrics.followupStatusFormatted}
+                              </span>
+                            )}
+                            {metrics.followupStatus === 'upcoming' && (
+                              <span className="text-zinc-600 font-medium">
+                                {metrics.followupStatusFormatted}
+                              </span>
+                            )}
+                            {metrics.daysWithoutResponseFormatted !== 'Sem contatos' && (
+                              <span className="text-zinc-400">
+                                · {metrics.daysWithoutResponseFormatted}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </td>
 
-                      {/* Action */}
+                      {/* GERENCIAR & AÇÕES (BOTÃO SOLICITADO) */}
                       <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleDelete(lead.id, lead.company || lead.domain || lead.id)}
-                          className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Excluir Lead"
-                        >
-                          <IconTrash className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setSelectedLeadForManage(lead)}
+                            className="px-3 py-1.5 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-[11px] font-bold font-display shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                            title="Gerenciar Pipeline Comercial do Lead"
+                          >
+                            <IconEdit className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Gerenciar</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleDelete(lead.id, lead.company || lead.domain || lead.id)}
+                            className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Excluir Lead"
+                          >
+                            <IconTrash className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -656,8 +732,9 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
           <div className="lg:hidden divide-y divide-zinc-100">
             {filteredLeads.map((lead) => {
               const score = lead.geoScore || lead.geoScoreEstimado || 0;
-              const stage = getPipelineStage(lead);
-              const followupLabel = formatFollowupLabel(lead);
+              const commConfig = getCommercialStageConfig(lead);
+              const metrics = calculateLeadMetrics(lead);
+
               return (
                 <div
                   key={lead.id}
@@ -674,37 +751,52 @@ export default function LeadsList({ onNavigate }: LeadsListProps) {
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-1">
-                    <div>
-                      <span className="text-zinc-400 block text-[9px] font-mono">TEMPERATURA</span>
-                      {getTemperatureBadge(lead.temperature)}
-                    </div>
+                  {/* Badges de Etapa & Temperatura */}
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span className={`inline-flex text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${commConfig.badgeClass}`}>
+                      {commConfig.label}
+                    </span>
+                    {getTemperatureBadge(lead.temperature)}
+                    <span className={`font-display font-black text-xs ml-auto ${getGeoScoreColor(score)}`}>
+                      Score GEO: {score}%
+                    </span>
+                  </div>
 
-                    <div>
-                      <span className="text-zinc-400 block text-[9px] font-mono text-center">SCORE GEO</span>
-                      <span className={`font-display font-black ${getGeoScoreColor(score)}`}>{score}%</span>
+                  {/* Próxima Ação */}
+                  <div className="bg-zinc-50 border border-zinc-200/80 rounded-xl p-2.5 space-y-1">
+                    <div className="text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                      <span className="text-blue-600">👉 Próxima Ação:</span>
+                      <span>{lead.nextAction || commConfig.defaultNextAction}</span>
                     </div>
-
-                    <div>
-                      <span className="text-zinc-400 block text-[9px] font-mono text-right">PIPELINE</span>
-                      <span className={`inline-flex text-[10px] font-bold px-2 py-0.5 rounded-full border ${PIPELINE_STAGE_COLORS[stage]}`}>
-                        {PIPELINE_STAGE_LABELS[stage]}
-                      </span>
+                    <div className="text-[10px] font-mono text-zinc-500 flex items-center gap-2">
+                      <span>{metrics.followupStatusFormatted}</span>
+                      {metrics.daysWithoutResponseFormatted !== 'Sem contatos' && (
+                        <span>· {metrics.daysWithoutResponseFormatted}</span>
+                      )}
                     </div>
                   </div>
 
+                  {/* Actions Bar */}
                   <div className="pt-2 flex items-center justify-between border-t border-zinc-100" onClick={(e) => e.stopPropagation()}>
                     <span className="text-[10px] text-zinc-400 font-mono">
                       {new Date(lead.createdAt).toLocaleDateString('pt-BR')}
-                      {followupLabel && ` · e-mail ${followupLabel}`}
                     </span>
-                    <button
-                      onClick={() => handleDelete(lead.id, lead.company || lead.domain || lead.id)}
-                      className="p-1.5 text-zinc-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                      title="Excluir Lead"
-                    >
-                      <IconTrash className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setSelectedLeadForManage(lead)}
+                        className="px-3 py-1 bg-zinc-950 text-white rounded-lg text-[11px] font-bold font-display shadow-xs flex items-center gap-1 cursor-pointer"
+                      >
+                        <IconEdit className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Gerenciar</span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(lead.id, lead.company || lead.domain || lead.id)}
+                        className="p-1 text-zinc-400 hover:text-red-600 rounded-lg"
+                        title="Excluir Lead"
+                      >
+                        <IconTrash className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

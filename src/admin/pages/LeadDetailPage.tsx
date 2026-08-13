@@ -4,7 +4,8 @@ import GeoScoreGauge from '../components/GeoScoreGauge';
 import { AuditAndScreenshotsPanel } from '../components/AuditAndScreenshotsPanel';
 import { NotepadPanel } from '../components/NotepadPanel';
 import Modal from '../components/Modal';
-import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS } from '../lib/pipeline';
+import ManageLeadModal from '../components/ManageLeadModal';
+import { getPipelineStage, formatFollowupLabel, PIPELINE_STAGE_LABELS, PIPELINE_STAGE_COLORS, COMMERCIAL_STAGES, COMMERCIAL_STAGE_MAP, getCommercialStageConfig, calculateLeadMetrics } from '../lib/pipeline';
 import {
   IconCheck, IconX, IconWarning, IconEdit, IconTrash, IconPlay, IconStar,
   IconShield, IconFolder, IconClipboard, IconChat, IconBot, IconHourglass,
@@ -114,7 +115,14 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
   const [diagnosticErrorMsg, setDiagnosticErrorMsg] = useState<string | null>(null);
   const [htmlPreviewUrl, setHtmlPreviewUrl] = useState<string | null>(null);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
   const [converting, setConverting] = useState(false);
+
+  const handleSaveManageModal = async (leadId: string, patch: Partial<Lead>) => {
+    await editLead(leadId, patch);
+    setLead(prev => prev ? { ...prev, ...patch } : null);
+    showToast('✅ Pipeline comercial atualizado com sucesso!');
+  };
 
   // Pipeline / Outreach state
   const [copyTab, setCopyTab] = useState<CopyFramework>('PAS');
@@ -653,6 +661,16 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
             <option value="converted">💎 Convertido</option>
             <option value="lost">❌ Perdido</option>
           </select>
+
+          {/* Button Gerenciar Pipeline Comercial */}
+          <button
+            onClick={() => setShowManageModal(true)}
+            className="px-3.5 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-bold font-display shadow-xs flex items-center gap-1.5 cursor-pointer"
+            title="Gerenciar Pipeline Comercial"
+          >
+            <IconEdit className="w-3.5 h-3.5 text-amber-400" />
+            <span>Gerenciar Pipeline</span>
+          </button>
 
           {/* Convert to Client Button — só aparece se ainda não foi convertido */}
           {lead.status !== 'converted' && lead.temperature !== 'converted' && (
@@ -1280,6 +1298,15 @@ export default function LeadDetailPage({ leadId, onNavigate }: LeadDetailPagePro
           </div>
         )}
       </div>
+
+      {/* Manage Lead Commercial Pipeline Modal */}
+      {showManageModal && lead && (
+        <ManageLeadModal
+          lead={lead}
+          onClose={() => setShowManageModal(false)}
+          onSave={handleSaveManageModal}
+        />
+      )}
 
       {/* Convert to Client Modal */}
       {showConvertModal && lead && (

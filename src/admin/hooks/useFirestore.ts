@@ -105,9 +105,38 @@ export interface Lead {
   citedCompetitor?: string;
   emailSentAt?: string;
   pipelineStage?: PipelineStage;
+  commercialStage?: CommercialStage;
+  nextAction?: string;
+  nextFollowupDate?: string;
+  lastInteraction?: string;
+  firstContactAt?: string;
+  respondedAt?: string;
+  lastContactAt?: string;
+  meetingDate?: string;
+  proposalDate?: string;
+  closedAt?: string;
+  stageChangedAt?: string;
+  followupCount?: number;
+  assignedTo?: string;
   notes?: string;
   noteAttachments?: NoteAttachment[];
 }
+
+export type CommercialStage =
+  | 'lead_captured'
+  | 'initial_contact'
+  | 'responded'
+  | 'qualification'
+  | 'meeting_scheduled'
+  | 'meeting_done'
+  | 'proposal_sent'
+  | 'negotiation'
+  | 'awaiting_decision'
+  | 'closed_won'
+  | 'closed_lost'
+  | 'onboarding'
+  | 'active_client'
+  | 'expansion_upsell';
 
 export type PipelineStage = 'new' | 'terms_approved' | 'diagnosed' | 'email_sent' | 'responded' | 'converted';
 
