@@ -25,62 +25,59 @@ export function NotepadPanel({
   const [notes, setNotes] = useState(initialNotes);
   const [attachments, setAttachments] = useState<NoteAttachment[]>(initialAttachments);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [isDirty, setIsDirty] = useState(false);
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Synchronize initial notes & attachments when props update
+  // Synchronize initial notes & attachments when props update (without forcing dirty)
   useEffect(() => {
     setNotes(initialNotes);
+    setIsDirty(false);
   }, [initialNotes]);
 
   useEffect(() => {
     setAttachments(initialAttachments);
   }, [initialAttachments]);
 
-  // Save notes to backend
-  const saveNotesToBackend = useCallback(
-    async (textToSave: string) => {
-      setSaveStatus('saving');
-      try {
-        const token = await getIdToken();
-        const endpoint = entityType === 'client' ? `/api/admin/clients/${entityId}` : `/api/admin/leads/${entityId}`;
-        const res = await fetch(endpoint, {
-          method: 'PATCH',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ notes: textToSave }),
-        });
+  // Save notes to backend manually
+  const saveNotesToBackend = async () => {
+    setSaveStatus('saving');
+    try {
+      const token = await getIdToken();
+      const endpoint = entityType === 'client' ? `/api/admin/clients/${entityId}` : `/api/admin/leads/${entityId}`;
+      const res = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes }),
+      });
 
-        if (!res.ok) {
-          throw new Error('Falha ao salvar notas.');
-        }
-
-        setSaveStatus('saved');
-        const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        setLastSavedTime(now);
-        if (onNotesSaved) onNotesSaved(textToSave);
-      } catch (err) {
-        console.error('Error auto-saving notes:', err);
-        setSaveStatus('error');
+      if (!res.ok) {
+        throw new Error('Falha ao salvar notas.');
       }
-    },
-    [entityType, entityId, onNotesSaved]
-  );
 
-  // Debounced Auto-Save (800ms)
-  useEffect(() => {
-    if (notes === initialNotes && saveStatus === 'idle') return;
+      setSaveStatus('saved');
+      setIsDirty(false);
+      const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      setLastSavedTime(now);
+      if (onNotesSaved) onNotesSaved(notes);
+    } catch (err) {
+      console.error('Error saving notes:', err);
+      setSaveStatus('error');
+    }
+  };
 
-    const timer = setTimeout(() => {
-      saveNotesToBackend(notes);
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, [notes, initialNotes, saveNotesToBackend]);
+  // Shortcut Ctrl+S / Cmd+S for quick saving
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveNotesToBackend();
+    }
+  };
 
   // Upload attachment file
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,26 +174,42 @@ export function NotepadPanel({
           </h3>
         </div>
 
-        {/* Auto-Save Indicator */}
-        <div className="flex items-center gap-2 text-xs font-mono">
-          {saveStatus === 'saving' && (
-            <span className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 font-semibold">
-              <IconHourglass className="w-3.5 h-3.5 animate-spin" /> Salvando...
-            </span>
-          )}
-          {saveStatus === 'saved' && (
-            <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 font-semibold">
-              <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> Salvo automaticamente {lastSavedTime ? `às ${lastSavedTime}` : ''}
-            </span>
-          )}
-          {saveStatus === 'error' && (
-            <span className="flex items-center gap-1.5 text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-200 font-semibold">
-              <IconX className="w-3.5 h-3.5" /> Erro ao salvar
-            </span>
-          )}
-          {saveStatus === 'idle' && (
-            <span className="text-zinc-400 text-[11px]">Salvo automaticamente ao digitar</span>
-          )}
+        {/* Manual Save Button & Status Indicator */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs font-mono">
+            {saveStatus === 'saving' && (
+              <span className="flex items-center gap-1.5 text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 font-semibold">
+                <IconHourglass className="w-3.5 h-3.5 animate-spin" /> Salvando...
+              </span>
+            )}
+            {saveStatus === 'saved' && !isDirty && (
+              <span className="flex items-center gap-1.5 text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 font-semibold">
+                <IconCheck className="w-3.5 h-3.5 text-emerald-600" /> Salvo {lastSavedTime ? `às ${lastSavedTime}` : ''}
+              </span>
+            )}
+            {isDirty && (
+              <span className="flex items-center gap-1.5 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 font-semibold">
+                🟡 Alterações não salvas
+              </span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="flex items-center gap-1.5 text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-200 font-semibold">
+                <IconX className="w-3.5 h-3.5" /> Erro ao salvar
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={saveNotesToBackend}
+            disabled={saveStatus === 'saving'}
+            className="px-3.5 py-1.5 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white font-display font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            {saveStatus === 'saving' ? (
+              <><IconHourglass className="w-3.5 h-3.5 animate-spin" /> Salvando...</>
+            ) : (
+              <><IconCheck className="w-3.5 h-3.5 text-emerald-400" /> Salvar Anotações</>
+            )}
+          </button>
         </div>
       </div>
 
@@ -204,10 +217,13 @@ export function NotepadPanel({
       <div className="relative">
         <textarea
           value={notes}
-          onChange={e => setNotes(e.target.value)}
-          onBlur={() => saveNotesToBackend(notes)}
+          onChange={e => {
+            setNotes(e.target.value);
+            setIsDirty(true);
+          }}
+          onKeyDown={handleKeyDown}
           rows={5}
-          placeholder="Escreva anotações importantes, histórico de reuniões, alinhamentos ou observações sobre o contato..."
+          placeholder="Escreva anotações importantes, histórico de reuniões, alinhamentos ou observações sobre o contato... (Pressione Ctrl+S para salvar)"
           className="w-full bg-zinc-50 border border-zinc-200 rounded-xl p-3.5 text-xs text-zinc-900 placeholder:text-zinc-400 focus:bg-white focus:border-zinc-400 focus:ring-2 focus:ring-zinc-900/10 transition-all font-sans leading-relaxed resize-y"
         />
       </div>
