@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-02T19:12:12.276Z",
+  "generatedAt": "2026-10-05T12:25:59.395Z",
   "range": {
-    "startDate": "2026-09-26",
-    "endDate": "2026-10-02"
+    "startDate": "2026-09-29",
+    "endDate": "2026-10-05"
   },
   "reportingTimezone": "America/Sao_Paulo",
   "refreshSeconds": 60,
@@ -11,25 +11,20 @@
     "ga4": {
       "source": "ga4",
       "range": {
-        "startDate": "2026-09-26",
-        "endDate": "2026-10-02"
+        "startDate": "2026-09-29",
+        "endDate": "2026-10-05"
       },
       "status": "ok",
-      "attemptedAt": "2026-10-02T19:10:08.926Z",
-      "updatedAt": "2026-10-02T19:10:09.709Z",
+      "attemptedAt": "2026-10-05T12:25:48.908Z",
+      "updatedAt": "2026-10-05T12:25:51.599Z",
       "data": {
-        "users": 23,
-        "sessions": 39,
-        "events": 161,
-        "engagementRate": 0.5641025641025641,
-        "averageSessionDuration": 189.52951317948717,
+        "users": 26,
+        "sessions": 35,
+        "events": 147,
+        "engagementRate": 0.42857142857142855,
+        "averageSessionDuration": 130.99605991428572,
         "timezone": "America/Rio_Branco",
         "daily": [
-          {
-            "date": "20260928",
-            "sessions": 18,
-            "users": 9
-          },
           {
             "date": "20260929",
             "sessions": 8,
@@ -47,26 +42,32 @@
           },
           {
             "date": "20261002",
-            "sessions": 1,
-            "users": 0
+            "sessions": 5,
+            "users": 2
+          },
+          {
+            "date": "20261003",
+            "sessions": 6,
+            "users": 6
+          },
+          {
+            "date": "20261004",
+            "sessions": 4,
+            "users": 4
           }
         ],
         "channels": [
           {
             "channel": "Direct",
-            "sessions": 21
+            "sessions": 22
           },
           {
             "channel": "Organic Search",
-            "sessions": 10
+            "sessions": 11
           },
           {
             "channel": "AI Assistant",
-            "sessions": 4
-          },
-          {
-            "channel": "Referral",
-            "sessions": 3
+            "sessions": 2
           },
           {
             "channel": "Unassigned",
@@ -80,10 +81,10 @@
       "source": "realtime",
       "range": null,
       "status": "ok",
-      "attemptedAt": "2026-10-02T19:12:09.553Z",
-      "updatedAt": "2026-10-02T19:12:10.556Z",
+      "attemptedAt": "2026-10-05T12:25:49.043Z",
+      "updatedAt": "2026-10-05T12:25:51.431Z",
       "data": {
-        "activeUsers": 1,
+        "activeUsers": 0,
         "windowMinutes": 30
       },
       "error": null
@@ -91,228 +92,39 @@
     "gsc": {
       "source": "gsc",
       "range": {
-        "startDate": "2026-09-26",
-        "endDate": "2026-10-02"
+        "startDate": "2026-09-29",
+        "endDate": "2026-10-05"
       },
-      "status": "ok",
-      "attemptedAt": "2026-10-02T18:23:08.781Z",
-      "updatedAt": "2026-10-02T18:23:10.073Z",
-      "data": {
-        "property": "https://casadevideo.com.br/",
-        "clicks": 4,
-        "impressions": 119,
-        "ctr": 0.03361344537815126,
-        "position": 11.789915966386555,
-        "daily": [
-          {
-            "date": "2026-09-26",
-            "clicks": 1,
-            "impressions": 20
-          },
-          {
-            "date": "2026-09-27",
-            "clicks": 0,
-            "impressions": 33
-          },
-          {
-            "date": "2026-09-28",
-            "clicks": 1,
-            "impressions": 38
-          },
-          {
-            "date": "2026-09-29",
-            "clicks": 2,
-            "impressions": 28
-          }
-        ],
-        "queries": [
-          {
-            "query": "a casa de video",
-            "clicks": 0,
-            "impressions": 3,
-            "ctr": 0,
-            "position": 5.666666666666667
-          },
-          {
-            "query": "agência de produtora de vídeos sp",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 39
-          },
-          {
-            "query": "casa de video",
-            "clicks": 0,
-            "impressions": 24,
-            "ctr": 0,
-            "position": 5.041666666666667
-          },
-          {
-            "query": "casa de vídeo",
-            "clicks": 0,
-            "impressions": 2,
-            "ctr": 0,
-            "position": 2
-          },
-          {
-            "query": "casa do vídeo",
-            "clicks": 0,
-            "impressions": 2,
-            "ctr": 0,
-            "position": 7
-          },
-          {
-            "query": "casa e video sao paulo",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 13
-          },
-          {
-            "query": "empresa de video",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 7
-          },
-          {
-            "query": "produtora audiovisual em são paulo",
-            "clicks": 0,
-            "impressions": 3,
-            "ctr": 0,
-            "position": 24
-          },
-          {
-            "query": "produtora audiovisual sp",
-            "clicks": 0,
-            "impressions": 3,
-            "ctr": 0,
-            "position": 27.666666666666668
-          },
-          {
-            "query": "produtora de video em são paulo",
-            "clicks": 0,
-            "impressions": 5,
-            "ctr": 0,
-            "position": 22.2
-          },
-          {
-            "query": "produtora de video sp",
-            "clicks": 0,
-            "impressions": 3,
-            "ctr": 0,
-            "position": 28.666666666666668
-          },
-          {
-            "query": "produtora de videos",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 43
-          },
-          {
-            "query": "produtora de videos em sao paulo",
-            "clicks": 0,
-            "impressions": 2,
-            "ctr": 0,
-            "position": 24.5
-          },
-          {
-            "query": "produtora de vídeo em são paulo",
-            "clicks": 0,
-            "impressions": 3,
-            "ctr": 0,
-            "position": 31
-          },
-          {
-            "query": "produtora de vídeo sp",
-            "clicks": 0,
-            "impressions": 2,
-            "ctr": 0,
-            "position": 27.5
-          },
-          {
-            "query": "produtora de vídeos em são paulo",
-            "clicks": 0,
-            "impressions": 4,
-            "ctr": 0,
-            "position": 26
-          },
-          {
-            "query": "produtora video sao paulo",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 25
-          },
-          {
-            "query": "produtora video sp",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 25
-          },
-          {
-            "query": "video produções",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 5
-          },
-          {
-            "query": "video sa",
-            "clicks": 0,
-            "impressions": 1,
-            "ctr": 0,
-            "position": 1
-          },
-          {
-            "query": "xvídeos site",
-            "clicks": 0,
-            "impressions": 2,
-            "ctr": 0,
-            "position": 5
-          }
-        ],
-        "lastDataDate": "2026-09-29",
-        "queryCoverage": "Principais consultas retornadas pelo Google; consultas anonimizadas e limites da API podem reduzir a cobertura."
-      },
-      "error": null
+      "status": "error",
+      "attemptedAt": "2026-10-05T11:54:51.771Z",
+      "updatedAt": null,
+      "data": null,
+      "error": {
+        "code": "permission_denied",
+        "message": "A fonte retornou HTTP 403. Habilite a API correspondente no projeto Google Cloud da conta de serviço."
+      }
     },
     "ads": {
       "source": "ads",
       "range": {
-        "startDate": "2026-09-26",
-        "endDate": "2026-10-02"
+        "startDate": "2026-09-29",
+        "endDate": "2026-10-05"
       },
-      "status": "ok",
-      "attemptedAt": "2026-10-02T19:09:08.923Z",
-      "updatedAt": "2026-10-02T19:09:10.228Z",
-      "data": {
-        "cost": 0,
-        "clicks": 0,
-        "impressions": 0,
-        "conversions": 0,
-        "conversionValue": 0,
-        "ctr": null,
-        "cpc": null,
-        "costPerConversion": null,
-        "conversionRate": null,
-        "roas": null,
-        "currency": null,
-        "timezone": null,
-        "campaigns": [],
-        "daily": [],
-        "conversionNote": "Conversões atribuídas pelo Google Ads; não equivalem automaticamente a leads qualificados. Valores podem ser fracionários."
-      },
-      "error": null
+      "status": "not_configured",
+      "attemptedAt": "2026-10-05T12:25:49.043Z",
+      "updatedAt": null,
+      "data": null,
+      "error": {
+        "code": "not_configured",
+        "message": "Configure Customer ID e OAuth do Google Ads no servidor."
+      }
     },
     "geo": {
       "source": "geo",
       "range": null,
       "status": "ok",
-      "attemptedAt": "2026-10-02T19:12:08.932Z",
-      "updatedAt": "2026-10-02T19:12:08.934Z",
+      "attemptedAt": "2026-10-05T12:25:49.048Z",
+      "updatedAt": "2026-10-05T12:25:49.242Z",
       "data": {
         "latest": {
           "id": "rodada-2026-09-24",
@@ -877,7 +689,7 @@
       "source": "cwv",
       "range": null,
       "status": "not_configured",
-      "attemptedAt": "2026-10-02T14:25:55.058Z",
+      "attemptedAt": "2026-10-05T11:54:51.781Z",
       "updatedAt": null,
       "data": null,
       "error": {

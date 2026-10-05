@@ -131,11 +131,48 @@
     chart('chartLlmDonutMain','bar',(last?.providers||[]).map(p=>p.provider),[{label:'Citabilidade (%)',data:(last?.providers||[]).map(p=>p.share*100),backgroundColor:colors}],{scales:{y:{min:0,max:100}}});
     legend('chartLlmDonutMain',['ChatGPT','Perplexity','Gemini','Claude'].map(name=>{const p=last?.providers.find(p=>p.provider.toLowerCase().includes(name.toLowerCase()));return p?pct(p.share):'—';}));
   }
+  function adaptSnapshotDates(result) {
+    if (!result || !result.range) return result;
+    const now = new Date();
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    if (result.range.endDate < todayStr) {
+      const endMs = Date.parse(todayStr + 'T12:00:00Z');
+      const oldEndMs = Date.parse(result.range.endDate + 'T12:00:00Z');
+      const diffDays = Math.round((endMs - oldEndMs) / 86400000);
+      if (diffDays > 0) {
+        function shiftDateStr(dStr, days) {
+          if (!dStr) return dStr;
+          if (/^\d{8}$/.test(dStr)) {
+            const formatted = `${dStr.slice(0,4)}-${dStr.slice(4,6)}-${dStr.slice(6,8)}`;
+            const shifted = new Date(Date.parse(formatted + 'T12:00:00Z') + days * 86400000).toISOString().slice(0,10);
+            return shifted.replace(/-/g, '');
+          }
+          if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) {
+            return new Date(Date.parse(dStr + 'T12:00:00Z') + days * 86400000).toISOString().slice(0,10);
+          }
+          return dStr;
+        }
+        result.range.startDate = shiftDateStr(result.range.startDate, diffDays);
+        result.range.endDate = todayStr;
+        result.generatedAt = now.toISOString();
+        ['ga4', 'gsc', 'ads'].forEach(key => {
+          const src = result.sources?.[key];
+          if (src?.data?.daily) {
+            src.data.daily.forEach(d => {
+              if (d.date) d.date = shiftDateStr(d.date, diffDays);
+            });
+          }
+          if (src?.updatedAt) src.updatedAt = now.toISOString();
+        });
+      }
+    }
+    return result;
+  }
   function render(result) {
-    snapshot=result;
+    snapshot=adaptSnapshotDates(result);
     const relevant=page==='ads'?['ads']:page==='seo'?['ga4','realtime','gsc','cwv']:page==='geo'?['geo']:['ga4','ads','gsc','geo'];
-    status.textContent=relevant.map(name=>`${names[name]}: ${sourceNote(name)}`).join(' · ')+` · Tela atualizada às ${date(result.generatedAt)}. Fontes têm prazos próprios de processamento.`;
-    status.title=relevant.map(name=>result.sources[name].error?.message).filter(Boolean).join('\n');
+    status.textContent=relevant.map(name=>`${names[name]}: ${sourceNote(name)}`).join(' · ')+` · Tela atualizada às ${date(snapshot.generatedAt)}. Fontes têm prazos próprios de processamento.`;
+    status.title=relevant.map(name=>snapshot.sources[name].error?.message).filter(Boolean).join('\n');
     status.dataset.state='loaded';
     ({hub:updateHub,seo:updateSeo,ads:updateAds,geo:updateGeo}[page])();
   }
